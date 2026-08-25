@@ -713,18 +713,18 @@
             </div>
             <div class="bench-card">
               <span class="stat-label">🏛️ Ibovespa (IBOV)</span>
-              <div class="bench-val" id="bench-ibov-return" style="color: var(--accent);">+11,80%</div>
+              <div class="bench-val" id="bench-ibov-return" style="color: var(--accent);">+23,96%</div>
               <span style="font-size: 11px; color: var(--text-sub);">Média das ações brasileiras</span>
             </div>
             <div class="bench-card">
               <span class="stat-label">📈 CDI (Renda Fixa)</span>
-              <div class="bench-val" id="bench-cdi-return" style="color: var(--yellow);">+10,50%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">Custo de oportunidade</span>
+              <div class="bench-val" id="bench-cdi-return" style="color: var(--yellow);">+14,71%</div>
+              <span style="font-size: 11px; color: var(--text-sub);">Taxa Selic a 14,00% a.a.</span>
             </div>
             <div class="bench-card">
               <span class="stat-label">🏢 IFIX (FIIs)</span>
-              <div class="bench-val" id="bench-ifix-return" style="color: var(--purple);">+8,90%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">Fundos Imobiliários</span>
+              <div class="bench-val" id="bench-ifix-return" style="color: var(--purple);">+7,49%</div>
+              <span style="font-size: 11px; color: var(--text-sub);">Índice Fundos Imobiliários B3</span>
             </div>
           </div>
         </div>
@@ -2885,9 +2885,9 @@ function setBenchmarkTimeframe(tf, btnEl) {
   const myLbl = document.getElementById('bench-my-lbl');
 
   let myRet = 0;
-  let ibovRet = 11.80;
-  let cdiRet = 10.50;
-  let ifixRet = 8.90;
+  let ibovRet = 23.96;
+  let cdiRet = 14.71;
+  let ifixRet = 7.49;
   let lbl = 'Rentabilidade (12 Meses)';
 
   // Calculate user total portfolio return
@@ -2905,27 +2905,27 @@ function setBenchmarkTimeframe(tf, btnEl) {
 
   if (tf === '1m') {
     myRet = rawTotalRet * 0.12;
-    ibovRet = 2.15;
-    cdiRet = 0.88;
-    ifixRet = 0.72;
+    ibovRet = 2.45;
+    cdiRet = 1.08;
+    ifixRet = 0.65;
     lbl = 'Rentabilidade (Último Mês)';
   } else if (tf === '6m') {
     myRet = rawTotalRet * 0.55;
-    ibovRet = 6.40;
-    cdiRet = 5.20;
-    ifixRet = 4.30;
+    ibovRet = 11.80;
+    cdiRet = 6.85;
+    ifixRet = 3.90;
     lbl = 'Rentabilidade (Últimos 6 Meses)';
   } else if (tf === '12m') {
     myRet = rawTotalRet;
-    ibovRet = 11.80;
-    cdiRet = 10.50;
-    ifixRet = 8.90;
+    ibovRet = 23.96;
+    cdiRet = 14.71;
+    ifixRet = 7.49;
     lbl = 'Rentabilidade (Últimos 12 Meses)';
   } else {
     myRet = rawTotalRet * 1.35;
-    ibovRet = 18.40;
-    cdiRet = 15.80;
-    ifixRet = 13.20;
+    ibovRet = 38.40;
+    cdiRet = 28.50;
+    ifixRet = 16.80;
     lbl = 'Rentabilidade Acumulada (Total)';
   }
 
