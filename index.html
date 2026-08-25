@@ -2501,7 +2501,7 @@ const NumFmt = {
   pct(val, isDec = false) {
     if (val == null || isNaN(val)) return '—';
     let v = Number(val);
-    if (isDec || (Math.abs(v) > 0 && Math.abs(v) < 1)) v = v * 100;
+    if (isDec) v = v * 100;
     return (v > 0 ? '+' : '') + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
   },
   compact(val) {
