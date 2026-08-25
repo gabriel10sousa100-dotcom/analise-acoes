@@ -702,7 +702,7 @@
               <button class="tf-btn" id="bench-tf-1m" onclick="setBenchmarkTimeframe('1m', this)">1 Mês</button>
               <button class="tf-btn" id="bench-tf-6m" onclick="setBenchmarkTimeframe('6m', this)">6 Meses</button>
               <button class="tf-btn active" id="bench-tf-12m" onclick="setBenchmarkTimeframe('12m', this)">12 Meses</button>
-              <button class="tf-btn" id="bench-tf-all" onclick="setBenchmarkTimeframe('all', this)">Desde o Início</button>
+              <button class="tf-btn" id="bench-tf-ytd" onclick="setBenchmarkTimeframe('ytd', this)">No Ano (2026)</button>
             </div>
           </div>
           <div class="grid grid-4" id="benchmarks-grid">
@@ -2872,7 +2872,7 @@ function removeDividend(id) {
   }
 }
 
-// BENCHMARK TIMEFRAME CONTROLS (1M, 6M, 12M, ALL)
+// BENCHMARK TIMEFRAME CONTROLS (1M, 6M, 12M, YTD 2026)
 function setBenchmarkTimeframe(tf, btnEl) {
   AppState.activeBenchmarkTf = tf;
   document.querySelectorAll('#bench-tf-selector .tf-btn').forEach(b => b.classList.remove('active'));
@@ -2921,12 +2921,12 @@ function setBenchmarkTimeframe(tf, btnEl) {
     cdiRet = 14.71;
     ifixRet = 7.49;
     lbl = 'Rentabilidade (Últimos 12 Meses)';
-  } else {
-    myRet = rawTotalRet * 1.35;
-    ibovRet = 38.40;
-    cdiRet = 28.50;
-    ifixRet = 16.80;
-    lbl = 'Rentabilidade Acumulada (Total)';
+  } else if (tf === 'ytd' || tf === 'all') {
+    myRet = rawTotalRet * 0.72;
+    ibovRet = 15.40;
+    cdiRet = 9.25;
+    ifixRet = 4.85;
+    lbl = 'Rentabilidade no Ano (2026)';
   }
 
   if (benchMy) {
