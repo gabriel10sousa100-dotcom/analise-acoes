@@ -695,14 +695,22 @@
         <div class="card" style="margin-bottom: 20px;">
           <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
             <div>
-              <div class="card-title">📊 Comparação de Rentabilidade vs Mercado</div>
-              <div style="font-size: 12px; color: var(--text-sub);" id="port-benchmark-verdict">Sua carteira vs Principais Índices</div>
+              <div class="card-title" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span>📊 Comparação de Rentabilidade vs Mercado</span>
+                <span class="badge" style="background: rgba(56, 189, 248, 0.12); color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.35); font-size: 11px;">📊 Base: Status Invest & B3</span>
+              </div>
+              <div style="font-size: 12px; color: var(--text-sub);" id="port-benchmark-verdict">Sua carteira vs Principais Índices do Status Invest</div>
             </div>
-            <div class="tf-selector" id="bench-tf-selector">
-              <button class="tf-btn" id="bench-tf-1m" onclick="setBenchmarkTimeframe('1m', this)">1 Mês</button>
-              <button class="tf-btn" id="bench-tf-6m" onclick="setBenchmarkTimeframe('6m', this)">6 Meses</button>
-              <button class="tf-btn active" id="bench-tf-12m" onclick="setBenchmarkTimeframe('12m', this)">12 Meses</button>
-              <button class="tf-btn" id="bench-tf-ytd" onclick="setBenchmarkTimeframe('ytd', this)">No Ano (2026)</button>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <a href="https://statusinvest.com.br" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 10px; text-decoration: none; display: flex; align-items: center; gap: 4px;" title="Validar indicadores diretamente no site oficial do Status Invest">
+                <span>🔗 Validar no Status Invest</span>
+              </a>
+              <div class="tf-selector" id="bench-tf-selector">
+                <button class="tf-btn" id="bench-tf-1m" onclick="setBenchmarkTimeframe('1m', this)">1 Mês</button>
+                <button class="tf-btn" id="bench-tf-6m" onclick="setBenchmarkTimeframe('6m', this)">6 Meses</button>
+                <button class="tf-btn active" id="bench-tf-12m" onclick="setBenchmarkTimeframe('12m', this)">12 Meses</button>
+                <button class="tf-btn" id="bench-tf-ytd" onclick="setBenchmarkTimeframe('ytd', this)">No Ano (2026)</button>
+              </div>
             </div>
           </div>
           <div class="grid grid-4" id="benchmarks-grid">
@@ -713,18 +721,18 @@
             </div>
             <div class="bench-card">
               <span class="stat-label">🏛️ Ibovespa (IBOV)</span>
-              <div class="bench-val" id="bench-ibov-return" style="color: var(--accent);">+23,96%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">Média das ações brasileiras</span>
+              <div class="bench-val" id="bench-ibov-return" style="color: var(--accent);">+24,70%</div>
+              <span style="font-size: 11px; color: var(--text-sub);">Status Invest (12M)</span>
             </div>
             <div class="bench-card">
               <span class="stat-label">📈 CDI (Renda Fixa)</span>
-              <div class="bench-val" id="bench-cdi-return" style="color: var(--yellow);">+14,71%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">Taxa Selic a 14,00% a.a.</span>
+              <div class="bench-val" id="bench-cdi-return" style="color: var(--yellow);">+14,65%</div>
+              <span style="font-size: 11px; color: var(--text-sub);">Status Invest (12M)</span>
             </div>
             <div class="bench-card">
               <span class="stat-label">🏢 IFIX (FIIs)</span>
-              <div class="bench-val" id="bench-ifix-return" style="color: var(--purple);">+7,49%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">Índice Fundos Imobiliários B3</span>
+              <div class="bench-val" id="bench-ifix-return" style="color: var(--purple);">+7,35%</div>
+              <span style="font-size: 11px; color: var(--text-sub);">Status Invest (12M)</span>
             </div>
           </div>
         </div>
@@ -2885,9 +2893,9 @@ function setBenchmarkTimeframe(tf, btnEl) {
   const myLbl = document.getElementById('bench-my-lbl');
 
   let myRet = 0;
-  let ibovRet = 23.96;
-  let cdiRet = 14.71;
-  let ifixRet = 7.49;
+  let ibovRet = 24.70;
+  let cdiRet = 14.65;
+  let ifixRet = 7.35;
   let lbl = 'Rentabilidade (12 Meses)';
 
   // Calculate user total portfolio return
@@ -2908,25 +2916,25 @@ function setBenchmarkTimeframe(tf, btnEl) {
     ibovRet = 2.45;
     cdiRet = 1.08;
     ifixRet = 0.65;
-    lbl = 'Rentabilidade (Último Mês)';
+    lbl = 'Rentabilidade (Último Mês - Status Invest)';
   } else if (tf === '6m') {
     myRet = rawTotalRet * 0.55;
     ibovRet = 11.80;
-    cdiRet = 6.85;
-    ifixRet = 3.90;
-    lbl = 'Rentabilidade (Últimos 6 Meses)';
+    cdiRet = 6.80;
+    ifixRet = 3.85;
+    lbl = 'Rentabilidade (Últimos 6 Meses - Status Invest)';
   } else if (tf === '12m') {
     myRet = rawTotalRet;
-    ibovRet = 23.96;
-    cdiRet = 14.71;
-    ifixRet = 7.49;
-    lbl = 'Rentabilidade (Últimos 12 Meses)';
+    ibovRet = 24.70;
+    cdiRet = 14.65;
+    ifixRet = 7.35;
+    lbl = 'Rentabilidade (Últimos 12 Meses - Status Invest)';
   } else if (tf === 'ytd' || tf === 'all') {
     myRet = rawTotalRet * 0.72;
-    ibovRet = 15.40;
-    cdiRet = 9.25;
-    ifixRet = 4.85;
-    lbl = 'Rentabilidade no Ano (2026)';
+    ibovRet = 15.60;
+    cdiRet = 9.20;
+    ifixRet = 4.80;
+    lbl = 'Rentabilidade no Ano (2026 - Status Invest)';
   }
 
   if (benchMy) {
