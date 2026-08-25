@@ -741,8 +741,8 @@
                 <span class="stat-label">📈 CDI (Renda Fixa)</span>
                 <span style="font-size: 10px; color: var(--yellow);">🔗 Calcular no BCB</span>
               </div>
-              <div class="bench-val" id="bench-cdi-return" style="color: var(--yellow);">+14,71%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">Selic 14,00% • Calculadora Banco Central</span>
+              <div class="bench-val" id="bench-cdi-return" style="color: var(--yellow);">+14,33%</div>
+              <span style="font-size: 11px; color: var(--text-sub);">Tabela Oficial Anbima / BCB</span>
             </a>
             <a href="https://statusinvest.com.br/indices/ifix" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Ver tabela histórica mensal e anual do IFIX no Status Invest">
               <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -2912,7 +2912,7 @@ function setBenchmarkTimeframe(tf, btnEl) {
 
   let myRet = 0;
   let ibovRet = 20.90;
-  let cdiRet = 14.71;
+  let cdiRet = 14.33;
   let ifixRet = 5.95;
   let lbl = 'Rentabilidade (12 Meses)';
 
@@ -2932,27 +2932,27 @@ function setBenchmarkTimeframe(tf, btnEl) {
   if (tf === '1m') {
     myRet = rawTotalRet * 0.12;
     ibovRet = -3.91;
-    cdiRet = 1.08;
+    cdiRet = 0.83;
     ifixRet = -3.57;
-    lbl = 'Rentabilidade (Último Mês / Ago 2026 - Status Invest)';
+    lbl = 'Rentabilidade (Último Mês / Ago 2026 - Tabela Oficial)';
   } else if (tf === '6m') {
     myRet = rawTotalRet * 0.55;
     ibovRet = -9.48;
-    cdiRet = 6.85;
+    cdiRet = 6.74;
     ifixRet = -6.71;
-    lbl = 'Rentabilidade (Últimos 6 Meses - Status Invest)';
+    lbl = 'Rentabilidade (Últimos 6 Meses - Tabela Oficial)';
   } else if (tf === '12m') {
     myRet = rawTotalRet;
     ibovRet = 20.90;
-    cdiRet = 14.71;
+    cdiRet = 14.33;
     ifixRet = 5.95;
-    lbl = 'Rentabilidade (Últimos 12 Meses - Status Invest)';
+    lbl = 'Rentabilidade (Últimos 12 Meses - Tabela Oficial)';
   } else if (tf === 'ytd' || tf === 'all') {
     myRet = rawTotalRet * 0.72;
     ibovRet = 6.15;
-    cdiRet = 9.25;
+    cdiRet = 9.04;
     ifixRet = -2.47;
-    lbl = 'Rentabilidade no Ano (2026 - Status Invest)';
+    lbl = 'Rentabilidade no Ano (2026 - Tabela Oficial)';
   }
 
   if (benchMy) {
