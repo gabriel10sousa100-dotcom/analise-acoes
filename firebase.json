@@ -1,0 +1,16 @@
+{\
+  " hosting\: {\
+ \public\: \.\,\
+ \ignore\: [\
+ \firebase.json\,\
+ \**/.*\,\
+ \iniciar_servidor_mobile.bat\\
+ ],\
+ \rewrites\: [\
+ {\
+ \source\: \**\,\
+ \destination\: \/index.html\\
+ }\
+ ]\
+ }\
+}
