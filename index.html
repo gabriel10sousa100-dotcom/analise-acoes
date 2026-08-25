@@ -564,6 +564,9 @@
 
       <div class="header-actions">
         <div class="live-clock" id="clock-display">--:--:--</div>
+        <button class="btn btn-success btn-sm" id="btn-pwa-install" onclick="triggerPwaInstall()" style="display: none; align-items: center; gap: 6px; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); border-color: #10b981;" title="Instalar aplicativo no seu celular Android">
+          <span style="font-size: 13px;">📲</span> Instalar App
+        </button>
         <button class="btn btn-primary btn-sm" onclick="openCloudSyncModal()" style="display: flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #0284c7, #2563eb); border-color: #0284c7; font-weight: 600;" title="Sincronizar dados entre Celular e Computador (Nuvem & Backup)">
           <span style="font-size: 13px;">☁️</span> Sincronia Celular/PC
         </button>
@@ -8064,6 +8067,22 @@ function clearAllCache() {
   }
 }
 
+function triggerPwaInstall() {
+  if (window.deferredPwaPrompt) {
+    window.deferredPwaPrompt.prompt();
+    window.deferredPwaPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        showToast('Aplicativo instalado no seu Android!', 'success');
+      }
+      window.deferredPwaPrompt = null;
+      const btn = document.getElementById('btn-pwa-install');
+      if (btn) btn.style.display = 'none';
+    });
+  } else {
+    showToast('Toque nos 3 pontinhos do Chrome (⋮) e selecione "Instalar Aplicativo".', 'info');
+  }
+}
+
 // ==========================================
 // CENTRAL DE SINCRONIZAÇÃO EM NUVEM (PC ⇄ CELULAR) & BACKUP
 // ==========================================
@@ -8556,6 +8575,21 @@ async function initApp() {
       console.log('ServiceWorker not registered (running local):', err);
     });
   }
+
+  // PWA Install Prompt for Android
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    window.deferredPwaPrompt = e;
+    const btn = document.getElementById('btn-pwa-install');
+    if (btn) btn.style.display = 'inline-flex';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    window.deferredPwaPrompt = null;
+    const btn = document.getElementById('btn-pwa-install');
+    if (btn) btn.style.display = 'none';
+    showToast('Aplicativo instalado no seu Android com sucesso!', 'success');
+  });
 
   const addFavInput = document.getElementById('add-favorite-input');
   if (addFavInput) {
