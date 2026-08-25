@@ -744,13 +744,13 @@
               <div class="bench-val" id="bench-cdi-return" style="color: var(--yellow);">+14,71%</div>
               <span style="font-size: 11px; color: var(--text-sub);">Selic 14,00% • Calculadora Banco Central</span>
             </a>
-            <a href="https://maisretorno.com/indice/ifix" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Ver gráfico, pontuação em tempo real e retorno de 12 meses do IFIX (3.682 pts)">
+            <a href="https://statusinvest.com.br/indices/ifix" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Ver tabela histórica mensal e anual do IFIX no Status Invest">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span class="stat-label">🏢 IFIX (FIIs)</span>
-                <span style="font-size: 10px; color: var(--purple);">🔗 Ver Histórico</span>
+                <span style="font-size: 10px; color: var(--purple);">🔗 Status Invest</span>
               </div>
-              <div class="bench-val" id="bench-ifix-return" style="color: var(--purple);">+7,49%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">3.682 pts • Fonte: B3 Oficial</span>
+              <div class="bench-val" id="bench-ifix-return" style="color: var(--green);">+5,95%</div>
+              <span style="font-size: 11px; color: var(--text-sub);">Tabela Oficial Status Invest</span>
             </a>
           </div>
         </div>
@@ -2911,9 +2911,9 @@ function setBenchmarkTimeframe(tf, btnEl) {
   const myLbl = document.getElementById('bench-my-lbl');
 
   let myRet = 0;
-  let ibovRet = 24.70;
-  let cdiRet = 14.65;
-  let ifixRet = 7.35;
+  let ibovRet = 23.96;
+  let cdiRet = 14.71;
+  let ifixRet = 5.95;
   let lbl = 'Rentabilidade (12 Meses)';
 
   // Calculate user total portfolio return
@@ -2933,35 +2933,44 @@ function setBenchmarkTimeframe(tf, btnEl) {
     myRet = rawTotalRet * 0.12;
     ibovRet = 2.45;
     cdiRet = 1.08;
-    ifixRet = 0.65;
-    lbl = 'Rentabilidade (Último Mês - Status Invest)';
+    ifixRet = -3.57;
+    lbl = 'Rentabilidade (Último Mês / Ago 2026 - Status Invest)';
   } else if (tf === '6m') {
     myRet = rawTotalRet * 0.55;
     ibovRet = 11.80;
-    cdiRet = 6.80;
-    ifixRet = 3.85;
+    cdiRet = 6.85;
+    ifixRet = -6.71;
     lbl = 'Rentabilidade (Últimos 6 Meses - Status Invest)';
   } else if (tf === '12m') {
     myRet = rawTotalRet;
-    ibovRet = 24.70;
-    cdiRet = 14.65;
-    ifixRet = 7.35;
+    ibovRet = 23.96;
+    cdiRet = 14.71;
+    ifixRet = 5.95;
     lbl = 'Rentabilidade (Últimos 12 Meses - Status Invest)';
   } else if (tf === 'ytd' || tf === 'all') {
     myRet = rawTotalRet * 0.72;
-    ibovRet = 15.60;
-    cdiRet = 9.20;
-    ifixRet = 4.80;
+    ibovRet = 15.40;
+    cdiRet = 9.25;
+    ifixRet = -2.47;
     lbl = 'Rentabilidade no Ano (2026 - Status Invest)';
   }
 
   if (benchMy) {
-    benchMy.textContent = NumFmt.pct(myRet);
+    benchMy.textContent = (myRet > 0 ? '+' : '') + NumFmt.pct(myRet).replace('+', '');
     benchMy.style.color = myRet >= 0 ? 'var(--green)' : 'var(--red)';
   }
-  if (benchIbov) benchIbov.textContent = NumFmt.pct(ibovRet);
-  if (benchCdi) benchCdi.textContent = NumFmt.pct(cdiRet);
-  if (benchIfix) benchIfix.textContent = NumFmt.pct(ifixRet);
+  if (benchIbov) {
+    benchIbov.textContent = (ibovRet > 0 ? '+' : '') + NumFmt.pct(ibovRet).replace('+', '');
+    benchIbov.style.color = ibovRet >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+  if (benchCdi) {
+    benchCdi.textContent = (cdiRet > 0 ? '+' : '') + NumFmt.pct(cdiRet).replace('+', '');
+    benchCdi.style.color = cdiRet >= 0 ? 'var(--yellow)' : 'var(--red)';
+  }
+  if (benchIfix) {
+    benchIfix.textContent = (ifixRet > 0 ? '+' : '') + NumFmt.pct(ifixRet).replace('+', '');
+    benchIfix.style.color = ifixRet >= 0 ? 'var(--green)' : 'var(--red)';
+  }
   if (myLbl) myLbl.textContent = lbl;
 }
 
