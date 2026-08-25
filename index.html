@@ -701,9 +701,18 @@
               </div>
               <div style="font-size: 12px; color: var(--text-sub); margin-top: 3px;" id="port-benchmark-verdict">Todos os dados de mercado, benchmarks e taxas econômicas da aplicação foram auditados e corrigidos com base nas fontes oficiais da B3, Anbima e Banco Central.</div>
             </div>
-            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-              <a href="https://statusinvest.com.br" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 10px; text-decoration: none; display: flex; align-items: center; gap: 4px;" title="Validar indicadores diretamente no site oficial do Status Invest">
-                <span>🔗 Validar no Status Invest</span>
+            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+              <a href="https://www.b3.com.br/pt_br/market-data-e-indices/indices/indices-amplos/ibovespa.htm" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Página Oficial do Ibovespa e IFIX na B3 (Bolsa do Brasil)">
+                <span>🏛️ B3 Oficial</span>
+              </a>
+              <a href="https://www.anbima.com.br/pt_br/informar/taxas-de-mercado.htm" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Página Oficial de Taxas e CDI na ANBIMA">
+                <span>📊 ANBIMA</span>
+              </a>
+              <a href="https://www.bcb.gov.br/controleinflacao/taxaselic" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Taxa Selic e Política Monetária no Banco Central do Brasil">
+                <span>🏦 Banco Central</span>
+              </a>
+              <a href="https://statusinvest.com.br" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Validação dos Indicadores no Status Invest">
+                <span>📈 Status Invest</span>
               </a>
               <div class="tf-selector" id="bench-tf-selector">
                 <button class="tf-btn" id="bench-tf-1m" onclick="setBenchmarkTimeframe('1m', this)">1 Mês</button>
@@ -719,29 +728,29 @@
               <div class="bench-val" id="bench-my-return" style="color: var(--green);">+0,00%</div>
               <span style="font-size: 11px; color: var(--text-sub);" id="bench-my-lbl">Rentabilidade no período</span>
             </div>
-            <a href="https://statusinvest.com.br/indices/ibovespa" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Abrir página oficial do Ibovespa no Status Invest (171.906 pts)">
+            <a href="https://www.b3.com.br/pt_br/market-data-e-indices/indices/indices-amplos/ibovespa.htm" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Abrir página oficial do Ibovespa na B3 (171.906 pts)">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span class="stat-label">🏛️ Ibovespa (IBOV)</span>
-                <span style="font-size: 10px; color: var(--accent);">🔗</span>
+                <span style="font-size: 10px; color: var(--accent);">🔗 B3</span>
               </div>
               <div class="bench-val" id="bench-ibov-return" style="color: var(--accent);">+23,96%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">171.906 pts • Status Invest</span>
+              <span style="font-size: 11px; color: var(--text-sub);">171.906 pts • Fonte: B3 Oficial</span>
             </a>
-            <a href="https://statusinvest.com.br/indices/cdi" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Abrir página oficial do CDI no Status Invest">
+            <a href="https://www.bcb.gov.br/controleinflacao/taxaselic" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Abrir Taxa Selic e CDI no Banco Central e ANBIMA">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span class="stat-label">📈 CDI (Renda Fixa)</span>
-                <span style="font-size: 10px; color: var(--yellow);">🔗</span>
+                <span style="font-size: 10px; color: var(--yellow);">🔗 BCB</span>
               </div>
               <div class="bench-val" id="bench-cdi-return" style="color: var(--yellow);">+14,71%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">Selic 14,00% • Status Invest</span>
+              <span style="font-size: 11px; color: var(--text-sub);">Selic 14,00% • Fonte: BCB/ANBIMA</span>
             </a>
-            <a href="https://statusinvest.com.br/indices/ifix" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Abrir página oficial do IFIX no Status Invest (3.682 pts)">
+            <a href="https://www.b3.com.br/pt_br/market-data-e-indices/indices/indices-de-segmentos-e-setoriais/ifix.htm" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Abrir página oficial do IFIX na B3 (3.682 pts)">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span class="stat-label">🏢 IFIX (FIIs)</span>
-                <span style="font-size: 10px; color: var(--purple);">🔗</span>
+                <span style="font-size: 10px; color: var(--purple);">🔗 B3</span>
               </div>
               <div class="bench-val" id="bench-ifix-return" style="color: var(--purple);">+7,49%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">3.682 pts • Status Invest</span>
+              <span style="font-size: 11px; color: var(--text-sub);">3.682 pts • Fonte: B3 Oficial</span>
             </a>
           </div>
         </div>
