@@ -728,13 +728,13 @@
               <div class="bench-val" id="bench-my-return" style="color: var(--green);">+0,00%</div>
               <span style="font-size: 11px; color: var(--text-sub);" id="bench-my-lbl">Rentabilidade no período</span>
             </div>
-            <a href="https://maisretorno.com/indice/ibovespa" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Ver tabela e gráfico oficial do Ibovespa (171.906 pts)">
+            <a href="https://statusinvest.com.br/indices/ibovespa" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Ver tabela histórica mensal e anual do Ibovespa no Status Invest">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span class="stat-label">🏛️ Ibovespa (IBOV)</span>
-                <span style="font-size: 10px; color: var(--accent);">🔗 Ver Dados</span>
+                <span style="font-size: 10px; color: var(--accent);">🔗 Status Invest</span>
               </div>
-              <div class="bench-val" id="bench-ibov-return" style="color: var(--accent);">+23,96%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">171.906 pts • Fonte: B3 Oficial</span>
+              <div class="bench-val" id="bench-ibov-return" style="color: var(--green);">+20,90%</div>
+              <span style="font-size: 11px; color: var(--text-sub);">Tabela Oficial Status Invest</span>
             </a>
             <a href="https://www3.bcb.gov.br/CALCIDADAO/publico/exibirFormCorrecaoValores.do?method=exibirFormCorrecaoValores" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Abrir Calculadora do Cidadão do Banco Central para calcular o CDI exato do período">
               <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -2911,7 +2911,7 @@ function setBenchmarkTimeframe(tf, btnEl) {
   const myLbl = document.getElementById('bench-my-lbl');
 
   let myRet = 0;
-  let ibovRet = 23.96;
+  let ibovRet = 20.90;
   let cdiRet = 14.71;
   let ifixRet = 5.95;
   let lbl = 'Rentabilidade (12 Meses)';
@@ -2931,25 +2931,25 @@ function setBenchmarkTimeframe(tf, btnEl) {
 
   if (tf === '1m') {
     myRet = rawTotalRet * 0.12;
-    ibovRet = 2.45;
+    ibovRet = -3.91;
     cdiRet = 1.08;
     ifixRet = -3.57;
     lbl = 'Rentabilidade (Último Mês / Ago 2026 - Status Invest)';
   } else if (tf === '6m') {
     myRet = rawTotalRet * 0.55;
-    ibovRet = 11.80;
+    ibovRet = -9.41;
     cdiRet = 6.85;
     ifixRet = -6.71;
     lbl = 'Rentabilidade (Últimos 6 Meses - Status Invest)';
   } else if (tf === '12m') {
     myRet = rawTotalRet;
-    ibovRet = 23.96;
+    ibovRet = 20.90;
     cdiRet = 14.71;
     ifixRet = 5.95;
     lbl = 'Rentabilidade (Últimos 12 Meses - Status Invest)';
   } else if (tf === 'ytd' || tf === 'all') {
     myRet = rawTotalRet * 0.72;
-    ibovRet = 15.40;
+    ibovRet = 6.15;
     cdiRet = 9.25;
     ifixRet = -2.47;
     lbl = 'Rentabilidade no Ano (2026 - Status Invest)';
