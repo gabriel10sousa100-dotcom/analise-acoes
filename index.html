@@ -690,33 +690,15 @@
 
         <!-- BENCHMARK COMPARISON BAR WITH TIMEFRAME CONTROLS -->
         <div class="card" style="margin-bottom: 20px;">
-          <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
-            <div>
-              <div class="card-title" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <span>📊 Comparação de Rentabilidade vs Mercado</span>
-                <span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 11px;">🛡️ Fontes Oficiais: B3, ANBIMA e Banco Central</span>
-              </div>
-              <div style="font-size: 12px; color: var(--text-sub); margin-top: 3px;" id="port-benchmark-verdict">Todos os dados de mercado, benchmarks e taxas econômicas da aplicação foram auditados e corrigidos com base nas fontes oficiais da B3, Anbima e Banco Central.</div>
-            </div>
-            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-              <a href="https://www3.bcb.gov.br/CALCIDADAO/publico/exibirFormCorrecaoValores.do?method=exibirFormCorrecaoValores" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Calculadora Oficial do Cidadão no Banco Central do Brasil (Cálculo Oficial do CDI)">
-                <span>🏦 Calculadora BCB (CDI)</span>
-              </a>
-              <a href="https://www.b3.com.br/pt_br/market-data-e-indices/indices/indices-de-segmentos-e-setoriais/indice-de-fundos-de-investimentos-imobiliarios-ifix.htm" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Histórico e Séries Temporais Oficiais do IFIX na B3">
-                <span>🏢 IFIX Oficial (B3)</span>
-              </a>
-              <a href="https://maisretorno.com/comparador-ativos" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Comparador Interativo de Rentabilidade de Índices (CDI, IFIX, IBOV)">
-                <span>📊 Comparador de Índices</span>
-              </a>
-              <button class="btn btn-primary btn-sm" onclick="openBenchmarkEditorModal()" style="font-size: 11px; padding: 4px 10px; display: inline-flex; align-items: center; gap: 5px; font-weight: 600; background: linear-gradient(135deg, #0284c7, #2563eb); border-color: #0284c7;" title="Ver e editar tabela histórica dos índices ou buscar atualização automática no Mais Retorno / Status Invest / Banco Central">
-                <span>⚙️ Tabela de Índices (Auto-Atualização)</span>
-              </button>
-              <div class="tf-selector" id="bench-tf-selector">
-                <button class="tf-btn" id="bench-tf-1m" onclick="setBenchmarkTimeframe('1m', this)">1 Mês</button>
-                <button class="tf-btn" id="bench-tf-6m" onclick="setBenchmarkTimeframe('6m', this)">6 Meses</button>
-                <button class="tf-btn active" id="bench-tf-12m" onclick="setBenchmarkTimeframe('12m', this)">12 Meses</button>
-                <button class="tf-btn" id="bench-tf-ytd" onclick="setBenchmarkTimeframe('ytd', this)">No Ano (2026)</button>
-              </div>
+          <div class="card-header" style="flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center;">
+            <button class="btn btn-primary btn-sm" onclick="openBenchmarkEditorModal()" style="font-size: 12px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; background: linear-gradient(135deg, #0284c7, #2563eb); border-color: #0284c7;" title="Ver e editar tabela histórica dos índices ou buscar atualização automática no Mais Retorno / Status Invest / Banco Central">
+              <span>⚙️ Gerenciador da Tabela de Rentabilidade (Índices)</span>
+            </button>
+            <div class="tf-selector" id="bench-tf-selector">
+              <button class="tf-btn" id="bench-tf-1m" onclick="setBenchmarkTimeframe('1m', this)">1 Mês</button>
+              <button class="tf-btn" id="bench-tf-6m" onclick="setBenchmarkTimeframe('6m', this)">6 Meses</button>
+              <button class="tf-btn active" id="bench-tf-12m" onclick="setBenchmarkTimeframe('12m', this)">12 Meses</button>
+              <button class="tf-btn" id="bench-tf-ytd" onclick="setBenchmarkTimeframe('ytd', this)">No Ano (2026)</button>
             </div>
           </div>
           <div class="grid grid-4" id="benchmarks-grid">
@@ -1970,6 +1952,27 @@
           <button class="btn btn-primary btn-sm" onclick="fetchLiveBenchmarkUpdates(false)" id="btn-fetch-benchmarks-live" style="background: linear-gradient(135deg, #0284c7, #2563eb); font-weight: 700;">
             <span>🌐 Atualizar via Internet (Scraper)</span>
           </button>
+        </div>
+      </div>
+
+      <!-- AUDIT BADGE & DIRECT EXTERNAL VALIDATION LINKS -->
+      <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 11px;">🛡️ Fontes Oficiais: B3, ANBIMA e Banco Central</span>
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+          <a href="https://www3.bcb.gov.br/CALCIDADAO/publico/exibirFormCorrecaoValores.do?method=exibirFormCorrecaoValores" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Calculadora Oficial do Cidadão no Banco Central do Brasil (Cálculo Oficial do CDI)">
+            <span>🏦 Calculadora BCB (CDI)</span>
+          </a>
+          <a href="https://www.b3.com.br/pt_br/market-data-e-indices/indices/indices-de-segmentos-e-setoriais/indice-de-fundos-de-investimentos-imobiliarios-ifix.htm" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Histórico e Séries Temporais Oficiais do IFIX na B3">
+            <span>🏢 IFIX Oficial (B3)</span>
+          </a>
+          <a href="https://maisretorno.com/comparador-ativos" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Comparador Interativo de Rentabilidade de Índices (CDI, IFIX, IBOV)">
+            <span>📊 Comparador de Índices</span>
+          </a>
+          <a href="https://statusinvest.com.br/indices/cdi" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="Tabela Histórica do CDI no Status Invest">
+            <span>📈 Status Invest</span>
+          </a>
         </div>
       </div>
 
