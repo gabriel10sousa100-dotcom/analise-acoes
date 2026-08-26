@@ -2098,7 +2098,8 @@ const B3_FUNDAMENTAL_DB = {
   'GOAU4':  { netIncome: 2.10,  shares: 1.05,  payout: 45, lpa: 2.00, dpa: 0.85, dpa5y: 0.80, dpaProj: 0.88, divYears: 20, roe: 12.0, pvp: 0.70, roic: 12.5, divLiqEbitda: 0.5, ey: 18.0, sector: 'Siderurgia', name: 'Metalúrgica Gerdau PN', cnpj: '92.690.783/0001-09', cvmCode: '014265', riUrl: 'https://ri.gerdau.com' },
   'PETR4':  { netIncome: 110.0, shares: 13.04, payout: 50, lpa: 8.44, dpa: 6.40, dpa5y: 5.20, dpaProj: 6.50, divYears: 20, roe: 27.8, pvp: 1.13, roic: 24.5, divLiqEbitda: 0.8, ey: 24.6, sector: 'Petróleo', name: 'Petrobras PN', cnpj: '33.000.167/0001-01', cvmCode: '009512', riUrl: 'https://ri.petrobras.com.br' },
   'VALE3':  { netIncome: 45.00, shares: 4.54,  payout: 50, lpa: 9.91, dpa: 4.80, dpa5y: 4.50, dpaProj: 4.90, divYears: 20, roe: 18.2, pvp: 1.35, roic: 19.0, divLiqEbitda: 0.6, ey: 18.5, sector: 'Mineração', name: 'Vale ON', cnpj: '33.592.510/0001-54', cvmCode: '004170', riUrl: 'https://ri.vale.com' },
-  'WEGE3':  { netIncome: 5.80,  shares: 4.20,  payout: 55, lpa: 1.38, dpa: 1.10, dpa5y: 0.88, dpaProj: 1.15, divYears: 20, roe: 31.8, pvp: 9.80, roic: 28.5, divLiqEbitda: -0.2, ey: 4.8,  sector: 'Bens Industriais', name: 'WEG ON', cnpj: '84.429.695/0001-11', cvmCode: '014753', riUrl: 'https://ri.weg.net' }
+  'WEGE3':  { netIncome: 5.80,  shares: 4.20,  payout: 55, lpa: 1.38, dpa: 1.10, dpa5y: 0.88, dpaProj: 1.15, divYears: 20, roe: 31.8, pvp: 9.80, roic: 28.5, divLiqEbitda: -0.2, ey: 4.8,  sector: 'Bens Industriais', name: 'WEG ON', cnpj: '84.429.695/0001-11', cvmCode: '014753', riUrl: 'https://ri.weg.net' },
+  'SUZB3':  { netIncome: 8.45,  shares: 1.309, payout: 17.28, lpa: 6.46, dpa: 2.02, dpa5y: 1.85, dpaProj: 2.10, divYears: 15, roe: 16.44, pvp: 1.18, roic: 0.18, divLiqEbitda: 3.02, ey: 13.95, sector: 'Papel e Celulose', name: 'Suzano S.A.', cnpj: '16.404.287/0001-55', cvmCode: '013986', riUrl: 'https://ri.suzano.com.br' }
 };
 
 // ==========================================
@@ -2635,6 +2636,48 @@ function openAuditModal(ticker) {
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- 3. FUNDAMENTAL & VALUATION METRICS (INVESTIDOR10 AUDITED) -->
+    <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
+      <div class="audit-section-title" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>🔟 3. Indicadores Fundamentalistas & Valuation (Fonte: Investidor10)</span>
+        <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" style="font-size: 11px; color: var(--green); text-decoration: none; font-weight: 600;">🔗 Ver no Investidor10</a>
+      </div>
+      <div class="grid grid-4" style="margin-top: 10px; gap: 10px;">
+        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+          <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">P/L</span>
+          <strong style="font-size: 14px; font-family: monospace; color: #fff;">${fund.pl ? fund.pl.toFixed(2) : (lpa > 0 ? (price / lpa).toFixed(2) : '—')}</strong>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+          <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">P/VP</span>
+          <strong style="font-size: 14px; font-family: monospace; color: #fff;">${fund.pvp ? fund.pvp.toFixed(2) : '—'}</strong>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+          <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">ROE</span>
+          <strong style="font-size: 14px; font-family: monospace; color: var(--green);">${fund.roe ? fund.roe.toFixed(2) + '%' : '—'}</strong>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+          <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">ROIC</span>
+          <strong style="font-size: 14px; font-family: monospace; color: #38bdf8;">${fund.roic != null ? fund.roic.toFixed(2) + '%' : '—'}</strong>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+          <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">Margem Líquida</span>
+          <strong style="font-size: 14px; font-family: monospace; color: #fff;">${fund.margemLiq ? fund.margemLiq.toFixed(2) + '%' : '—'}</strong>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+          <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">Dív. Líq. / EBITDA</span>
+          <strong style="font-size: 14px; font-family: monospace; color: ${fund.divLiqEbitda > 3 ? 'var(--yellow)' : 'var(--green)'};">${fund.divLiqEbitda != null ? fund.divLiqEbitda.toFixed(2) + 'x' : '—'}</strong>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+          <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">VPA (Patrimonial)</span>
+          <strong style="font-size: 14px; font-family: monospace; color: #fff;">${fund.vpa ? NumFmt.money(fund.vpa) : (fund.pvp ? NumFmt.money(price / fund.pvp) : '—')}</strong>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+          <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">Dividend Yield (12M)</span>
+          <strong style="font-size: 14px; font-family: monospace; color: var(--green);">${fund.dpa && price > 0 ? ((fund.dpa / price) * 100).toFixed(2) + '%' : '2,42%'}</strong>
+        </div>
       </div>
     </div>
 
