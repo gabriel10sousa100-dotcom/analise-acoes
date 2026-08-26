@@ -567,9 +567,6 @@
         <button class="btn btn-success btn-sm" id="btn-pwa-install" onclick="triggerPwaInstall()" style="display: none; align-items: center; gap: 6px; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); border-color: #10b981;" title="Instalar aplicativo no seu celular Android">
           <span style="font-size: 13px;">📲</span> Instalar App
         </button>
-        <button class="btn btn-primary btn-sm" onclick="openCloudSyncModal()" style="display: flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #0284c7, #2563eb); border-color: #0284c7; font-weight: 600;" title="Sincronizar dados entre Celular e Computador (Nuvem & Backup)">
-          <span style="font-size: 13px;">☁️</span> Sincronia Celular/PC
-        </button>
         <button class="btn btn-secondary btn-sm" onclick="syncAllData()" title="Sincronizar cotações com o mercado">
           <span>🔄 Sincronizar</span>
         </button>
@@ -1951,100 +1948,7 @@
   </div>
 </div>
 
-<!-- ================================================================ -->
-<!-- MODAL: SINCRONIZAÇÃO EM NUVEM (PC/CELULAR) & BACKUP              -->
-<!-- ================================================================ -->
-<div class="modal-overlay" id="cloud-sync-modal">
-  <div class="modal-box modal-lg" style="max-width: 820px;">
-    <div class="modal-header">
-      <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
-        <span>☁️ Sincronização em Nuvem & Backup da Carteira</span>
-      </div>
-      <button class="modal-close" onclick="closeCloudSyncModal()">✕</button>
-    </div>
-    
-    <div style="display: flex; flex-direction: column; gap: 20px; padding: 10px 0;">
-      
-      <!-- PARTE 1: SINCRONIZAÇÃO EM NUVEM (PC ⇄ ANDROID) -->
-      <div style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.08), rgba(37, 99, 235, 0.04)); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: var(--radius-md); padding: 18px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-          <div>
-            <div style="font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
-              <span>☁️ Sincronização em Nuvem (PC ⇄ Celular Android)</span>
-              <span class="status-pill good" id="sync-cloud-status-pill">🟢 Ativo</span>
-            </div>
-            <div style="font-size: 12.5px; color: var(--text-sub); margin-top: 4px;">
-              Mantenha suas ações, compras e proventos 100% sincronizados entre o computador e o celular usando uma Chave Segura única.
-            </div>
-          </div>
-        </div>
 
-        <!-- SYNC KEY CONFIGURATION -->
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 6px;">
-            🔑 Sua Chave de Sincronização (Sync Vault Key)
-          </label>
-          <div style="display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap;">
-            <input type="text" class="input-field input-mono" id="sync-vault-key-input" placeholder="ex: B3-VAULT-8921-AF4B" style="flex: 1; min-width: 220px; font-weight: 700; font-size: 14px; letter-spacing: 0.5px;">
-            <button class="btn btn-secondary btn-sm" onclick="copySyncKeyToClipboard()" title="Copiar chave de sincronização">📋 Copiar</button>
-            <button class="btn btn-secondary btn-sm" onclick="generateNewSyncKey()" title="Gerar uma nova chave aleatória">🎲 Gerar Nova Chave</button>
-            <button class="btn btn-primary btn-sm" onclick="saveSyncKey()">💾 Salvar Chave</button>
-          </div>
-          <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 5px;">
-            💡 <em>Dica: Use exatamente a mesma chave no seu Computador e no seu Celular Android para sincronizar os dois aparelhos.</em>
-          </div>
-        </div>
-
-        <!-- ACTIONS: SEND & PULL -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
-          <button class="btn btn-primary" onclick="pushDataToCloud()" style="background: linear-gradient(135deg, #0284c7, #2563eb); font-weight: 700; padding: 12px; justify-content: center; height: auto;" id="btn-cloud-upload">
-            ☁️ Enviar Dados para Nuvem (Salvar)
-          </button>
-          <button class="btn btn-secondary" onclick="pullDataFromCloud()" style="border-color: rgba(56, 189, 248, 0.4); font-weight: 700; padding: 12px; justify-content: center; height: auto;" id="btn-cloud-download">
-            📥 Baixar / Sincronizar da Nuvem
-          </button>
-        </div>
-
-        <!-- AUTO-SYNC & TIMESTAMP -->
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-sub);">
-            <input type="checkbox" id="sync-auto-toggle" onchange="toggleAutoCloudSync(this.checked)">
-            <span>🔄 Sincronizar automaticamente na nuvem ao registrar compras/favoritos</span>
-          </label>
-          <div style="color: var(--text-sub);" id="sync-last-timestamp">
-            Última sincronização: <em>Nunca</em>
-          </div>
-        </div>
-      </div>
-
-      <!-- PARTE 2: BACKUP E RESTAURAÇÃO EM ARQUIVO (.JSON) -->
-      <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px;">
-        <div style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
-          <span>💾 Backup & Restauração com 1 Clique (Arquivo .JSON)</span>
-        </div>
-        <div style="font-size: 12.5px; color: var(--text-sub); margin-bottom: 14px;">
-          Baixe um arquivo seguro com todos os seus dados para manter em seu computador, pen drive ou enviar por WhatsApp/E-mail.
-        </div>
-
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <button class="btn btn-primary btn-sm" onclick="exportAppData()" style="padding: 9px 16px;">
-            📥 Baixar Arquivo de Backup (.json)
-          </button>
-          <button class="btn btn-secondary btn-sm" onclick="triggerImportData()" style="padding: 9px 16px;">
-            📤 Restaurar do Arquivo (.json)
-          </button>
-          <button class="btn btn-secondary btn-sm" onclick="copyDataPayloadCode()" style="padding: 9px 16px;" title="Copiar código de backup para a área de transferência">
-            📋 Copiar Dados (Texto)
-          </button>
-          <button class="btn btn-secondary btn-sm" onclick="pasteDataPayloadCode()" style="padding: 9px 16px;" title="Colar código de backup de texto">
-            📥 Colar Dados (Texto)
-          </button>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
 
 <!-- ================================================================ -->
 <!-- PRINTABLE EXECUTIVE REPORT CONTAINER (FOR A4 PRINT & PDF EXPORT) -->
@@ -6067,7 +5971,6 @@ function handleSaveTrade(e) {
   syncAutomatedDividends();
   renderPortfolioView();
   if (AppState.activeTab === 'calendario') renderCalendarView();
-  if (localStorage.getItem('b3_auto_cloud_sync') === 'true') pushDataToCloud(true);
 }
 
 function handleDeleteCurrentTrade() {
@@ -6090,7 +5993,6 @@ function deleteTrade(tradeId) {
     syncAutomatedDividends();
     renderPortfolioView();
     if (AppState.activeTab === 'calendario') renderCalendarView();
-    if (localStorage.getItem('b3_auto_cloud_sync') === 'true') pushDataToCloud(true);
   }
 }
 
@@ -6105,7 +6007,6 @@ function removePortfolioPosition(ticker) {
     showToast(`Posição completa em ${sym} removida da sua carteira.`, 'info');
     renderPortfolioView();
     if (AppState.activeTab === 'calendario') renderCalendarView();
-    if (localStorage.getItem('b3_auto_cloud_sync') === 'true') pushDataToCloud(true);
   }
 }
 
@@ -8118,299 +8019,7 @@ function triggerPwaInstall() {
   }
 }
 
-// ==========================================
-// CENTRAL DE SINCRONIZAÇÃO EM NUVEM (PC ⇄ CELULAR) & BACKUP
-// ==========================================
-function openCloudSyncModal() {
-  const modal = document.getElementById('cloud-sync-modal');
-  if (!modal) return;
-  modal.classList.add('active');
 
-  const keyInput = document.getElementById('sync-vault-key-input');
-  const autoToggle = document.getElementById('sync-auto-toggle');
-  const lastSyncEl = document.getElementById('sync-last-timestamp');
-
-  const currentKey = localStorage.getItem('b3_cloud_sync_key') || generateDefaultSyncKey();
-  if (keyInput) keyInput.value = currentKey;
-  if (autoToggle) autoToggle.checked = localStorage.getItem('b3_auto_cloud_sync') === 'true';
-
-  const lastSyncTime = localStorage.getItem('b3_last_cloud_sync_time');
-  if (lastSyncEl) {
-    lastSyncEl.innerHTML = lastSyncTime 
-      ? `Última sincronização: <strong style="color:var(--green);">${new Date(lastSyncTime).toLocaleString('pt-BR')}</strong>`
-      : `Última sincronização: <em>Nunca</em>`;
-  }
-}
-
-function closeCloudSyncModal() {
-  const modal = document.getElementById('cloud-sync-modal');
-  if (modal) modal.classList.remove('active');
-}
-
-function generateDefaultSyncKey() {
-  let key = localStorage.getItem('b3_cloud_sync_key');
-  if (!key) {
-    const rand = Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-    key = `B3-VAULT-${rand}`;
-    localStorage.setItem('b3_cloud_sync_key', key);
-  }
-  return key;
-}
-
-function generateNewSyncKey() {
-  if (confirm('Deseja gerar uma nova chave de sincronização? Se você já sincronizou outros dispositivos, precisará atualizar a chave neles.')) {
-    const rand = Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-    const newKey = `B3-VAULT-${rand}`;
-    const keyInput = document.getElementById('sync-vault-key-input');
-    if (keyInput) keyInput.value = newKey;
-    localStorage.setItem('b3_cloud_sync_key', newKey);
-    showToast(`Nova chave gerada: ${newKey}`, 'info');
-  }
-}
-
-function saveSyncKey() {
-  const keyInput = document.getElementById('sync-vault-key-input');
-  const key = (keyInput?.value || '').trim().toUpperCase();
-  if (!key) {
-    showToast('Informe uma chave válida.', 'error');
-    return;
-  }
-  localStorage.setItem('b3_cloud_sync_key', key);
-  showToast('Chave de sincronização salva!', 'success');
-}
-
-function copySyncKeyToClipboard() {
-  const keyInput = document.getElementById('sync-vault-key-input');
-  const key = (keyInput?.value || '').trim();
-  if (!key) return;
-  navigator.clipboard.writeText(key).then(() => {
-    showToast('Chave copiada para a área de transferência!', 'success');
-  }).catch(() => {
-    showToast('Chave selecionada. Copie manualmente.', 'info');
-  });
-}
-
-function toggleAutoCloudSync(enabled) {
-  localStorage.setItem('b3_auto_cloud_sync', enabled ? 'true' : 'false');
-  showToast(enabled ? 'Sincronização automática ativada!' : 'Sincronização automática desativada.', 'info');
-  if (enabled) pushDataToCloud(true);
-}
-
-function getAppSyncPayload() {
-  return {
-    version: '2.5',
-    token: AppState.token,
-    geminiKey: AppState.geminiKey,
-    aiMode: AppState.aiMode,
-    favorites: AppState.favorites,
-    fiiFavorites: AppState.fiiFavorites,
-    trades: AppState.trades,
-    portfolioDividends: AppState.portfolioDividends,
-    comparator: AppState.comparatorStocks,
-    sidebarCollapsed: localStorage.getItem('b3_sidebar_collapsed') === 'true',
-    syncTimestamp: new Date().toISOString()
-  };
-}
-
-async function pushDataToCloud(silent = false) {
-  const key = (document.getElementById('sync-vault-key-input')?.value || localStorage.getItem('b3_cloud_sync_key') || '').trim().toUpperCase();
-  if (!key) {
-    if (!silent) showToast('Defina uma Chave de Sincronização primeiro.', 'error');
-    return;
-  }
-
-  const btn = document.getElementById('btn-cloud-upload');
-  if (btn && !silent) {
-    btn.disabled = true;
-    btn.innerHTML = `⏳ Enviando dados...`;
-  }
-
-  try {
-    const payload = getAppSyncPayload();
-    const payloadStr = JSON.stringify(payload);
-    const safeKey = encodeURIComponent(key.replace(/[^A-Z0-9_-]/gi, '_'));
-    
-    // Direct Cloud KV Store & Local Mirror
-    localStorage.setItem(`b3_cloud_vault_${safeKey}`, payloadStr);
-    localStorage.setItem('b3_last_cloud_sync_time', payload.syncTimestamp);
-
-    // REST KV / JSONBin / Cloud Sync API
-    try {
-      await fetch(`https://api.restful-api.dev/objects`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: `b3_sync_${safeKey}`, data: payload })
-      });
-    } catch (_) {}
-
-    const lastSyncEl = document.getElementById('sync-last-timestamp');
-    if (lastSyncEl) {
-      lastSyncEl.innerHTML = `Última sincronização: <strong style="color:var(--green);">${new Date().toLocaleString('pt-BR')}</strong>`;
-    }
-
-    if (!silent) showToast('☁️ Dados enviados e sincronizados na nuvem!', 'success');
-  } catch (err) {
-    console.error(err);
-    if (!silent) showToast('Erro ao sincronizar na nuvem. Verifique sua conexão.', 'error');
-  } finally {
-    if (btn && !silent) {
-      btn.disabled = false;
-      btn.innerHTML = `☁️ Enviar Dados para Nuvem (Salvar)`;
-    }
-  }
-}
-
-async function pullDataFromCloud() {
-  const key = (document.getElementById('sync-vault-key-input')?.value || localStorage.getItem('b3_cloud_sync_key') || '').trim().toUpperCase();
-  if (!key) {
-    showToast('Informe a Chave de Sincronização para baixar os dados.', 'error');
-    return;
-  }
-
-  const btn = document.getElementById('btn-cloud-download');
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = `⏳ Baixando dados...`;
-  }
-
-  try {
-    const safeKey = encodeURIComponent(key.replace(/[^A-Z0-9_-]/gi, '_'));
-    let rawData = localStorage.getItem(`b3_cloud_vault_${safeKey}`);
-
-    // Try cloud REST fetch if available
-    try {
-      const res = await fetch(`https://api.restful-api.dev/objects?name=b3_sync_${safeKey}`);
-      if (res.ok) {
-        const list = await res.json();
-        if (Array.isArray(list) && list.length > 0) {
-          const latest = list[list.length - 1];
-          if (latest?.data?.favorites || latest?.data?.trades) {
-            rawData = JSON.stringify(latest.data);
-          }
-        }
-      }
-    } catch (_) {}
-
-    if (!rawData) {
-      showToast('Nenhum dado encontrado para esta chave na nuvem. Envie dados primeiro do outro dispositivo.', 'warn');
-      return;
-    }
-
-    const data = JSON.parse(rawData);
-    applyImportedData(data);
-    localStorage.setItem('b3_last_cloud_sync_time', new Date().toISOString());
-
-    const lastSyncEl = document.getElementById('sync-last-timestamp');
-    if (lastSyncEl) {
-      lastSyncEl.innerHTML = `Última sincronização: <strong style="color:var(--green);">${new Date().toLocaleString('pt-BR')}</strong>`;
-    }
-
-    showToast('🎉 Dados baixados e sincronizados com sucesso!', 'success');
-  } catch (err) {
-    console.error(err);
-    showToast('Erro ao baixar dados da nuvem.', 'error');
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = `📥 Baixar / Sincronizar da Nuvem`;
-    }
-  }
-}
-
-function applyImportedData(data) {
-  if (data.favorites) {
-    AppState.favorites = data.favorites;
-    localStorage.setItem('b3_favorites', JSON.stringify(data.favorites));
-  }
-  if (data.fiiFavorites) {
-    AppState.fiiFavorites = data.fiiFavorites;
-    localStorage.setItem('b3_fii_favorites', JSON.stringify(data.fiiFavorites));
-  }
-  if (data.trades) {
-    AppState.trades = data.trades;
-    localStorage.setItem('b3_user_trades', JSON.stringify(data.trades));
-  }
-  if (data.portfolioDividends) {
-    AppState.portfolioDividends = data.portfolioDividends;
-    localStorage.setItem('b3_portfolio_dividends', JSON.stringify(data.portfolioDividends));
-  }
-  if (data.token) {
-    AppState.token = data.token;
-    localStorage.setItem('brapi_token', data.token);
-  }
-  if (data.geminiKey) {
-    AppState.geminiKey = data.geminiKey;
-    localStorage.setItem('gemini_api_key', data.geminiKey);
-  }
-  if (data.aiMode) {
-    AppState.aiMode = data.aiMode;
-    localStorage.setItem('ai_mode', data.aiMode);
-  }
-  syncAutomatedDividends();
-  if (AppState.activeTab === 'carteira') renderPortfolioView();
-  else if (AppState.activeTab === 'calendario') renderCalendarView();
-  else renderFavoritesView();
-}
-
-function copyDataPayloadCode() {
-  const payload = getAppSyncPayload();
-  const base64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-  navigator.clipboard.writeText(base64).then(() => {
-    showToast('Código de backup copiado! Cole no WhatsApp ou no outro aparelho.', 'success');
-  }).catch(() => {
-    prompt('Copie o código de backup abaixo:', base64);
-  });
-}
-
-function pasteDataPayloadCode() {
-  const code = prompt('Cole aqui o código de backup ou texto JSON:');
-  if (!code) return;
-  try {
-    let data;
-    if (code.trim().startsWith('{')) {
-      data = JSON.parse(code);
-    } else {
-      const decoded = decodeURIComponent(escape(atob(code.trim())));
-      data = JSON.parse(decoded);
-    }
-    applyImportedData(data);
-    showToast('Dados restaurados com sucesso!', 'success');
-  } catch (err) {
-    showToast('Código de backup inválido.', 'error');
-  }
-}
-
-function exportAppData() {
-  const data = getAppSyncPayload();
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `b3_investimentos_backup_${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Backup exportado com sucesso!', 'success');
-}
-
-function triggerImportData() {
-  document.getElementById('import-file-input').click();
-}
-
-function importAppData(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      applyImportedData(data);
-      showToast('Backup importado com sucesso!', 'success');
-    } catch (err) {
-      showToast('Arquivo inválido.', 'error');
-    }
-  };
-  reader.readAsText(file);
-}
 
 // ==========================================
 // SEARCH & AUTOCOMPLETE
@@ -8600,7 +8209,6 @@ async function initApp() {
       closeAiPasteModal();
       closePortfolioAiModal();
       closeSmartRebalanceModal();
-      closeCloudSyncModal();
     }
   });
 
