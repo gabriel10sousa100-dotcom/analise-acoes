@@ -2676,7 +2676,7 @@ function openAuditModal(ticker) {
         </div>
         <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">Dividend Yield (12M)</span>
-          <strong style="font-size: 14px; font-family: monospace; color: var(--green);">${fund.dpa != null && price > 0 ? ((fund.dpa / price) * 100).toFixed(2) + '%' : (fund.ey ? fund.ey.toFixed(2) + '%' : '—')}</strong>
+          <strong style="font-size: 14px; font-family: monospace; color: var(--green);">${fund.ey ? fund.ey.toFixed(2) + '%' : (fund.dpa && price > 0 ? ((fund.dpa / price) * 100).toFixed(2) + '%' : '—')}</strong>
         </div>
       </div>
     </div>
