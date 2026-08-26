@@ -707,29 +707,29 @@
               <div class="bench-val" id="bench-my-return" style="color: var(--green);">+0,00%</div>
               <span style="font-size: 11px; color: var(--text-sub);" id="bench-my-lbl">Rentabilidade no período</span>
             </div>
-            <a href="https://statusinvest.com.br/indices/ibovespa" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Ver tabela histórica mensal e anual do Ibovespa no Status Invest">
+            <a href="https://maisretorno.com/indice/ibov" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Ver tabela histórica mensal e anual do Ibovespa no Mais Retorno">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span class="stat-label">🏛️ Ibovespa (IBOV)</span>
-                <span style="font-size: 10px; color: var(--accent);">🔗 Status Invest</span>
+                <span style="font-size: 10px; color: var(--accent);">🔗 Mais Retorno</span>
               </div>
               <div class="bench-val" id="bench-ibov-return" style="color: var(--green);">+20,90%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">Tabela Oficial Status Invest</span>
+              <span style="font-size: 11px; color: var(--text-sub);">Tabela Oficial Mais Retorno</span>
             </a>
-            <a href="https://www3.bcb.gov.br/CALCIDADAO/publico/exibirFormCorrecaoValores.do?method=exibirFormCorrecaoValores" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Abrir Calculadora do Cidadão do Banco Central para calcular o CDI exato do período">
+            <a href="https://maisretorno.com/indice/cdi" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Ver tabela histórica mensal e anual do CDI no Mais Retorno">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span class="stat-label">📈 CDI (Renda Fixa)</span>
-                <span style="font-size: 10px; color: var(--yellow);">🔗 Calcular no BCB</span>
+                <span style="font-size: 10px; color: var(--yellow);">🔗 Mais Retorno</span>
               </div>
               <div class="bench-val" id="bench-cdi-return" style="color: var(--yellow);">+14,33%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">Tabela Oficial Anbima / BCB</span>
+              <span style="font-size: 11px; color: var(--text-sub);">Tabela Oficial Mais Retorno</span>
             </a>
-            <a href="https://statusinvest.com.br/indices/ifix" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Ver tabela histórica mensal e anual do IFIX no Status Invest">
+            <a href="https://maisretorno.com/indice/ifix" target="_blank" class="bench-card" style="text-decoration: none; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease;" title="Ver tabela histórica mensal e anual do IFIX no Mais Retorno">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span class="stat-label">🏢 IFIX (FIIs)</span>
-                <span style="font-size: 10px; color: var(--purple);">🔗 Status Invest</span>
+                <span style="font-size: 10px; color: var(--purple);">🔗 Mais Retorno</span>
               </div>
               <div class="bench-val" id="bench-ifix-return" style="color: var(--green);">+5,95%</div>
-              <span style="font-size: 11px; color: var(--text-sub);">Tabela Oficial Status Invest</span>
+              <span style="font-size: 11px; color: var(--text-sub);">Tabela Oficial Mais Retorno</span>
             </a>
           </div>
         </div>
@@ -2864,22 +2864,22 @@ function removeDividend(id) {
 const DEFAULT_BENCHMARK_MATRIX = {
   cdi: {
     name: 'CDI (Renda Fixa)',
-    source: 'Anbima / BCB Oficial',
-    url: 'https://statusinvest.com.br/indices/cdi',
+    source: 'Mais Retorno / BCB',
+    url: 'https://maisretorno.com/indice/cdi',
     2025: [1.01, 0.99, 0.96, 1.06, 1.14, 1.10, 1.28, 1.16, 1.22, 1.28, 1.05, 1.22],
     2026: [1.16, 1.00, 1.21, 1.09, 1.07, 1.12, 1.22, 0.83, null, null, null, null]
   },
   ifix: {
     name: 'IFIX (FIIs)',
-    source: 'Status Invest / B3 Oficial',
-    url: 'https://statusinvest.com.br/indices/ifix',
+    source: 'Mais Retorno / B3',
+    url: 'https://maisretorno.com/indice/ifix',
     2025: [-3.07, 3.34, 6.14, 3.01, 1.44, 0.63, -1.36, 1.16, 3.25, 0.12, 1.86, 3.14],
     2026: [2.27, 1.32, -1.06, 1.53, -1.33, -1.21, -0.32, -3.57, null, null, null, null]
   },
   ibov: {
     name: 'Ibovespa (IBOV)',
-    source: 'Status Invest / B3 Oficial',
-    url: 'https://statusinvest.com.br/indices/ibovespa',
+    source: 'Mais Retorno / B3',
+    url: 'https://maisretorno.com/indice/ibov',
     2025: [4.86, -2.64, 6.08, 3.69, 1.45, 1.33, -4.17, 6.28, 3.40, 2.26, 6.37, 1.29],
     2026: [12.56, 4.09, -0.70, -0.08, -7.22, -1.01, 3.47, -3.91, null, null, null, null]
   },
