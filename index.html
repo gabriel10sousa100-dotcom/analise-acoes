@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -2920,14 +2920,30 @@ function isFII(ticker) {
   return getAssetType(ticker) === 'FII';
 }
 
-// UNIVERSAL ASSET LOGO HTML GENERATOR (STOCKS & FIIS WITH RESILIENT FALLBACKS)
+// UNIVERSAL ASSET LOGO HTML GENERATOR (STOCKS & FIIS WITH RESILIENT FALLBACKS & ALIASES)
+const LOGO_ALIASES = {
+  'CEEB3': 'NEOE3',
+  'CEEB5': 'NEOE3',
+  'EMBJ3': 'EMBR3',
+  'AXIA3': 'ELET3',
+  'MBRF3': 'MRFG3',
+  'TRPL4': 'ISAE3',
+  'TRPL3': 'ISAE3',
+  'TRPL11': 'ISAE3',
+  'ISAE4': 'ISAE3',
+  'NEMO3': 'SUZB3',
+  'BRST3': 'BRSR3',
+  'AURE3': 'AESB3'
+};
+
 function getAssetLogoHtml(symbol, size = 34) {
   const sym = (symbol || '').trim().toUpperCase();
   const rootSym = sym.replace(/[0-9]+$/, '');
   const isFiiAsset = isFII(sym);
+  const effectiveSym = LOGO_ALIASES[sym] || sym;
   
-  // Primary Brapi Icon URL
-  const primaryUrl = `https://icons.brapi.dev/icons/${sym}.svg`;
+  // Primary Brapi Icon URL (resolving aliases when applicable)
+  const primaryUrl = `https://icons.brapi.dev/icons/${effectiveSym}.svg`;
   // Fallback Brapi Icon URL
   const altUrl = sym.endsWith('4') 
     ? `https://icons.brapi.dev/icons/${rootSym}3.svg` 
