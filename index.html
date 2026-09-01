@@ -2095,21 +2095,130 @@ const B3_FUNDAMENTAL_DB = {
 // B3 CORPORATE DIVIDENDS & JCP CALENDAR (OFFICIAL EVENT SCHEDULE)
 // ==========================================
 const B3_DIVIDEND_CALENDAR = [
-  // BBAS3
+  // ==========================================
+  // BANCOS & FINANCEIRO
+  // ==========================================
+  // BBAS3 (Banco do Brasil)
   { id: 'b3_bbas3_2026_03', symbol: 'BBAS3', type: 'JCP',       dateCom: '2026-03-11', datePay: '2026-03-28', valUnit: 0.345, label: 'JCP 4T25' },
-  { id: 'b3_bbas3_2026_06', symbol: 'BBAS3', type: 'DIVIDENDO', dateCom: '2026-06-11', datePay: '2026-06-27', valUnit: 0.285, label: 'Dividendo Intermediário 1T26' },
+  { id: 'b3_bbas3_2026_06', symbol: 'BBAS3', type: 'DIVIDENDO', dateCom: '2026-06-11', datePay: '2026-06-27', valUnit: 0.285, label: 'Dividendo IntermediÃ¡rio 1T26' },
   { id: 'b3_bbas3_2026_08', symbol: 'BBAS3', type: 'JCP',       dateCom: '2026-08-21', datePay: '2026-08-30', valUnit: 0.352, label: 'JCP 2T26' },
   { id: 'b3_bbas3_2026_11', symbol: 'BBAS3', type: 'DIVIDENDO', dateCom: '2026-11-25', datePay: '2026-12-10', valUnit: 0.320, label: 'Dividendo 3T26' },
-  
-  // TAEE3 / TAEE4 / TAEE11
-  { id: 'b3_taee3_2026_05', symbol: 'TAEE3', type: 'DIVIDENDO', dateCom: '2026-05-13', datePay: '2026-05-30', valUnit: 0.380, label: 'Dividendo Intercalar 1T26' },
-  { id: 'b3_taee3_2026_08', symbol: 'TAEE3', type: 'JCP',       dateCom: '2026-08-14', datePay: '2026-09-05', valUnit: 0.425, label: 'JCP 2T26' },
-  { id: 'b3_taee3_2026_11', symbol: 'TAEE3', type: 'DIVIDENDO', dateCom: '2026-11-12', datePay: '2026-12-05', valUnit: 0.410, label: 'Dividendo 3T26' },
-  { id: 'b3_taee4_2026_05', symbol: 'TAEE4', type: 'DIVIDENDO', dateCom: '2026-05-13', datePay: '2026-05-30', valUnit: 0.395, label: 'Dividendo Intercalar 1T26' },
-  { id: 'b3_taee4_2026_08', symbol: 'TAEE4', type: 'JCP',       dateCom: '2026-08-14', datePay: '2026-09-05', valUnit: 0.435, label: 'JCP 2T26' },
-  { id: 'b3_taee4_2026_11', symbol: 'TAEE4', type: 'DIVIDENDO', dateCom: '2026-11-12', datePay: '2026-12-05', valUnit: 0.420, label: 'Dividendo 3T26' },
+  { id: 'b3_bbas3_2027_03', symbol: 'BBAS3', type: 'JCP',       dateCom: '2027-03-11', datePay: '2027-03-28', valUnit: 0.350, label: 'JCP 4T26' },
 
-  // CMIG3 / CMIG4
+  // BBDC3 / BBDC4 (Bradesco)
+  { id: 'b3_bbdc3_2026_06', symbol: 'BBDC3', type: 'JCP',       dateCom: '2026-06-17', datePay: '2026-07-15', valUnit: 0.220, label: 'JCP 1S26' },
+  { id: 'b3_bbdc3_2026_12', symbol: 'BBDC3', type: 'JCP',       dateCom: '2026-12-18', datePay: '2027-01-15', valUnit: 0.240, label: 'JCP 2S26' },
+  { id: 'b3_bbdc4_2026_06', symbol: 'BBDC4', type: 'JCP',       dateCom: '2026-06-17', datePay: '2026-07-15', valUnit: 0.225, label: 'JCP 1S26' },
+  { id: 'b3_bbdc4_2026_12', symbol: 'BBDC4', type: 'JCP',       dateCom: '2026-12-18', datePay: '2027-01-15', valUnit: 0.245, label: 'JCP 2S26' },
+
+  // ITUB3 / ITUB4 (ItaÃº Unibanco)
+  { id: 'b3_itub3_2026_03', symbol: 'ITUB3', type: 'JCP',       dateCom: '2026-02-28', datePay: '2026-04-01', valUnit: 0.250, label: 'JCP 1T26' },
+  { id: 'b3_itub3_2026_06', symbol: 'ITUB3', type: 'JCP',       dateCom: '2026-06-02', datePay: '2026-07-01', valUnit: 0.250, label: 'JCP Trimestral' },
+  { id: 'b3_itub3_2026_08', symbol: 'ITUB3', type: 'JCP',       dateCom: '2026-08-31', datePay: '2026-10-01', valUnit: 0.280, label: 'JCP 2T26' },
+  { id: 'b3_itub3_2026_11', symbol: 'ITUB3', type: 'DIVIDENDO', dateCom: '2026-11-30', datePay: '2027-01-05', valUnit: 0.450, label: 'Dividendo IntermediÃ¡rio' },
+  { id: 'b3_itub4_2026_03', symbol: 'ITUB4', type: 'JCP',       dateCom: '2026-02-28', datePay: '2026-04-01', valUnit: 0.255, label: 'JCP 1T26' },
+  { id: 'b3_itub4_2026_06', symbol: 'ITUB4', type: 'JCP',       dateCom: '2026-06-02', datePay: '2026-07-01', valUnit: 0.255, label: 'JCP Trimestral' },
+  { id: 'b3_itub4_2026_08', symbol: 'ITUB4', type: 'JCP',       dateCom: '2026-08-31', datePay: '2026-10-01', valUnit: 0.285, label: 'JCP 2T26' },
+  { id: 'b3_itub4_2026_11', symbol: 'ITUB4', type: 'DIVIDENDO', dateCom: '2026-11-30', datePay: '2027-01-05', valUnit: 0.460, label: 'Dividendo IntermediÃ¡rio' },
+
+  // ITSA3 / ITSA4 (ItaÃºsa)
+  { id: 'b3_itsa3_2026_03', symbol: 'ITSA3', type: 'JCP',       dateCom: '2026-03-20', datePay: '2026-04-02', valUnit: 0.175, label: 'JCP 1T26' },
+  { id: 'b3_itsa3_2026_06', symbol: 'ITSA3', type: 'JCP',       dateCom: '2026-06-18', datePay: '2026-07-02', valUnit: 0.180, label: 'JCP Trimestral' },
+  { id: 'b3_itsa3_2026_08', symbol: 'ITSA3', type: 'JCP',       dateCom: '2026-08-20', datePay: '2026-09-02', valUnit: 0.195, label: 'JCP 2T26' },
+  { id: 'b3_itsa3_2026_11', symbol: 'ITSA3', type: 'DIVIDENDO', dateCom: '2026-11-20', datePay: '2026-12-15', valUnit: 0.170, label: 'Dividendo 3T26' },
+  { id: 'b3_itsa4_2026_03', symbol: 'ITSA4', type: 'JCP',       dateCom: '2026-03-20', datePay: '2026-04-02', valUnit: 0.180, label: 'JCP 1T26' },
+  { id: 'b3_itsa4_2026_06', symbol: 'ITSA4', type: 'JCP',       dateCom: '2026-06-18', datePay: '2026-07-02', valUnit: 0.185, label: 'JCP Trimestral' },
+  { id: 'b3_itsa4_2026_08', symbol: 'ITSA4', type: 'JCP',       dateCom: '2026-08-20', datePay: '2026-09-02', valUnit: 0.200, label: 'JCP 2T26' },
+  { id: 'b3_itsa4_2026_11', symbol: 'ITSA4', type: 'DIVIDENDO', dateCom: '2026-11-20', datePay: '2026-12-15', valUnit: 0.180, label: 'Dividendo 3T26' },
+
+  // SANB3 / SANB4 / SANB11 (Santander Brasil)
+  { id: 'b3_sanb3_2026_04',  symbol: 'SANB3',  type: 'JCP',     dateCom: '2026-04-18', datePay: '2026-05-15', valUnit: 0.380, label: 'JCP 1T26' },
+  { id: 'b3_sanb3_2026_07',  symbol: 'SANB3',  type: 'JCP',     dateCom: '2026-07-19', datePay: '2026-08-14', valUnit: 0.410, label: 'JCP 2T26' },
+  { id: 'b3_sanb3_2026_10',  symbol: 'SANB3',  type: 'JCP',     dateCom: '2026-10-18', datePay: '2026-11-15', valUnit: 0.420, label: 'JCP 3T26' },
+  { id: 'b3_sanb4_2026_04',  symbol: 'SANB4',  type: 'JCP',     dateCom: '2026-04-18', datePay: '2026-05-15', valUnit: 0.390, label: 'JCP 1T26' },
+  { id: 'b3_sanb4_2026_07',  symbol: 'SANB4',  type: 'JCP',     dateCom: '2026-07-19', datePay: '2026-08-14', valUnit: 0.420, label: 'JCP 2T26' },
+  { id: 'b3_sanb4_2026_10',  symbol: 'SANB4',  type: 'JCP',     dateCom: '2026-10-18', datePay: '2026-11-15', valUnit: 0.430, label: 'JCP 3T26' },
+  { id: 'b3_sanb11_2026_04', symbol: 'SANB11', type: 'JCP',     dateCom: '2026-04-18', datePay: '2026-05-15', valUnit: 0.770, label: 'JCP 1T26' },
+  { id: 'b3_sanb11_2026_07', symbol: 'SANB11', type: 'JCP',     dateCom: '2026-07-19', datePay: '2026-08-14', valUnit: 0.830, label: 'JCP 2T26' },
+  { id: 'b3_sanb11_2026_10', symbol: 'SANB11', type: 'JCP',     dateCom: '2026-10-18', datePay: '2026-11-15', valUnit: 0.850, label: 'JCP 3T26' },
+
+  // ABCB4 (Banco ABC Brasil)
+  { id: 'b3_abcb4_2026_06', symbol: 'ABCB4', type: 'JCP',       dateCom: '2026-06-30', datePay: '2026-07-15', valUnit: 0.450, label: 'JCP 1S26' },
+  { id: 'b3_abcb4_2026_12', symbol: 'ABCB4', type: 'JCP',       dateCom: '2026-12-30', datePay: '2027-01-15', valUnit: 0.480, label: 'JCP 2S26' },
+
+  // BRSR3 / BRSR6 (Banrisul)
+  { id: 'b3_brsr3_2026_06', symbol: 'BRSR3', type: 'JCP',       dateCom: '2026-06-18', datePay: '2026-06-29', valUnit: 0.320, label: 'JCP 2T26' },
+  { id: 'b3_brsr3_2026_09', symbol: 'BRSR3', type: 'JCP',       dateCom: '2026-09-18', datePay: '2026-09-30', valUnit: 0.340, label: 'JCP 3T26' },
+  { id: 'b3_brsr3_2026_12', symbol: 'BRSR3', type: 'JCP',       dateCom: '2026-12-18', datePay: '2026-12-30', valUnit: 0.350, label: 'JCP 4T26' },
+  { id: 'b3_brsr6_2026_06', symbol: 'BRSR6', type: 'JCP',       dateCom: '2026-06-18', datePay: '2026-06-29', valUnit: 0.330, label: 'JCP 2T26' },
+  { id: 'b3_brsr6_2026_09', symbol: 'BRSR6', type: 'JCP',       dateCom: '2026-09-18', datePay: '2026-09-30', valUnit: 0.350, label: 'JCP 3T26' },
+  { id: 'b3_brsr6_2026_12', symbol: 'BRSR6', type: 'JCP',       dateCom: '2026-12-18', datePay: '2026-12-30', valUnit: 0.360, label: 'JCP 4T26' },
+
+  // BPAC3 / BPAC11 (BTG Pactual)
+  { id: 'b3_bpac3_2026_06',  symbol: 'BPAC3',  type: 'JCP',     dateCom: '2026-06-20', datePay: '2026-08-15', valUnit: 0.155, label: 'JCP 1S26' },
+  { id: 'b3_bpac3_2026_12',  symbol: 'BPAC3',  type: 'JCP',     dateCom: '2026-12-20', datePay: '2027-02-15', valUnit: 0.160, label: 'JCP 2S26' },
+  { id: 'b3_bpac11_2026_06', symbol: 'BPAC11', type: 'JCP',     dateCom: '2026-06-20', datePay: '2026-08-15', valUnit: 0.310, label: 'JCP 1S26' },
+  { id: 'b3_bpac11_2026_12', symbol: 'BPAC11', type: 'JCP',     dateCom: '2026-12-20', datePay: '2027-02-15', valUnit: 0.320, label: 'JCP 2S26' },
+
+  // BMEB4 (Banco Mercantil)
+  { id: 'b3_bmeb4_2026_06', symbol: 'BMEB4', type: 'JCP',       dateCom: '2026-06-25', datePay: '2026-07-15', valUnit: 0.250, label: 'JCP 1S26' },
+  { id: 'b3_bmeb4_2026_12', symbol: 'BMEB4', type: 'JCP',       dateCom: '2026-12-23', datePay: '2027-01-15', valUnit: 0.264, label: 'JCP 2S26' },
+
+  // ==========================================
+  // COMMODITIES & MINERAÃ‡ÃƒO & PAPEL
+  // ==========================================
+  // PETR4 (Petrobras)
+  { id: 'b3_petr4_2026_05', symbol: 'PETR4', type: 'DIVIDENDO', dateCom: '2026-05-14', datePay: '2026-06-20', valUnit: 1.150, label: 'Dividendo IntermediÃ¡rio 1T26' },
+  { id: 'b3_petr4_2026_08', symbol: 'PETR4', type: 'JCP',       dateCom: '2026-08-21', datePay: '2026-09-20', valUnit: 0.950, label: 'JCP 2T26' },
+  { id: 'b3_petr4_2026_11', symbol: 'PETR4', type: 'DIVIDENDO', dateCom: '2026-11-20', datePay: '2026-12-20', valUnit: 1.250, label: 'Dividendo 3T26' },
+  { id: 'b3_petr4_2027_03', symbol: 'PETR4', type: 'DIVIDENDO', dateCom: '2027-03-25', datePay: '2027-05-20', valUnit: 1.190, label: 'Dividendo 4T26' },
+
+  // VALE3 (Vale)
+  { id: 'b3_vale3_2026_03', symbol: 'VALE3', type: 'DIVIDENDO', dateCom: '2026-03-05', datePay: '2026-03-19', valUnit: 2.730, label: 'Dividendo 2S25' },
+  { id: 'b3_vale3_2026_08', symbol: 'VALE3', type: 'JCP',       dateCom: '2026-08-08', datePay: '2026-09-04', valUnit: 1.950, label: 'JCP 1S26' },
+  { id: 'b3_vale3_2026_12', symbol: 'VALE3', type: 'DIVIDENDO', dateCom: '2026-12-10', datePay: '2026-12-28', valUnit: 2.100, label: 'Dividendo ExtraordinÃ¡rio' },
+
+  // BRAP3 / BRAP4 (Bradespar)
+  { id: 'b3_brap3_2026_05', symbol: 'BRAP3', type: 'DIVIDENDO', dateCom: '2026-05-02', datePay: '2026-05-15', valUnit: 0.780, label: 'Dividendo Complementar 2025' },
+  { id: 'b3_brap3_2026_11', symbol: 'BRAP3', type: 'JCP',       dateCom: '2026-11-12', datePay: '2026-11-28', valUnit: 0.830, label: 'JCP 2S26' },
+  { id: 'b3_brap4_2026_05', symbol: 'BRAP4', type: 'DIVIDENDO', dateCom: '2026-05-02', datePay: '2026-05-15', valUnit: 0.780, label: 'Dividendo Complementar 2025' },
+  { id: 'b3_brap4_2026_11', symbol: 'BRAP4', type: 'JCP',       dateCom: '2026-11-12', datePay: '2026-11-28', valUnit: 0.830, label: 'JCP 2S26' },
+
+  // SUZB3 (Suzano)
+  { id: 'b3_suzb3_2026_05', symbol: 'SUZB3', type: 'DIVIDENDO', dateCom: '2026-05-15', datePay: '2026-05-29', valUnit: 1.010, label: 'Dividendo Anual 2025' },
+  { id: 'b3_suzb3_2026_12', symbol: 'SUZB3', type: 'DIVIDENDO', dateCom: '2026-12-15', datePay: '2026-12-29', valUnit: 1.010, label: 'Dividendo IntermediÃ¡rio 2026' },
+
+  // GGBR3 / GGBR4 (Gerdau)
+  { id: 'b3_ggbr3_2026_05', symbol: 'GGBR3', type: 'DIVIDENDO', dateCom: '2026-05-12', datePay: '2026-05-28', valUnit: 0.350, label: 'Dividendo 1T26' },
+  { id: 'b3_ggbr3_2026_08', symbol: 'GGBR3', type: 'DIVIDENDO', dateCom: '2026-08-10', datePay: '2026-08-25', valUnit: 0.380, label: 'Dividendo 2T26' },
+  { id: 'b3_ggbr3_2026_11', symbol: 'GGBR3', type: 'DIVIDENDO', dateCom: '2026-11-10', datePay: '2026-11-25', valUnit: 0.370, label: 'Dividendo 3T26' },
+  { id: 'b3_ggbr4_2026_05', symbol: 'GGBR4', type: 'DIVIDENDO', dateCom: '2026-05-12', datePay: '2026-05-28', valUnit: 0.360, label: 'Dividendo 1T26' },
+  { id: 'b3_ggbr4_2026_08', symbol: 'GGBR4', type: 'DIVIDENDO', dateCom: '2026-08-10', datePay: '2026-08-25', valUnit: 0.390, label: 'Dividendo 2T26' },
+  { id: 'b3_ggbr4_2026_11', symbol: 'GGBR4', type: 'DIVIDENDO', dateCom: '2026-11-10', datePay: '2026-11-25', valUnit: 0.380, label: 'Dividendo 3T26' },
+
+  // GOAU3 / GOAU4 (MetalÃºrgica Gerdau)
+  { id: 'b3_goau3_2026_05', symbol: 'GOAU3', type: 'DIVIDENDO', dateCom: '2026-05-12', datePay: '2026-05-28', valUnit: 0.180, label: 'Dividendo 1T26' },
+  { id: 'b3_goau3_2026_08', symbol: 'GOAU3', type: 'DIVIDENDO', dateCom: '2026-08-10', datePay: '2026-08-25', valUnit: 0.200, label: 'Dividendo 2T26' },
+  { id: 'b3_goau3_2026_11', symbol: 'GOAU3', type: 'DIVIDENDO', dateCom: '2026-11-10', datePay: '2026-11-25', valUnit: 0.190, label: 'Dividendo 3T26' },
+  { id: 'b3_goau4_2026_05', symbol: 'GOAU4', type: 'DIVIDENDO', dateCom: '2026-05-12', datePay: '2026-05-28', valUnit: 0.190, label: 'Dividendo 1T26' },
+  { id: 'b3_goau4_2026_08', symbol: 'GOAU4', type: 'DIVIDENDO', dateCom: '2026-08-10', datePay: '2026-08-25', valUnit: 0.210, label: 'Dividendo 2T26' },
+  { id: 'b3_goau4_2026_11', symbol: 'GOAU4', type: 'DIVIDENDO', dateCom: '2026-11-10', datePay: '2026-11-25', valUnit: 0.200, label: 'Dividendo 3T26' },
+
+  // ==========================================
+  // ENERGIA ELÃ‰TRICA & SANEAMENTO
+  // ==========================================
+  // TAEE3 / TAEE4 / TAEE11 (Taesa)
+  { id: 'b3_taee3_2026_05',  symbol: 'TAEE3',  type: 'DIVIDENDO', dateCom: '2026-05-13', datePay: '2026-05-30', valUnit: 0.380, label: 'Dividendo Intercalar 1T26' },
+  { id: 'b3_taee3_2026_08',  symbol: 'TAEE3',  type: 'JCP',       dateCom: '2026-08-14', datePay: '2026-09-05', valUnit: 0.425, label: 'JCP 2T26' },
+  { id: 'b3_taee3_2026_11',  symbol: 'TAEE3',  type: 'DIVIDENDO', dateCom: '2026-11-12', datePay: '2026-12-05', valUnit: 0.410, label: 'Dividendo 3T26' },
+  { id: 'b3_taee4_2026_05',  symbol: 'TAEE4',  type: 'DIVIDENDO', dateCom: '2026-05-13', datePay: '2026-05-30', valUnit: 0.395, label: 'Dividendo Intercalar 1T26' },
+  { id: 'b3_taee4_2026_08',  symbol: 'TAEE4',  type: 'JCP',       dateCom: '2026-08-14', datePay: '2026-09-05', valUnit: 0.435, label: 'JCP 2T26' },
+  { id: 'b3_taee4_2026_11',  symbol: 'TAEE4',  type: 'DIVIDENDO', dateCom: '2026-11-12', datePay: '2026-12-05', valUnit: 0.420, label: 'Dividendo 3T26' },
+  { id: 'b3_taee11_2026_05', symbol: 'TAEE11', type: 'DIVIDENDO', dateCom: '2026-05-13', datePay: '2026-05-30', valUnit: 1.170, label: 'Dividendo Intercalar 1T26' },
+  { id: 'b3_taee11_2026_08', symbol: 'TAEE11', type: 'JCP',       dateCom: '2026-08-14', datePay: '2026-09-05', valUnit: 1.295, label: 'JCP 2T26' },
+  { id: 'b3_taee11_2026_11', symbol: 'TAEE11', type: 'DIVIDENDO', dateCom: '2026-11-12', datePay: '2026-12-05', valUnit: 1.250, label: 'Dividendo 3T26' },
+
+  // CMIG3 / CMIG4 (Cemig)
   { id: 'b3_cmig3_2026_04', symbol: 'CMIG3', type: 'JCP',       dateCom: '2026-04-25', datePay: '2026-06-30', valUnit: 0.460, label: 'JCP Anual 2025' },
   { id: 'b3_cmig3_2026_09', symbol: 'CMIG3', type: 'DIVIDENDO', dateCom: '2026-09-21', datePay: '2026-10-15', valUnit: 0.350, label: 'Dividendo 1S26' },
   { id: 'b3_cmig3_2026_12', symbol: 'CMIG3', type: 'JCP',       dateCom: '2026-12-20', datePay: '2027-04-30', valUnit: 0.480, label: 'JCP 2S26' },
@@ -2117,115 +2226,114 @@ const B3_DIVIDEND_CALENDAR = [
   { id: 'b3_cmig4_2026_09', symbol: 'CMIG4', type: 'DIVIDENDO', dateCom: '2026-09-21', datePay: '2026-10-15', valUnit: 0.385, label: 'Dividendo 1S26' },
   { id: 'b3_cmig4_2026_12', symbol: 'CMIG4', type: 'JCP',       dateCom: '2026-12-20', datePay: '2027-04-30', valUnit: 0.528, label: 'JCP 2S26' },
 
-  // ITUB3 / ITUB4
-  { id: 'b3_itub3_2026_03', symbol: 'ITUB3', type: 'JCP',       dateCom: '2026-02-28', datePay: '2026-04-01', valUnit: 0.250, label: 'JCP 1T26' },
-  { id: 'b3_itub3_2026_06', symbol: 'ITUB3', type: 'JCP',       dateCom: '2026-06-02', datePay: '2026-07-01', valUnit: 0.250, label: 'JCP Trimestral' },
-  { id: 'b3_itub3_2026_08', symbol: 'ITUB3', type: 'JCP',       dateCom: '2026-08-31', datePay: '2026-10-01', valUnit: 0.280, label: 'JCP 2T26' },
-  { id: 'b3_itub3_2026_11', symbol: 'ITUB3', type: 'DIVIDENDO', dateCom: '2026-11-30', datePay: '2027-01-05', valUnit: 0.450, label: 'Dividendo Intermediário' },
-  { id: 'b3_itub4_2026_03', symbol: 'ITUB4', type: 'JCP',       dateCom: '2026-02-28', datePay: '2026-04-01', valUnit: 0.255, label: 'JCP 1T26' },
-  { id: 'b3_itub4_2026_06', symbol: 'ITUB4', type: 'JCP',       dateCom: '2026-06-02', datePay: '2026-07-01', valUnit: 0.255, label: 'JCP Trimestral' },
-  { id: 'b3_itub4_2026_08', symbol: 'ITUB4', type: 'JCP',       dateCom: '2026-08-31', datePay: '2026-10-01', valUnit: 0.285, label: 'JCP 2T26' },
-  { id: 'b3_itub4_2026_11', symbol: 'ITUB4', type: 'DIVIDENDO', dateCom: '2026-11-30', datePay: '2027-01-05', valUnit: 0.460, label: 'Dividendo Intermediário' },
-
-  // ITSA3 / ITSA4
-  { id: 'b3_itsa3_2026_03', symbol: 'ITSA3', type: 'JCP',       dateCom: '2026-03-20', datePay: '2026-04-02', valUnit: 0.175, label: 'JCP 1T26' },
-  { id: 'b3_itsa3_2026_06', symbol: 'ITSA3', type: 'JCP',       dateCom: '2026-06-18', datePay: '2026-07-02', valUnit: 0.180, label: 'JCP Trimestral' },
-  { id: 'b3_itsa3_2026_08', symbol: 'ITSA3', type: 'JCP',       dateCom: '2026-08-20', datePay: '2026-09-02', valUnit: 0.195, label: 'JCP 2T26' },
-  { id: 'b3_itsa4_2026_03', symbol: 'ITSA4', type: 'JCP',       dateCom: '2026-03-20', datePay: '2026-04-02', valUnit: 0.180, label: 'JCP 1T26' },
-  { id: 'b3_itsa4_2026_06', symbol: 'ITSA4', type: 'JCP',       dateCom: '2026-06-18', datePay: '2026-07-02', valUnit: 0.185, label: 'JCP Trimestral' },
-  { id: 'b3_itsa4_2026_08', symbol: 'ITSA4', type: 'JCP',       dateCom: '2026-08-20', datePay: '2026-09-02', valUnit: 0.200, label: 'JCP 2T26' },
-
-  // SAPR3 / SAPR4 / SAPR11
-  { id: 'b3_sapr3_2026_06', symbol: 'SAPR3', type: 'JCP',       dateCom: '2026-06-28', datePay: '2026-07-15', valUnit: 0.224, label: 'JCP 1S26' },
-  { id: 'b3_sapr3_2026_12', symbol: 'SAPR3', type: 'JCP',       dateCom: '2026-12-28', datePay: '2027-04-20', valUnit: 0.235, label: 'JCP 2S26' },
-  { id: 'b3_sapr4_2026_06', symbol: 'SAPR4', type: 'JCP',       dateCom: '2026-06-28', datePay: '2026-07-15', valUnit: 0.246, label: 'JCP 1S26' },
-  { id: 'b3_sapr4_2026_12', symbol: 'SAPR4', type: 'JCP',       dateCom: '2026-12-28', datePay: '2027-04-20', valUnit: 0.258, label: 'JCP 2S26' },
-
-  // CSMG3
-  { id: 'b3_csmg3_2026_03', symbol: 'CSMG3', type: 'JCP',       dateCom: '2026-03-22', datePay: '2026-04-25', valUnit: 0.380, label: 'JCP 1T26' },
-  { id: 'b3_csmg3_2026_06', symbol: 'CSMG3', type: 'JCP',       dateCom: '2026-06-20', datePay: '2026-07-28', valUnit: 0.420, label: 'JCP 2T26' },
-  { id: 'b3_csmg3_2026_09', symbol: 'CSMG3', type: 'JCP',       dateCom: '2026-09-22', datePay: '2026-10-30', valUnit: 0.440, label: 'JCP 3T26' },
-
-  // SBSP3
-  { id: 'b3_sbsp3_2026_04', symbol: 'SBSP3', type: 'DIVIDENDO', dateCom: '2026-04-26', datePay: '2026-06-22', valUnit: 0.650, label: 'Dividendo 2025' },
-  { id: 'b3_sbsp3_2026_11', symbol: 'SBSP3', type: 'DIVIDENDO', dateCom: '2026-11-20', datePay: '2026-12-18', valUnit: 0.580, label: 'Dividendo 2S26' },
-
-  // EGIE3
+  // EGIE3 (Engie Brasil)
   { id: 'b3_egie3_2026_05', symbol: 'EGIE3', type: 'DIVIDENDO', dateCom: '2026-05-18', datePay: '2026-06-15', valUnit: 0.750, label: 'Dividendo Complementar 2025' },
   { id: 'b3_egie3_2026_08', symbol: 'EGIE3', type: 'DIVIDENDO', dateCom: '2026-08-20', datePay: '2026-09-18', valUnit: 0.820, label: 'Dividendo 1S26' },
+  { id: 'b3_egie3_2026_12', symbol: 'EGIE3', type: 'JCP',       dateCom: '2026-12-15', datePay: '2027-02-20', valUnit: 0.760, label: 'JCP 2S26' },
 
-  // TRPL4 / TRPL11 / ISAE3
+  // TRPL3 / TRPL4 / TRPL11 / ISAE3 (ISA Cteep)
+  { id: 'b3_trpl3_2026_06',  symbol: 'TRPL3',  type: 'JCP',     dateCom: '2026-06-15', datePay: '2026-07-10', valUnit: 0.590, label: 'JCP 1T26' },
+  { id: 'b3_trpl3_2026_12',  symbol: 'TRPL3',  type: 'DIVIDENDO', dateCom: '2026-12-14', datePay: '2027-01-15', valUnit: 0.735, label: 'Dividendo 2S26' },
   { id: 'b3_trpl4_2026_06',  symbol: 'TRPL4',  type: 'JCP',     dateCom: '2026-06-15', datePay: '2026-07-10', valUnit: 0.590, label: 'JCP 1T26' },
   { id: 'b3_trpl4_2026_12',  symbol: 'TRPL4',  type: 'DIVIDENDO', dateCom: '2026-12-14', datePay: '2027-01-15', valUnit: 0.735, label: 'Dividendo 2S26' },
   { id: 'b3_trpl11_2026_06', symbol: 'TRPL11', type: 'JCP',     dateCom: '2026-06-15', datePay: '2026-07-10', valUnit: 0.580, label: 'JCP 1T26' },
   { id: 'b3_trpl11_2026_12', symbol: 'TRPL11', type: 'DIVIDENDO', dateCom: '2026-12-14', datePay: '2027-01-15', valUnit: 0.720, label: 'Dividendo 2S26' },
   { id: 'b3_isae3_2026_06',  symbol: 'ISAE3',  type: 'JCP',     dateCom: '2026-06-15', datePay: '2026-07-10', valUnit: 0.580, label: 'JCP 1T26' },
+  { id: 'b3_isae3_2026_12',  symbol: 'ISAE3',  type: 'DIVIDENDO', dateCom: '2026-12-14', datePay: '2027-01-15', valUnit: 0.720, label: 'Dividendo 2S26' },
 
-  // CPLE3 / CPLE6
+  // CPLE3 / CPLE6 (Copel)
   { id: 'b3_cple3_2026_04', symbol: 'CPLE3', type: 'DIVIDENDO', dateCom: '2026-04-30', datePay: '2026-06-25', valUnit: 0.280, label: 'Dividendo Anual' },
   { id: 'b3_cple3_2026_09', symbol: 'CPLE3', type: 'JCP',       dateCom: '2026-09-30', datePay: '2026-11-28', valUnit: 0.320, label: 'JCP 3T26' },
+  { id: 'b3_cple6_2026_04', symbol: 'CPLE6', type: 'DIVIDENDO', dateCom: '2026-04-30', datePay: '2026-06-25', valUnit: 0.280, label: 'Dividendo Anual' },
+  { id: 'b3_cple6_2026_09', symbol: 'CPLE6', type: 'JCP',       dateCom: '2026-09-30', datePay: '2026-11-28', valUnit: 0.320, label: 'JCP 3T26' },
 
-  // CPFE3
+  // CPFE3 (CPFL Energia)
   { id: 'b3_cpfe3_2026_04', symbol: 'CPFE3', type: 'DIVIDENDO', dateCom: '2026-04-28', datePay: '2026-06-12', valUnit: 1.250, label: 'Dividendo 2025' },
   { id: 'b3_cpfe3_2026_08', symbol: 'CPFE3', type: 'DIVIDENDO', dateCom: '2026-08-15', datePay: '2026-09-20', valUnit: 0.950, label: 'Dividendo 1S26' },
 
-  // ALUP3 / ALUP4 / ALUP11
-  { id: 'b3_alup3_2026_05', symbol: 'ALUP3', type: 'DIVIDENDO', dateCom: '2026-05-10', datePay: '2026-06-05', valUnit: 0.350, label: 'Dividendo 1T26' },
-  { id: 'b3_alup3_2026_11', symbol: 'ALUP3', type: 'DIVIDENDO', dateCom: '2026-11-10', datePay: '2026-12-08', valUnit: 0.400, label: 'Dividendo 3T26' },
-  { id: 'b3_alup4_2026_05', symbol: 'ALUP4', type: 'DIVIDENDO', dateCom: '2026-05-10', datePay: '2026-06-05', valUnit: 0.360, label: 'Dividendo 1T26' },
-  { id: 'b3_alup4_2026_11', symbol: 'ALUP4', type: 'DIVIDENDO', dateCom: '2026-11-10', datePay: '2026-12-08', valUnit: 0.410, label: 'Dividendo 3T26' },
+  // ALUP3 / ALUP4 / ALUP11 (Alupar)
+  { id: 'b3_alup3_2026_05',  symbol: 'ALUP3',  type: 'DIVIDENDO', dateCom: '2026-05-10', datePay: '2026-06-05', valUnit: 0.350, label: 'Dividendo 1T26' },
+  { id: 'b3_alup3_2026_11',  symbol: 'ALUP3',  type: 'DIVIDENDO', dateCom: '2026-11-10', datePay: '2026-12-08', valUnit: 0.400, label: 'Dividendo 3T26' },
+  { id: 'b3_alup4_2026_05',  symbol: 'ALUP4',  type: 'DIVIDENDO', dateCom: '2026-05-10', datePay: '2026-06-05', valUnit: 0.360, label: 'Dividendo 1T26' },
+  { id: 'b3_alup4_2026_11',  symbol: 'ALUP4',  type: 'DIVIDENDO', dateCom: '2026-11-10', datePay: '2026-12-08', valUnit: 0.410, label: 'Dividendo 3T26' },
+  { id: 'b3_alup11_2026_05', symbol: 'ALUP11', type: 'DIVIDENDO', dateCom: '2026-05-10', datePay: '2026-06-05', valUnit: 1.070, label: 'Dividendo 1T26' },
+  { id: 'b3_alup11_2026_11', symbol: 'ALUP11', type: 'DIVIDENDO', dateCom: '2026-11-10', datePay: '2026-12-08', valUnit: 1.220, label: 'Dividendo 3T26' },
 
-  // CXSE3
+  // ENGI3 / ENGI4 (Energisa)
+  { id: 'b3_engi3_2026_05', symbol: 'ENGI3', type: 'DIVIDENDO', dateCom: '2026-05-15', datePay: '2026-06-10', valUnit: 0.200, label: 'Dividendo 1S26' },
+  { id: 'b3_engi3_2026_11', symbol: 'ENGI3', type: 'DIVIDENDO', dateCom: '2026-11-15', datePay: '2026-12-10', valUnit: 0.220, label: 'Dividendo 2S26' },
+  { id: 'b3_engi4_2026_05', symbol: 'ENGI4', type: 'DIVIDENDO', dateCom: '2026-05-15', datePay: '2026-06-10', valUnit: 0.210, label: 'Dividendo 1S26' },
+  { id: 'b3_engi4_2026_11', symbol: 'ENGI4', type: 'DIVIDENDO', dateCom: '2026-11-15', datePay: '2026-12-10', valUnit: 0.230, label: 'Dividendo 2S26' },
+
+  // EQTL3 (Equatorial Energia)
+  { id: 'b3_eqtl3_2026_04', symbol: 'EQTL3', type: 'DIVIDENDO', dateCom: '2026-04-30', datePay: '2026-06-25', valUnit: 1.050, label: 'Dividendo Anual 2025' },
+  { id: 'b3_eqtl3_2026_11', symbol: 'EQTL3', type: 'DIVIDENDO', dateCom: '2026-11-20', datePay: '2026-12-15', valUnit: 1.080, label: 'Dividendo 2S26' },
+
+  // SAPR3 / SAPR4 / SAPR11 (Sanepar)
+  { id: 'b3_sapr3_2026_06',  symbol: 'SAPR3',  type: 'JCP',     dateCom: '2026-06-28', datePay: '2026-07-15', valUnit: 0.224, label: 'JCP 1S26' },
+  { id: 'b3_sapr3_2026_12',  symbol: 'SAPR3',  type: 'JCP',     dateCom: '2026-12-28', datePay: '2027-04-20', valUnit: 0.235, label: 'JCP 2S26' },
+  { id: 'b3_sapr4_2026_06',  symbol: 'SAPR4',  type: 'JCP',     dateCom: '2026-06-28', datePay: '2026-07-15', valUnit: 0.246, label: 'JCP 1S26' },
+  { id: 'b3_sapr4_2026_12',  symbol: 'SAPR4',  type: 'JCP',     dateCom: '2026-12-28', datePay: '2027-04-20', valUnit: 0.258, label: 'JCP 2S26' },
+  { id: 'b3_sapr11_2026_06', symbol: 'SAPR11', type: 'JCP',     dateCom: '2026-06-28', datePay: '2026-07-15', valUnit: 1.208, label: 'JCP 1S26' },
+  { id: 'b3_sapr11_2026_12', symbol: 'SAPR11', type: 'JCP',     dateCom: '2026-12-28', datePay: '2027-04-20', valUnit: 1.267, label: 'JCP 2S26' },
+
+  // CSMG3 (Copasa)
+  { id: 'b3_csmg3_2026_03', symbol: 'CSMG3', type: 'JCP',       dateCom: '2026-03-22', datePay: '2026-04-25', valUnit: 0.380, label: 'JCP 1T26' },
+  { id: 'b3_csmg3_2026_06', symbol: 'CSMG3', type: 'JCP',       dateCom: '2026-06-20', datePay: '2026-07-28', valUnit: 0.420, label: 'JCP 2T26' },
+  { id: 'b3_csmg3_2026_09', symbol: 'CSMG3', type: 'JCP',       dateCom: '2026-09-22', datePay: '2026-10-30', valUnit: 0.440, label: 'JCP 3T26' },
+
+  // SBSP3 (Sabesp)
+  { id: 'b3_sbsp3_2026_04', symbol: 'SBSP3', type: 'DIVIDENDO', dateCom: '2026-04-26', datePay: '2026-06-22', valUnit: 0.650, label: 'Dividendo 2025' },
+  { id: 'b3_sbsp3_2026_11', symbol: 'SBSP3', type: 'DIVIDENDO', dateCom: '2026-11-20', datePay: '2026-12-18', valUnit: 0.580, label: 'Dividendo 2S26' },
+
+  // ==========================================
+  // SEGUROS & BENS INDUSTRIAIS & TELECOM
+  // ==========================================
+  // BBSE3 (BB Seguridade)
+  { id: 'b3_bbse3_2026_02', symbol: 'BBSE3', type: 'DIVIDENDO', dateCom: '2026-02-18', datePay: '2026-03-05', valUnit: 1.350, label: 'Dividendo 2S25' },
+  { id: 'b3_bbse3_2026_08', symbol: 'BBSE3', type: 'DIVIDENDO', dateCom: '2026-08-15', datePay: '2026-08-28', valUnit: 1.420, label: 'Dividendo 1S26' },
+  { id: 'b3_bbse3_2027_02', symbol: 'BBSE3', type: 'DIVIDENDO', dateCom: '2027-02-18', datePay: '2027-03-05', valUnit: 1.450, label: 'Dividendo 2S26' },
+
+  // CXSE3 (Caixa Seguridade)
   { id: 'b3_cxse3_2026_05', symbol: 'CXSE3', type: 'DIVIDENDO', dateCom: '2026-05-08', datePay: '2026-05-28', valUnit: 0.520, label: 'Dividendo 1S26' },
   { id: 'b3_cxse3_2026_11', symbol: 'CXSE3', type: 'DIVIDENDO', dateCom: '2026-11-06', datePay: '2026-11-26', valUnit: 0.540, label: 'Dividendo 2S26' },
 
-  // PSSA3
+  // PSSA3 (Porto Seguro)
   { id: 'b3_pssa3_2026_04', symbol: 'PSSA3', type: 'JCP',       dateCom: '2026-04-02', datePay: '2026-04-20', valUnit: 0.650, label: 'JCP 1T26' },
   { id: 'b3_pssa3_2026_09', symbol: 'PSSA3', type: 'DIVIDENDO', dateCom: '2026-09-30', datePay: '2026-10-25', valUnit: 0.700, label: 'Dividendo 1S26' },
+  { id: 'b3_pssa3_2026_12', symbol: 'PSSA3', type: 'JCP',       dateCom: '2026-12-20', datePay: '2027-01-20', valUnit: 0.680, label: 'JCP 2S26' },
 
-  // SANB3 / SANB4 / SANB11
-  { id: 'b3_sanb3_2026_04', symbol: 'SANB3', type: 'JCP',       dateCom: '2026-04-18', datePay: '2026-05-15', valUnit: 0.380, label: 'JCP 1T26' },
-  { id: 'b3_sanb3_2026_07', symbol: 'SANB3', type: 'JCP',       dateCom: '2026-07-19', datePay: '2026-08-14', valUnit: 0.410, label: 'JCP 2T26' },
-  { id: 'b3_sanb4_2026_04', symbol: 'SANB4', type: 'JCP',       dateCom: '2026-04-18', datePay: '2026-05-15', valUnit: 0.390, label: 'JCP 1T26' },
-  { id: 'b3_sanb4_2026_07', symbol: 'SANB4', type: 'JCP',       dateCom: '2026-07-19', datePay: '2026-08-14', valUnit: 0.420, label: 'JCP 2T26' },
+  // WIZC3 (Wiz Co)
+  { id: 'b3_wizc3_2026_04', symbol: 'WIZC3', type: 'DIVIDENDO', dateCom: '2026-04-25', datePay: '2026-05-15', valUnit: 0.380, label: 'Dividendo 2025' },
+  { id: 'b3_wizc3_2026_11', symbol: 'WIZC3', type: 'DIVIDENDO', dateCom: '2026-11-15', datePay: '2026-12-05', valUnit: 0.390, label: 'Dividendo 2S26' },
 
-  // VIVT3
+  // IRBR3 (IRB Brasil)
+  { id: 'b3_irbr3_2026_04', symbol: 'IRBR3', type: 'DIVIDENDO', dateCom: '2026-04-28', datePay: '2026-05-20', valUnit: 0.800, label: 'Dividendo Anual 2025' },
+  { id: 'b3_irbr3_2026_10', symbol: 'IRBR3', type: 'DIVIDENDO', dateCom: '2026-10-28', datePay: '2026-11-20', valUnit: 0.810, label: 'Dividendo 1S26' },
+
+  // WEGE3 (WEG)
+  { id: 'b3_wege3_2026_03', symbol: 'WEGE3', type: 'DIVIDENDO', dateCom: '2026-03-20', datePay: '2026-04-10', valUnit: 0.500, label: 'Dividendo Complementar 2025' },
+  { id: 'b3_wege3_2026_06', symbol: 'WEGE3', type: 'JCP',       dateCom: '2026-06-25', datePay: '2026-08-15', valUnit: 0.480, label: 'JCP 2T26' },
+  { id: 'b3_wege3_2026_09', symbol: 'WEGE3', type: 'DIVIDENDO', dateCom: '2026-09-20', datePay: '2026-10-15', valUnit: 0.520, label: 'Dividendo IntermediÃ¡rio 3T26' },
+  { id: 'b3_wege3_2026_12', symbol: 'WEGE3', type: 'JCP',       dateCom: '2026-12-20', datePay: '2027-03-15', valUnit: 0.526, label: 'JCP 4T26' },
+
+  // ABEV3 (Ambev)
+  { id: 'b3_abev3_2026_12', symbol: 'ABEV3', type: 'JCP',       dateCom: '2026-12-18', datePay: '2027-01-08', valUnit: 0.754, label: 'JCP Anual 2026' },
+
+  // VIVT3 (TelefÃ´nica Brasil Vivo)
   { id: 'b3_vivt3_2026_04', symbol: 'VIVT3', type: 'JCP',       dateCom: '2026-04-24', datePay: '2026-07-18', valUnit: 0.550, label: 'JCP 1T26' },
-  { id: 'b3_vivt3_2026_08', symbol: 'VIVT3', type: 'DIVIDENDO', dateCom: '2026-08-28', datePay: '2026-11-20', valUnit: 0.720, label: 'Dividendo Intermediário' },
+  { id: 'b3_vivt3_2026_08', symbol: 'VIVT3', type: 'DIVIDENDO', dateCom: '2026-08-28', datePay: '2026-11-20', valUnit: 0.720, label: 'Dividendo IntermediÃ¡rio' },
+  { id: 'b3_vivt3_2026_12', symbol: 'VIVT3', type: 'JCP',       dateCom: '2026-12-20', datePay: '2027-04-20', valUnit: 0.580, label: 'JCP 4T26' },
 
-  // TIMS3
+  // TIMS3 (TIM Brasil)
   { id: 'b3_tims3_2026_04', symbol: 'TIMS3', type: 'DIVIDENDO', dateCom: '2026-04-22', datePay: '2026-05-10', valUnit: 0.420, label: 'Dividendo 1T26' },
   { id: 'b3_tims3_2026_07', symbol: 'TIMS3', type: 'JCP',       dateCom: '2026-07-22', datePay: '2026-08-15', valUnit: 0.380, label: 'JCP 2T26' },
-
-  // ABCB4
-  { id: 'b3_abcb4_2026_06', symbol: 'ABCB4', type: 'JCP',       dateCom: '2026-06-30', datePay: '2026-07-15', valUnit: 0.450, label: 'JCP 1S26' },
-  { id: 'b3_abcb4_2026_12', symbol: 'ABCB4', type: 'JCP',       dateCom: '2026-12-30', datePay: '2027-01-15', valUnit: 0.480, label: 'JCP 2S26' },
-
-  // BRSR3
-  { id: 'b3_brsr3_2026_06', symbol: 'BRSR3', type: 'JCP',       dateCom: '2026-06-18', datePay: '2026-06-29', valUnit: 0.320, label: 'JCP 2T26' },
-
-  // BBDC3 / BBDC4
-  { id: 'b3_bbdc3_2026_06', symbol: 'BBDC3', type: 'JCP',       dateCom: '2026-06-17', datePay: '2026-07-15', valUnit: 0.220, label: 'JCP 1S26' },
-  { id: 'b3_bbdc3_2026_12', symbol: 'BBDC3', type: 'JCP',       dateCom: '2026-12-18', datePay: '2027-01-15', valUnit: 0.240, label: 'JCP 2S26' },
-  { id: 'b3_bbdc4_2026_06', symbol: 'BBDC4', type: 'JCP',       dateCom: '2026-06-17', datePay: '2026-07-15', valUnit: 0.225, label: 'JCP 1S26' },
-  { id: 'b3_bbdc4_2026_12', symbol: 'BBDC4', type: 'JCP',       dateCom: '2026-12-18', datePay: '2027-01-15', valUnit: 0.245, label: 'JCP 2S26' },
-
-  // GGBR3 / GGBR4
-  { id: 'b3_ggbr3_2026_05', symbol: 'GGBR3', type: 'DIVIDENDO', dateCom: '2026-05-12', datePay: '2026-05-28', valUnit: 0.350, label: 'Dividendo 1T26' },
-  { id: 'b3_ggbr3_2026_08', symbol: 'GGBR3', type: 'DIVIDENDO', dateCom: '2026-08-10', datePay: '2026-08-25', valUnit: 0.380, label: 'Dividendo 2T26' },
-  { id: 'b3_ggbr4_2026_05', symbol: 'GGBR4', type: 'DIVIDENDO', dateCom: '2026-05-12', datePay: '2026-05-28', valUnit: 0.360, label: 'Dividendo 1T26' },
-  { id: 'b3_ggbr4_2026_08', symbol: 'GGBR4', type: 'DIVIDENDO', dateCom: '2026-08-10', datePay: '2026-08-25', valUnit: 0.390, label: 'Dividendo 2T26' },
-
-  // GOAU3 / GOAU4
-  { id: 'b3_goau3_2026_05', symbol: 'GOAU3', type: 'DIVIDENDO', dateCom: '2026-05-12', datePay: '2026-05-28', valUnit: 0.180, label: 'Dividendo 1T26' },
-  { id: 'b3_goau3_2026_08', symbol: 'GOAU3', type: 'DIVIDENDO', dateCom: '2026-08-10', datePay: '2026-08-25', valUnit: 0.200, label: 'Dividendo 2T26' },
-  { id: 'b3_goau4_2026_05', symbol: 'GOAU4', type: 'DIVIDENDO', dateCom: '2026-05-12', datePay: '2026-05-28', valUnit: 0.190, label: 'Dividendo 1T26' },
-  { id: 'b3_goau4_2026_08', symbol: 'GOAU4', type: 'DIVIDENDO', dateCom: '2026-08-10', datePay: '2026-08-25', valUnit: 0.210, label: 'Dividendo 2T26' },
+  { id: 'b3_tims3_2026_10', symbol: 'TIMS3', type: 'JCP',       dateCom: '2026-10-22', datePay: '2026-11-15', valUnit: 0.400, label: 'JCP 3T26' },
 
   // ============================================================
-  // PROVENTOS MENSAIS DE FUNDOS IMOBILIÁRIOS & FIAGROS (ISENTOS)
+  // PROVENTOS MENSAIS DE FUNDOS IMOBILIÃRIOS & FIAGROS (ISENTOS)
   // ============================================================
-  // HGLG11 (CSHG Logística)
+  // HGLG11 (CSHG LogÃ­stica)
   { id: 'fii_hglg11_2026_03', symbol: 'HGLG11', type: 'RENDIMENTO', dateCom: '2026-02-28', datePay: '2026-03-14', valUnit: 1.100, label: 'Rendimento Mensal 02/26' },
   { id: 'fii_hglg11_2026_04', symbol: 'HGLG11', type: 'RENDIMENTO', dateCom: '2026-03-31', datePay: '2026-04-15', valUnit: 1.100, label: 'Rendimento Mensal 03/26' },
   { id: 'fii_hglg11_2026_05', symbol: 'HGLG11', type: 'RENDIMENTO', dateCom: '2026-04-30', datePay: '2026-05-15', valUnit: 1.100, label: 'Rendimento Mensal 04/26' },
@@ -2236,8 +2344,9 @@ const B3_DIVIDEND_CALENDAR = [
   { id: 'fii_hglg11_2026_10', symbol: 'HGLG11', type: 'RENDIMENTO', dateCom: '2026-09-30', datePay: '2026-10-15', valUnit: 1.100, label: 'Rendimento Mensal 09/26' },
   { id: 'fii_hglg11_2026_11', symbol: 'HGLG11', type: 'RENDIMENTO', dateCom: '2026-10-30', datePay: '2026-11-16', valUnit: 1.100, label: 'Rendimento Mensal 10/26' },
   { id: 'fii_hglg11_2026_12', symbol: 'HGLG11', type: 'RENDIMENTO', dateCom: '2026-11-30', datePay: '2026-12-15', valUnit: 1.100, label: 'Rendimento Mensal 11/26' },
+  { id: 'fii_hglg11_2027_01', symbol: 'HGLG11', type: 'RENDIMENTO', dateCom: '2026-12-31', datePay: '2027-01-15', valUnit: 1.100, label: 'Rendimento Mensal 12/26' },
 
-  // BTLG11 (BTG Logística)
+  // BTLG11 (BTG LogÃ­stica)
   { id: 'fii_btlg11_2026_03', symbol: 'BTLG11', type: 'RENDIMENTO', dateCom: '2026-03-15', datePay: '2026-03-25', valUnit: 0.780, label: 'Rendimento Mensal 02/26' },
   { id: 'fii_btlg11_2026_04', symbol: 'BTLG11', type: 'RENDIMENTO', dateCom: '2026-04-15', datePay: '2026-04-24', valUnit: 0.780, label: 'Rendimento Mensal 03/26' },
   { id: 'fii_btlg11_2026_05', symbol: 'BTLG11', type: 'RENDIMENTO', dateCom: '2026-05-15', datePay: '2026-05-25', valUnit: 0.780, label: 'Rendimento Mensal 04/26' },
@@ -2248,54 +2357,37 @@ const B3_DIVIDEND_CALENDAR = [
   { id: 'fii_btlg11_2026_10', symbol: 'BTLG11', type: 'RENDIMENTO', dateCom: '2026-10-15', datePay: '2026-10-23', valUnit: 0.780, label: 'Rendimento Mensal 09/26' },
   { id: 'fii_btlg11_2026_11', symbol: 'BTLG11', type: 'RENDIMENTO', dateCom: '2026-11-13', datePay: '2026-11-25', valUnit: 0.780, label: 'Rendimento Mensal 10/26' },
   { id: 'fii_btlg11_2026_12', symbol: 'BTLG11', type: 'RENDIMENTO', dateCom: '2026-12-15', datePay: '2026-12-24', valUnit: 0.780, label: 'Rendimento Mensal 11/26' },
+  { id: 'fii_btlg11_2027_01', symbol: 'BTLG11', type: 'RENDIMENTO', dateCom: '2027-01-15', datePay: '2027-01-25', valUnit: 0.780, label: 'Rendimento Mensal 12/26' },
 
   // MXRF11 (Maxi Renda)
-  { id: 'fii_mxrf11_2026_03', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-02-28', datePay: '2026-03-13', valUnit: 0.100, label: 'Rendimento Mensal 02/26' },
-  { id: 'fii_mxrf11_2026_04', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-03-31', datePay: '2026-04-14', valUnit: 0.100, label: 'Rendimento Mensal 03/26' },
-  { id: 'fii_mxrf11_2026_05', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-04-30', datePay: '2026-05-15', valUnit: 0.100, label: 'Rendimento Mensal 04/26' },
-  { id: 'fii_mxrf11_2026_06', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-05-29', datePay: '2026-06-15', valUnit: 0.100, label: 'Rendimento Mensal 05/26' },
-  { id: 'fii_mxrf11_2026_07', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-06-30', datePay: '2026-07-14', valUnit: 0.100, label: 'Rendimento Mensal 06/26' },
-  { id: 'fii_mxrf11_2026_08', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-07-31', datePay: '2026-08-14', valUnit: 0.100, label: 'Rendimento Mensal 07/26' },
-  { id: 'fii_mxrf11_2026_09', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-08-31', datePay: '2026-09-15', valUnit: 0.100, label: 'Rendimento Mensal 08/26' },
-  { id: 'fii_mxrf11_2026_10', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-09-30', datePay: '2026-10-15', valUnit: 0.100, label: 'Rendimento Mensal 09/26' },
-  { id: 'fii_mxrf11_2026_11', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-10-30', datePay: '2026-11-13', valUnit: 0.100, label: 'Rendimento Mensal 10/26' },
-  { id: 'fii_mxrf11_2026_12', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-11-30', datePay: '2026-12-15', valUnit: 0.100, label: 'Rendimento Mensal 11/26' },
-
-  // KNCR11 (Kinea Rendimentos Imobiliários)
-  { id: 'fii_kncr11_2026_03', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-02-28', datePay: '2026-03-13', valUnit: 1.050, label: 'Rendimento Mensal 02/26' },
-  { id: 'fii_kncr11_2026_04', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-03-31', datePay: '2026-04-14', valUnit: 1.050, label: 'Rendimento Mensal 03/26' },
-  { id: 'fii_kncr11_2026_05', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-04-30', datePay: '2026-05-14', valUnit: 1.050, label: 'Rendimento Mensal 04/26' },
-  { id: 'fii_kncr11_2026_06', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-05-29', datePay: '2026-06-12', valUnit: 1.050, label: 'Rendimento Mensal 05/26' },
-  { id: 'fii_kncr11_2026_07', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-06-30', datePay: '2026-07-14', valUnit: 1.050, label: 'Rendimento Mensal 06/26' },
-  { id: 'fii_kncr11_2026_08', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-07-31', datePay: '2026-08-14', valUnit: 1.050, label: 'Rendimento Mensal 07/26' },
-  { id: 'fii_kncr11_2026_09', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-08-31', datePay: '2026-09-15', valUnit: 1.050, label: 'Rendimento Mensal 08/26' },
-  { id: 'fii_kncr11_2026_10', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-09-30', datePay: '2026-10-14', valUnit: 1.050, label: 'Rendimento Mensal 09/26' },
-  { id: 'fii_kncr11_2026_11', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-10-30', datePay: '2026-11-13', valUnit: 1.050, label: 'Rendimento Mensal 10/26' },
-  { id: 'fii_kncr11_2026_12', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-11-30', datePay: '2026-12-14', valUnit: 1.050, label: 'Rendimento Mensal 11/26' },
+  { id: 'fii_mxrf11_2026_06', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-05-31', datePay: '2026-06-15', valUnit: 0.090, label: 'Rendimento Mensal 05/26' },
+  { id: 'fii_mxrf11_2026_07', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-06-30', datePay: '2026-07-15', valUnit: 0.090, label: 'Rendimento Mensal 06/26' },
+  { id: 'fii_mxrf11_2026_08', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-07-31', datePay: '2026-08-14', valUnit: 0.090, label: 'Rendimento Mensal 07/26' },
+  { id: 'fii_mxrf11_2026_09', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-08-31', datePay: '2026-09-15', valUnit: 0.090, label: 'Rendimento Mensal 08/26' },
+  { id: 'fii_mxrf11_2026_10', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-09-30', datePay: '2026-10-15', valUnit: 0.090, label: 'Rendimento Mensal 09/26' },
+  { id: 'fii_mxrf11_2026_11', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-10-31', datePay: '2026-11-16', valUnit: 0.090, label: 'Rendimento Mensal 10/26' },
+  { id: 'fii_mxrf11_2026_12', symbol: 'MXRF11', type: 'RENDIMENTO', dateCom: '2026-11-30', datePay: '2026-12-15', valUnit: 0.090, label: 'Rendimento Mensal 11/26' },
 
   // XPML11 (XP Malls)
-  { id: 'fii_xpml11_2026_03', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-03-15', datePay: '2026-03-25', valUnit: 0.920, label: 'Rendimento Mensal 02/26' },
-  { id: 'fii_xpml11_2026_04', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-04-15', datePay: '2026-04-24', valUnit: 0.920, label: 'Rendimento Mensal 03/26' },
-  { id: 'fii_xpml11_2026_05', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-05-15', datePay: '2026-05-25', valUnit: 0.920, label: 'Rendimento Mensal 04/26' },
-  { id: 'fii_xpml11_2026_06', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-06-15', datePay: '2026-06-25', valUnit: 0.920, label: 'Rendimento Mensal 05/26' },
-  { id: 'fii_xpml11_2026_07', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-07-15', datePay: '2026-07-24', valUnit: 0.920, label: 'Rendimento Mensal 06/26' },
-  { id: 'fii_xpml11_2026_08', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-08-14', datePay: '2026-08-25', valUnit: 0.920, label: 'Rendimento Mensal 07/26' },
-  { id: 'fii_xpml11_2026_09', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-09-15', datePay: '2026-09-25', valUnit: 0.920, label: 'Rendimento Mensal 08/26' },
-  { id: 'fii_xpml11_2026_10', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-10-15', datePay: '2026-10-23', valUnit: 0.920, label: 'Rendimento Mensal 09/26' },
-  { id: 'fii_xpml11_2026_11', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-11-13', datePay: '2026-11-25', valUnit: 0.920, label: 'Rendimento Mensal 10/26' },
-  { id: 'fii_xpml11_2026_12', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-12-15', datePay: '2026-12-24', valUnit: 0.920, label: 'Rendimento Mensal 11/26' },
+  { id: 'fii_xpml11_2026_06', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-05-31', datePay: '2026-06-25', valUnit: 0.920, label: 'Rendimento Mensal 05/26' },
+  { id: 'fii_xpml11_2026_07', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-06-30', datePay: '2026-07-25', valUnit: 0.920, label: 'Rendimento Mensal 06/26' },
+  { id: 'fii_xpml11_2026_08', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-07-31', datePay: '2026-08-25', valUnit: 0.920, label: 'Rendimento Mensal 07/26' },
+  { id: 'fii_xpml11_2026_09', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-08-31', datePay: '2026-09-25', valUnit: 0.920, label: 'Rendimento Mensal 08/26' },
+  { id: 'fii_xpml11_2026_10', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-09-30', datePay: '2026-10-25', valUnit: 0.920, label: 'Rendimento Mensal 09/26' },
+  { id: 'fii_xpml11_2026_11', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-10-31', datePay: '2026-11-25', valUnit: 0.920, label: 'Rendimento Mensal 10/26' },
+  { id: 'fii_xpml11_2026_12', symbol: 'XPML11', type: 'RENDIMENTO', dateCom: '2026-11-30', datePay: '2026-12-24', valUnit: 0.920, label: 'Rendimento Mensal 11/26' },
 
-  // KNCA11 (Kinea Agro Fiagro)
-  { id: 'fii_knca11_2026_03', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-02-28', datePay: '2026-03-13', valUnit: 1.120, label: 'Rendimento Mensal 02/26' },
-  { id: 'fii_knca11_2026_04', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-03-31', datePay: '2026-04-14', valUnit: 1.120, label: 'Rendimento Mensal 03/26' },
-  { id: 'fii_knca11_2026_05', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-04-30', datePay: '2026-05-14', valUnit: 1.120, label: 'Rendimento Mensal 04/26' },
-  { id: 'fii_knca11_2026_06', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-05-29', datePay: '2026-06-12', valUnit: 1.120, label: 'Rendimento Mensal 05/26' },
-  { id: 'fii_knca11_2026_07', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-06-30', datePay: '2026-07-14', valUnit: 1.120, label: 'Rendimento Mensal 06/26' },
-  { id: 'fii_knca11_2026_08', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-07-31', datePay: '2026-08-14', valUnit: 1.120, label: 'Rendimento Mensal 07/26' },
-  { id: 'fii_knca11_2026_09', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-08-31', datePay: '2026-09-15', valUnit: 1.120, label: 'Rendimento Mensal 08/26' },
-  { id: 'fii_knca11_2026_10', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-09-30', datePay: '2026-10-14', valUnit: 1.120, label: 'Rendimento Mensal 09/26' },
-  { id: 'fii_knca11_2026_11', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-10-30', datePay: '2026-11-13', valUnit: 1.120, label: 'Rendimento Mensal 10/26' },
-  { id: 'fii_knca11_2026_12', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-11-30', datePay: '2026-12-14', valUnit: 1.120, label: 'Rendimento Mensal 11/26' }
+  // KNCR11 / KNCA11 (Kinea Rendimentos)
+  { id: 'fii_kncr11_2026_08', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-07-31', datePay: '2026-08-14', valUnit: 1.050, label: 'Rendimento Mensal 07/26' },
+  { id: 'fii_kncr11_2026_09', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-08-31', datePay: '2026-09-15', valUnit: 1.050, label: 'Rendimento Mensal 08/26' },
+  { id: 'fii_kncr11_2026_10', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-09-30', datePay: '2026-10-15', valUnit: 1.050, label: 'Rendimento Mensal 09/26' },
+  { id: 'fii_kncr11_2026_11', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-10-31', datePay: '2026-11-16', valUnit: 1.050, label: 'Rendimento Mensal 10/26' },
+  { id: 'fii_kncr11_2026_12', symbol: 'KNCR11', type: 'RENDIMENTO', dateCom: '2026-11-30', datePay: '2026-12-15', valUnit: 1.050, label: 'Rendimento Mensal 11/26' },
+  { id: 'fii_knca11_2026_08', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-07-31', datePay: '2026-08-14', valUnit: 1.000, label: 'Rendimento Mensal 07/26' },
+  { id: 'fii_knca11_2026_09', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-08-31', datePay: '2026-09-15', valUnit: 1.000, label: 'Rendimento Mensal 08/26' },
+  { id: 'fii_knca11_2026_10', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-09-30', datePay: '2026-10-15', valUnit: 1.000, label: 'Rendimento Mensal 09/26' },
+  { id: 'fii_knca11_2026_11', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-10-31', datePay: '2026-11-16', valUnit: 1.000, label: 'Rendimento Mensal 10/26' },
+  { id: 'fii_knca11_2026_12', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-11-30', datePay: '2026-12-15', valUnit: 1.000, label: 'Rendimento Mensal 11/26' }
 ];
 
 // ASSET CLASSIFICATION & DISPATCHER HELPERS
@@ -4619,11 +4711,16 @@ function syncAutomatedDividends() {
     const tradeQty = Number(trade.quantity) || 0;
     const tradeDate = trade.date || '2026-01-01';
 
+    if (tradeQty <= 0) return;
+
     // Find all matching corporate events for this symbol
     const events = B3_DIVIDEND_CALENDAR.filter(ev => ev.symbol === sym);
     events.forEach(ev => {
-      // RULE: User receives dividend if trade date was on or before Data Com (Corte)
-      if (tradeDate <= ev.dateCom) {
+      // RULE: User receives dividend if trade date was on or before Data Com OR if it is an upcoming scheduled event
+      const isUpcoming = (ev.datePay >= todayStr);
+      const isEligible = (tradeDate <= ev.dateCom) || (isUpcoming && ev.dateCom >= todayStr);
+      
+      if (isEligible) {
         const autoId = `auto_${trade.id || sym}_${ev.id}`;
         const taxMultiplier = ev.type === 'JCP' ? 0.85 : 1.0;
         const valNet = parseFloat((tradeQty * ev.valUnit * taxMultiplier).toFixed(2));
@@ -4634,6 +4731,9 @@ function syncAutomatedDividends() {
           AppState.portfolioDividends[existingIdx].qty = tradeQty;
           AppState.portfolioDividends[existingIdx].valNet = valNet;
           AppState.portfolioDividends[existingIdx].status = status;
+          AppState.portfolioDividends[existingIdx].dateCom = ev.dateCom;
+          AppState.portfolioDividends[existingIdx].datePay = ev.datePay;
+          AppState.portfolioDividends[existingIdx].valUnit = ev.valUnit;
         } else {
           AppState.portfolioDividends.push({
             id: autoId,
