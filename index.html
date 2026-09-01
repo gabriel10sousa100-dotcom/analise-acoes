@@ -7594,57 +7594,128 @@ async function executeMagicFormula() {
 // ==========================================
 // ADVANCED MULTI-INTENT FINANCIAL AI ENGINE
 // ==========================================
+const COMPANY_SYNONYMS = {
+  'petrobras': 'PETR4', 'petrobrÃ¡s': 'PETR4', 'petro': 'PETR4',
+  'vale': 'VALE3',
+  'banco do brasil': 'BBAS3', 'bb': 'BBAS3',
+  'itau': 'ITUB4', 'itaÃº': 'ITUB4', 'itub': 'ITUB4', 'itub3': 'ITUB3', 'itub4': 'ITUB4',
+  'itausa': 'ITSA4', 'itaÃºsa': 'ITSA4', 'itsa': 'ITSA4', 'itsa3': 'ITSA3', 'itsa4': 'ITSA4',
+  'bradesco': 'BBDC4', 'bbdc': 'BBDC4', 'bbdc3': 'BBDC3', 'bbdc4': 'BBDC4',
+  'taesa': 'TAEE4', 'taee': 'TAEE4', 'taee3': 'TAEE3', 'taee4': 'TAEE4', 'taee11': 'TAEE11',
+  'engie': 'EGIE3', 'egie': 'EGIE3',
+  'copel': 'CPLE6', 'cple': 'CPLE6', 'cple3': 'CPLE3', 'cple6': 'CPLE6',
+  'cpfl': 'CPFE3', 'cpfe': 'CPFE3',
+  'cemig': 'CMIG4', 'cmig': 'CMIG4', 'cmig3': 'CMIG3', 'cmig4': 'CMIG4',
+  'sanepar': 'SAPR4', 'sapr': 'SAPR4', 'sapr3': 'SAPR3', 'sapr4': 'SAPR4', 'sapr11': 'SAPR11',
+  'sabesp': 'SBSP3', 'sbsp': 'SBSP3',
+  'copasa': 'CSMG3', 'csmg': 'CSMG3',
+  'caixa seguridade': 'CXSE3', 'caixa': 'CXSE3', 'cxse': 'CXSE3',
+  'bb seguridade': 'BBSE3', 'bbse': 'BBSE3',
+  'porto seguro': 'PSSA3', 'porto': 'PSSA3', 'pssa': 'PSSA3',
+  'weg': 'WEGE3', 'wege': 'WEGE3',
+  'klabin': 'KLBN11', 'klbn': 'KLBN11',
+  'gerdau': 'GGBR4', 'ggbr': 'GGBR4', 'ggbr3': 'GGBR3', 'metalurgica gerdau': 'GOAU4', 'goau': 'GOAU4', 'goau3': 'GOAU3',
+  'suzano': 'SUZB3', 'suzb': 'SUZB3',
+  'vivo': 'VIVT3', 'telefonica': 'VIVT3', 'telefÃ´nica': 'VIVT3', 'vivt': 'VIVT3',
+  'tim': 'TIMS3', 'tims': 'TIMS3',
+  'isa cteep': 'TRPL4', 'cteep': 'TRPL4', 'transmissao paulista': 'TRPL4', 'trpl': 'TRPL4', 'trpl3': 'TRPL3', 'trpl4': 'TRPL4', 'isae': 'TRPL4', 'isae3': 'TRPL3', 'isae4': 'TRPL4',
+  'santander': 'SANB4', 'sanb': 'SANB4', 'sanb3': 'SANB3', 'sanb11': 'SANB11',
+  'alupar': 'ALUP4', 'alup': 'ALUP4', 'alup3': 'ALUP3', 'alup11': 'ALUP11',
+  'ambipar': 'AMBP3', 'ambp': 'AMBP3',
+  'auren': 'AURE3', 'aure': 'AURE3',
+  'equatorial': 'EQTL3', 'eqtl': 'EQTL3',
+  'energisa': 'ENGI4', 'engi': 'ENGI4', 'engi3': 'ENGI3',
+  'coelba': 'CEEB3', 'ceeb': 'CEEB3',
+  'embraer': 'EMBJ3', 'embr': 'EMBJ3', 'embr3': 'EMBJ3',
+  'marfrig': 'MBRF3', 'mrfg': 'MBRF3', 'brf': 'MBRF3', 'mbrf': 'MBRF3',
+  'abc brasil': 'ABCB4', 'abcb': 'ABCB4',
+  'banrisul': 'BRSR3', 'brsr': 'BRSR3', 'brsr6': 'BRSR6',
+  'irb': 'IRBR3', 'irbr': 'IRBR3',
+  'wiz': 'WIZC3', 'wizc': 'WIZC3',
+  'ambev': 'ABEV3', 'abev': 'ABEV3',
+  'btg': 'BPAC3', 'bpac': 'BPAC3', 'bpac11': 'BPAC11',
+  'mercantil': 'BMEB4', 'bmeb': 'BMEB4',
+  'cshg': 'HGLG11', 'hglg': 'HGLG11',
+  'maxi renda': 'MXRF11', 'mxrf': 'MXRF11',
+  'kinea': 'KNCR11', 'kncr': 'KNCR11',
+  'btg logistica': 'BTLG11', 'btlg': 'BTLG11',
+  'xp malls': 'XPML11', 'xpml': 'XPML11'
+};
+
+function resolveTickersFromQuery(text) {
+  const tSet = new Set();
+  const lower = (text || '').toLowerCase();
+  
+  // 1. Direct ticker regex matches (e.g. PETR4, BBAS3, HGLG11)
+  const directMatches = (text || '').match(/\b[A-Za-z]{4}[0-9]{1,2}\b/g) || [];
+  directMatches.forEach(t => {
+    const sym = t.toUpperCase();
+    if (B3_FUNDAMENTAL_DB[sym] || B3_FII_DB[sym]) {
+      tSet.add(sym);
+    }
+  });
+
+  // 2. Company name / synonyms matching
+  for (const [name, ticker] of Object.entries(COMPANY_SYNONYMS)) {
+    const regex = new RegExp(`\\b${name}\\b`, 'i');
+    if (regex.test(lower)) {
+      tSet.add(ticker);
+    }
+  }
+
+  return Array.from(tSet);
+}
+
 const FinancialAI = {
   async processOfflineQuery(userQuery) {
-    const text = userQuery.trim();
+    const text = (userQuery || '').trim();
     const lower = text.toLowerCase();
     const isNotebookLm = AppState.aiGroundingMode === 'notebooklm';
     const folderFiles = AppState.aiFolderFiles || [];
+    const resolvedTickers = resolveTickersFromQuery(text);
 
-    // NOTEBOOKLM GROUNDED SEARCH IN FOLDER FILES
+    // 1. NOTEBOOKLM GROUNDED SEARCH IN FOLDER FILES
     if (isNotebookLm) {
-      // 1. If asking about folder contents or documents summary
-      if (lower.includes('documento') || lower.includes('pasta') || lower.includes('conteudo para ia') || lower.includes('conteúdo para ia') || lower.includes('arquivos') || lower.includes('relatório')) {
+      if (lower.includes('documento') || lower.includes('pasta') || lower.includes('conteudo para ia') || lower.includes('conteÃºdo para ia') || lower.includes('arquivos') || lower.includes('relatÃ³rio')) {
         if (folderFiles.length === 0) {
           return `
-### 📂 Pasta 'Conteudo para IA' (Vazia)
+### ðŸ“‚ Pasta 'Conteudo para IA' (Vazia)
 
-A pasta **\`Conteudo para IA\`** no seu computador está vazia no momento.
+A pasta **\`Conteudo para IA\`** no seu computador estÃ¡ vazia no momento.
 
-**Para alimentar a inteligência artificial:**
-1. Abra a pasta \`C:\\dev\\pessoal\\ANÁLISE DE AÇÕES\\Conteudo para IA\` no seu computador;
-2. Salve ou cole seus arquivos de relatórios de RI, fatos relevantes, balanços ou teses de investimento (\`.txt\`, \`.md\`, \`.pdf\`, \`.csv\`, \`.json\`);
-3. A IA lerá tudo automaticamente em tempo real para responder suas dúvidas com ancoragem estrita!
+**Como conectar seus documentos:**
+1. Clique em **"Selecionar Pasta Local"** ou arraste seus relatÃ³rios para o painel;
+2. Ou use o botÃ£o **"ðŸ“ Colar Texto"** para colar releases, notas de RI e fatos relevantes;
+3. A IA lerÃ¡ tudo instantaneamente e ancorarÃ¡ as respostas nos seus documentos!
           `;
         } else {
-          const filesSummary = folderFiles.map((f, idx) => `• **${idx + 1}. ${f.name}** — \`${f.wordCount.toLocaleString('pt-BR')} palavras\` (Última modificação: ${new Date(f.lastModified).toLocaleDateString('pt-BR')})`).join('\n');
+          const filesSummary = folderFiles.map((f, idx) => `â€¢ **${idx + 1}. ${f.name}** â€” \`${(f.wordCount || 0).toLocaleString('pt-BR')} palavras\` (Tamanho: ${(f.size/1024).toFixed(1)} KB)`).join('\n');
           const totalWords = folderFiles.reduce((acc, f) => acc + (f.wordCount || 0), 0);
           return `
-### 📚 Base de Conhecimento: Pasta **\`Conteudo para IA\`**
+### ðŸ“š Base de Conhecimento: Pasta **\`Conteudo para IA\`**
 
-**Total de Arquivos:** \`${folderFiles.length}\` | **Total de Palavras Indexadas:** \`${totalWords.toLocaleString('pt-BR')}\`
+**Total de Documentos:** \`${folderFiles.length}\` | **Total de Palavras Indexadas:** \`${totalWords.toLocaleString('pt-BR')}\`
 
-#### 📄 Arquivos Disponíveis para Leitura:
+#### ðŸ“„ Arquivos DisponÃ­veis para Leitura:
 ${filesSummary}
 
 ---
-💡 *Você pode fazer perguntas específicas sobre qualquer um dos tópicos, números ou guidances contidos nesses relatórios!*
+ðŸ’¡ *Pergunte sobre qualquer indicador, guidance, investimento ou fato relevante contido nesses documentos!*
           `;
         }
       }
 
-      // 2. Search for relevant text in uploaded folder files
+      // Search for specific excerpt in uploaded files if text matches
       if (folderFiles.length > 0) {
         const queryTerms = lower.split(/[\s,?.!]+/).filter(w => w.length > 2);
         const matches = [];
 
         folderFiles.forEach(file => {
-          const fileContentLower = file.content.toLowerCase();
+          const fileContentLower = (file.content || '').toLowerCase();
           const matchedTerms = queryTerms.filter(term => fileContentLower.includes(term));
           
           if (matchedTerms.length > 0) {
-            // Find relevant excerpt
-            const lines = file.content.split('\n');
+            const lines = (file.content || '').split('\n');
             const relevantLines = [];
             
             lines.forEach((line, lineIdx) => {
@@ -7653,7 +7724,7 @@ ${filesSummary}
                 const start = Math.max(0, lineIdx - 1);
                 const end = Math.min(lines.length - 1, lineIdx + 2);
                 for (let k = start; k <= end; k++) {
-                  if (!relevantLines.includes(lines[k])) relevantLines.push(lines[k]);
+                  if (lines[k] && !relevantLines.includes(lines[k])) relevantLines.push(lines[k]);
                 }
               }
             });
@@ -7662,150 +7733,210 @@ ${filesSummary}
               matches.push({
                 fileName: file.name,
                 termCount: matchedTerms.length,
-                excerpt: relevantLines.slice(0, 10).join('\n')
+                excerpt: relevantLines.slice(0, 12).join('\n')
               });
             }
           }
         });
 
-        if (matches.length > 0) {
+        if (matches.length > 0 && resolvedTickers.length === 0) {
           matches.sort((a, b) => b.termCount - a.termCount);
           const topMatch = matches[0];
           const citedFiles = matches.map(m => `\`Conteudo para IA/${m.fileName}\``).join(', ');
 
           return `
-### 📚 Resposta Ancorada na Pasta **\`Conteudo para IA\`**
+### ðŸ“š Resposta Ancorada na Pasta **\`Conteudo para IA\`**
 
-Com base na leitura e análise do arquivo **\`${topMatch.fileName}\`**:
+Com base na leitura do arquivo **\`${topMatch.fileName}\`**:
 
 ${topMatch.excerpt}
 
 ---
-📚 **Fontes Consultadas da Pasta Conteudo para IA:** ${citedFiles}
+ðŸ“š **Fontes Consultadas da Pasta Conteudo para IA:** ${citedFiles}
           `;
         }
       }
     }
 
-    // FII & FIAGRO TICKER CHECKS
-    const fiiTickers = Object.keys(B3_FII_DB).filter(t => {
-      const regex = new RegExp(`\\b${t}\\b`, 'i');
-      return regex.test(text);
-    });
-
-    if (fiiTickers.length === 1) {
-      const t = fiiTickers[0];
-      const quote = await StockAPI.getSingleQuote(t);
-      return this.generateFiiDiagnosis(t, {
-        price: quote?.regularMarketPrice || (B3_FII_DB[t].pvp * 100)
-      });
+    // 2. PORTFOLIO / CARTEIRA ANALYSIS
+    if (lower.includes('carteira') || lower.includes('meus proventos') || lower.includes('minhas aÃ§Ãµes') || lower.includes('patrimÃ´nio') || lower.includes('patrimonio') || lower.includes('minhas posiÃ§Ãµes')) {
+      return this.generatePortfolioReport();
     }
 
-    // GENERAL / TICKER CHECKS (OR WHEN NO SPECIFIC MATCH IN FOLDER)
-    const tickers = Object.keys(B3_FUNDAMENTAL_DB).filter(t => {
-      const regex = new RegExp(`\\b${t}\\b`, 'i');
-      return regex.test(text);
-    });
-
-    if (tickers.length >= 2 || (tickers.length >= 1 && (lower.includes(' vs ') || lower.includes(' ou ') || lower.includes('comparar')))) {
-      const t1 = tickers[0];
-      const t2 = tickers[1] || (t1 === 'BBAS3' ? 'ITUB3' : t1 === 'TAEE3' ? 'CMIG3' : 'VALE3');
+    // 3. MULTI-TICKER COMPARISON
+    if (resolvedTickers.length >= 2 || (resolvedTickers.length >= 1 && (lower.includes(' vs ') || lower.includes(' ou ') || lower.includes('comparar')))) {
+      const t1 = resolvedTickers[0];
+      const t2 = resolvedTickers[1] || (t1 === 'BBAS3' ? 'ITUB4' : t1 === 'TAEE4' ? 'CMIG4' : 'VALE3');
       return await this.generateComparisonReport(t1, t2);
     }
 
-    if (tickers.length === 1) {
-      const t = tickers[0];
-      const quote = await StockAPI.getSingleQuote(t);
-      const diagnosis = this.generateStockDiagnosis(t, {
-        price: quote?.regularMarketPrice || 30.0,
-        sector: quote?.summaryProfile?.sector
-      });
-
-      if (isNotebookLm) {
-        const folderHasTicker = folderFiles.some(f => f.content.toUpperCase().includes(t));
-        if (folderFiles.length === 0) {
-          return `${diagnosis}\n\n---\n💡 **Modo NotebookLM:** Para incluir relatórios de RI e fatos relevantes de ${t}, coloque os arquivos na pasta \`Conteudo para IA\`.`;
-        } else if (!folderHasTicker) {
-          return `${diagnosis}\n\n---\n⚠️ **Nota de Ancoragem:** O ativo **${t}** não possui relatórios específicos anexados na pasta \`Conteudo para IA\` (diagnóstico gerado via dados oficiais da B3).`;
-        }
+    // 4. SINGLE TICKER DIAGNOSIS (STOCKS OR FIIS)
+    if (resolvedTickers.length === 1) {
+      const t = resolvedTickers[0];
+      if (B3_FII_DB[t]) {
+        const quote = await StockAPI.getSingleQuote(t).catch(() => null);
+        return this.generateFiiDiagnosis(t, {
+          price: quote?.regularMarketPrice || (B3_FII_DB[t].pvp * 100)
+        });
       }
-      return diagnosis;
+
+      if (B3_FUNDAMENTAL_DB[t]) {
+        const quote = await StockAPI.getSingleQuote(t).catch(() => null);
+        const diagnosis = this.generateStockDiagnosis(t, {
+          price: quote?.regularMarketPrice || 0,
+          sector: quote?.summaryProfile?.sector
+        });
+
+        if (isNotebookLm) {
+          const folderHasTicker = folderFiles.some(f => (f.content || '').toUpperCase().includes(t));
+          if (folderFiles.length === 0) {
+            return `${diagnosis}\n\n---\nðŸ’¡ **Modo NotebookLM:** Para enriquecer a anÃ¡lise de **${t}** com relatÃ³rios de RI, fatos relevantes e atas, adicione os arquivos na pasta \`Conteudo para IA\`.`;
+          } else if (!folderHasTicker) {
+            return `${diagnosis}\n\n---\nâš ï¸ **Nota de Ancoragem:** O ativo **${t}** nÃ£o possui relatÃ³rios especÃ­ficos na pasta \`Conteudo para IA\` (diagnÃ³stico gerado via banco de dados auditado da B3).`;
+          }
+        }
+        return diagnosis;
+      }
     }
 
-    if (lower.includes('fii') || lower.includes('fundo imobiliário') || lower.includes('fundos imobiliarios') || lower.includes('fiagro') || lower.includes('p/vp') || lower.includes('tijolo') || lower.includes('papel')) {
+    // 5. CONCEPTUAL / PHILOSOPHICAL EXPLAINERS
+    if (lower.includes('fii') || lower.includes('fundo imobiliÃ¡rio') || lower.includes('fundos imobiliarios') || lower.includes('fiagro') || lower.includes('p/vp') || lower.includes('tijolo') || lower.includes('papel')) {
       return this.explainFiiStrategy();
     }
-    if (lower.includes('preço teto') || lower.includes('preco teto') || (lower.includes('barsi') && lower.includes('calcular'))) {
+    if (lower.includes('preÃ§o teto') || lower.includes('preco teto') || (lower.includes('barsi') && lower.includes('calcular'))) {
       return this.explainPrecoTeto();
     }
     if (lower.includes('besst') || lower.includes('setor perene') || lower.includes('setores')) {
       return this.explainBESST();
     }
-    if (lower.includes('dividend yield') || lower.includes(' dy') || lower.includes('o que é dy') || lower.includes('proventos')) {
+    if (lower.includes('dividend yield') || lower.includes(' dy') || lower.includes('o que Ã© dy') || lower.includes('proventos')) {
       return this.explainDividendYield();
     }
     if (lower.includes('payout') || lower.includes('pay out')) {
       return this.explainPayout();
     }
-    if (lower.includes('formula magica') || lower.includes('fórmula mágica') || lower.includes('greenblatt') || lower.includes('roic')) {
+    if (lower.includes('formula magica') || lower.includes('fÃ³rmula mÃ¡gica') || lower.includes('greenblatt') || lower.includes('roic')) {
       return this.explainMagicFormula();
     }
-    if (lower.includes('melhores ações') || lower.includes('top dividendos') || lower.includes('mais baratas') || lower.includes('o que comprar')) {
+    if (lower.includes('melhores aÃ§Ãµes') || lower.includes('top dividendos') || lower.includes('mais baratas') || lower.includes('o que comprar') || lower.includes('oportunidades')) {
       return this.generateTopOpportunitiesList(lower);
     }
 
+    // 6. NOTEBOOKLM FALLBACK
     if (isNotebookLm && folderFiles.length > 0) {
-      const fileNames = folderFiles.map(f => `• \`${f.name}\``).join('\n');
+      const fileNames = folderFiles.map(f => `â€¢ \`${f.name}\``).join('\n');
       return `
-### ⚠️ Nota de Ancoragem (Modo NotebookLM)
+### âš ï¸ Nota de Ancoragem (Modo NotebookLM)
 
-A sua pergunta não pôde ser respondida porque a informação solicitada **não consta nos documentos atualmente presentes na pasta \`Conteudo para IA\`**.
+A sua pergunta nÃ£o pÃ´de ser respondida diretamente porque a informaÃ§Ã£o solicitada **nÃ£o consta nos documentos atualmente presentes na pasta \`Conteudo para IA\`**.
 
-#### 📄 Arquivos indexados na sua pasta:
+#### ðŸ“„ Arquivos indexados na sua pasta:
 ${fileNames}
 
 ---
-💡 *Adicione relatórios ou anotações com esse tema dentro da pasta \`Conteudo para IA\` no seu computador para que eu possa analisá-los.*
+ðŸ’¡ *Adicione relatÃ³rios ou anotaÃ§Ãµes com esse tema dentro da pasta \`Conteudo para IA\` ou mude para o **Modo Geral** para respostas abertas.*
       `;
     }
 
     return this.generateGeneralHelpResponse(text);
   },
 
+  generatePortfolioReport() {
+    const portfolio = getConsolidatedPortfolio();
+    if (portfolio.length === 0) {
+      return `
+### ðŸ’¼ DiagnÃ³stico da sua Carteira
+
+VocÃª ainda nÃ£o possui ativos cadastrados na sua carteira de investimentos.
+
+**Para comeÃ§ar a acompanhar sua carteira:**
+1. Acesse a aba **"ðŸ’¼ Carteira & Trades"**;
+2. Cadastre suas compras informando o Ticker, Quantidade, PreÃ§o Pago e Data;
+3. O sistema calcularÃ¡ automaticamente seus dividendos a receber, preÃ§o mÃ©dio e margem de seguranÃ§a frente ao PreÃ§o Teto Barsi!
+      `;
+    }
+
+    let totalInvested = 0;
+    let totalEstAnnualDivs = 0;
+    let belowCeilingCount = 0;
+    let aboveCeilingCount = 0;
+
+    const rows = portfolio.map((pos, idx) => {
+      const sym = pos.symbol;
+      const fund = B3_FUNDAMENTAL_DB[sym] || {};
+      const fii = B3_FII_DB[sym] || {};
+      const isFiiAsset = isFII(sym);
+      const name = isFiiAsset ? (fii.name || sym) : (fund.name || sym);
+      const totalCost = pos.totalCost || (pos.quantity * pos.avgPrice);
+      totalInvested += totalCost;
+
+      const dpa5y = fund.dpa5y || fund.dpa || (isFiiAsset ? (fii.lastDividend * 12) : 0);
+      const teto5y = dpa5y > 0 ? (dpa5y / 0.06) : 0;
+      const annualDiv = (dpa5y * pos.quantity);
+      totalEstAnnualDivs += annualDiv;
+
+      const isBelow = teto5y > 0 && pos.avgPrice <= teto5y;
+      if (isBelow) belowCeilingCount++; else aboveCeilingCount++;
+
+      const statusTag = teto5y > 0 
+        ? (isBelow ? 'ðŸŸ¢ Abaixo do Teto (Excelente)' : 'ðŸŸ¡ Acima do Teto') 
+        : 'âš–ï¸ FII / Renda';
+
+      return `| **${sym}** | ${name} | ${pos.quantity.toLocaleString('pt-BR')} | R$ ${NumFmt.num(pos.avgPrice)} | R$ ${NumFmt.num(teto5y)} | R$ ${NumFmt.money(annualDiv)} | ${statusTag} |`;
+    }).join('\n');
+
+    return `
+### ðŸ’¼ DiagnÃ³stico Consolidado da sua Carteira B3
+
+**PatrimÃ´nio Total Alocado:** \`R$ ${NumFmt.money(totalInvested)}\`  
+**Proventos Anuais Projetados (DPA MÃ©dio):** \`R$ ${NumFmt.money(totalEstAnnualDivs)}/ano\` (~R$ ${NumFmt.money(totalEstAnnualDivs / 12)}/mÃªs)  
+**Ativos em CustÃ³dia:** \`${portfolio.length} ativos\` (\`${belowCeilingCount}\` com PM abaixo do PreÃ§o Teto Barsi)
+
+---
+
+#### ðŸ“Š Tabela de PosiÃ§Ãµes da Carteira:
+| Ativo | Nome da Empresa / FII | Quantidade | PreÃ§o MÃ©dio | PreÃ§o Teto 5A | Proventos Anuais Est. | Status Barsi |
+|:---|:---|:---:|:---:|:---:|:---:|:---:|
+${rows}
+
+---
+
+#### ðŸ’¡ Parecer da IA sobre a sua Carteira:
+â€¢ **GeraÃ§Ã£o de Renda:** Sua carteira possui um fluxo estimado de **${NumFmt.money(totalEstAnnualDivs)} ao ano** em dividendos e JCP.  
+â€¢ **Disciplina de Aporte:** Priorize aportes nos ativos marcados como **ðŸŸ¢ Abaixo do Teto** para potencializar o efeito dos juros compostos com Dividend Yield seguro acima de 6% ao ano.
+    `;
+  },
+
   explainFiiStrategy() {
     return `
-### 🏢 Guia Estratégico de Fundos Imobiliários (FIIs) & Fiagros
+### ðŸ¢ Guia EstratÃ©gico de Fundos ImobiliÃ¡rios (FIIs) & Fiagros
 
-Fundos Imobiliários permitem que você invista nos maiores galpões logísticos, shoppings centers, lajes corporativas e certificados de recebíveis (CRIs) do país recebendo **proventos mensais isentos de Imposto de Renda** para pessoa física.
+Fundos ImobiliÃ¡rios permitem que vocÃª invista nos maiores galpÃµes logÃ­sticos, shoppings centers, lajes corporativas e certificados de recebÃ­veis (CRIs) do paÃ­s recebendo **proventos mensais isentos de Imposto de Renda** para pessoa fÃ­sica.
 
 ---
 
-#### 🎯 1. Principais Segmentos de FIIs:
-• **🧱 FIIs de Tijolo (Logística, Shoppings & Lajes Corporativas):**
-  - Adquirem imóveis físicos de alto padrão (*Triple A*).
-  - Aluguéis reajustados periodicamente pela inflação oficial (IPCA / IGP-M).
-  - Proteção patrimonial real de longo prazo e ganho com valorização física.
-• **📄 FIIs de Papel (CRIs / Dívida Imobiliária):**
-  - Compram carteiras de Certificados de Recebíveis Imobiliários indexados a **CDI+** ou **IPCA+**.
+#### ðŸŽ¯ 1. Principais Segmentos de FIIs:
+â€¢ **ðŸ§± FIIs de Tijolo (LogÃ­stica, Shoppings & Lajes Corporativas):**
+  - Adquirem imÃ³veis fÃ­sicos de alto padrÃ£o (*Triple A*).
+  - AluguÃ©is reajustados periodicamente pela inflaÃ§Ã£o oficial (IPCA / IGP-M).
+  - ProteÃ§Ã£o patrimonial real de longo prazo e ganho com valorizaÃ§Ã£o fÃ­sica.
+â€¢ **ðŸ“„ FIIs de Papel (CRIs / DÃ­vida ImobiliÃ¡ria):**
+  - Compram carteiras de Certificados de RecebÃ­veis ImobiliÃ¡rios indexados a **CDI+** ou **IPCA+**.
   - Geram fluxo de caixa mensal imediato e elevado para reinvestimento.
-• **🌾 Fiagros (Crédito do Agronegócio):**
-  - Carteiras de CRAs e arrendamento de terras agrícolas com altos spreads de rendimento.
-• **🏢 FoFs (Fundos de Fundos):**
-  - Carteiras diversificadas administradas por gestoras que negociam cotas com duplo desconto patrimonial.
+â€¢ **ðŸŒ¾ Fiagros (CrÃ©dito do AgronegÃ³cio):**
+  - Carteiras de CRAs e arrendamento de terras agrÃ­colas com altos spreads de rendimento.
 
 ---
 
-#### ⚖️ 2. Checklist Fundamentalista para Comprar FIIs:
-1. **P/VP (Preço / Valor Patrimonial):**
-   - $P/VP < 1,00$: Zona de desconto sobre laudo de avaliação patrimonial contábil.
-   - $P/VP = 1,00$: Preço justo.
-   - $P/VP > 1,05$: Negociando com ágio (cuidado redobrado em FIIs de Papel).
+#### âš–ï¸ 2. Checklist Fundamentalista para Comprar FIIs:
+1. **P/VP (PreÃ§o / Valor Patrimonial):**
+   - $P/VP < 1,00$: Zona de desconto sobre laudo de avaliaÃ§Ã£o patrimonial contÃ¡bil.
+   - $P/VP = 1,00$: PreÃ§o justo.
+   - $P/VP > 1,05$: Negociando com Ã¡gio (cuidado redobrado em FIIs de Papel).
 2. **Dividend Yield (DY):**
-   - Analise a regularidade da distribuição mensal de proventos.
-3. **Vacância Física & Financeira (Tijolo):**
-   - Dê preferência a fundos com vacância física consolidada abaixo de **5% a 8%**.
-4. **Diversificação Mínima:**
-   - Multi-imóvel e multi-inquilino em localizações nobres (eixos logísticos de SP/MG/RJ e shoppings consolidados).
+   - Analise a regularidade da distribuiÃ§Ã£o mensal de proventos.
+3. **VacÃ¢ncia FÃ­sica & Financeira (Tijolo):**
+   - DÃª preferÃªncia a fundos com vacÃ¢ncia fÃ­sica consolidada abaixo de **5% a 8%**.
     `;
   },
 
@@ -7817,7 +7948,7 @@ Fundos Imobiliários permitem que você invista nos maiores galpões logísticos
     const dy12m = fund.dy12m || 9.5;
     const lastRend = fund.lastDividend || (price * (dy12m / 100) / 12);
     const category = fund.category || 'TIJOLO';
-    const segment = fund.segment || 'Imobiliário';
+    const segment = fund.segment || 'ImobiliÃ¡rio';
     const discPct = (1.0 - pvp) * 100;
     const isDiscount = pvp < 1.0;
 
@@ -7830,56 +7961,57 @@ Fundos Imobiliários permitem que você invista nos maiores galpões logísticos
     else if (dy12m >= 8.5) score += 10;
 
     if (category === 'TIJOLO' && fund.vacancyPhysical !== undefined && fund.vacancyPhysical <= 5) score += 10;
-    if (fund.manager && (fund.manager.includes('Kinea') || fund.manager.includes('Credit Suisse') || fund.manager.includes('Pátria') || fund.manager.includes('BTG') || fund.manager.includes('XP'))) score += 5;
+    if (fund.manager && (fund.manager.includes('Kinea') || fund.manager.includes('Credit Suisse') || fund.manager.includes('PÃ¡tria') || fund.manager.includes('BTG') || fund.manager.includes('XP'))) score += 5;
 
     score = Math.min(Math.max(score, 25), 98);
-    const verdictBadge = score >= 75 ? '🟢 OPORTUNIDADE IMOBILIÁRIA' : score >= 55 ? '🟡 PREÇO JUSTO / ACUMULAR' : '🔴 ÁGIO ELEVADO';
+    const verdictBadge = score >= 75 ? 'ðŸŸ¢ OPORTUNIDADE IMOBILIÃRIA' : score >= 55 ? 'ðŸŸ¡ PREÃ‡O JUSTO / ACUMULAR' : 'ðŸ”´ ÃGIO ELEVADO';
 
     return `
-### 🏢 Diagnóstico de FII da IA: **${sym} — ${fund.name || sym}**
+### ðŸ¢ DiagnÃ³stico de FII da IA: **${sym} â€” ${fund.name || sym}**
 
-**Score de Valuation & Qualidade:** \`${score}/100\` — **${verdictBadge}**
-
----
-
-#### 📌 1. Valuation & Proventos Mensais
-• **Cotação Atual:** ${NumFmt.money(price)}  
-• **P/VP (Preço / Valor Patrimonial):** \`${NumFmt.num(pvp, 2)}x\` — ${isDiscount ? `**+${NumFmt.num(discPct, 1)}% de desconto patrimonial** ✅` : (pvp <= 1.02 ? 'Preço justo alinhado ao laudo ⚖️' : `Negociando com **+${NumFmt.num(Math.abs(discPct), 1)}% de ágio** ⚠️`)}  
-• **Dividend Yield (12 Meses):** **${NumFmt.num(dy12m, 2)}% a.a.** (Rendimentos 100% Isentos de IR para PF)  
-• **Rendimento Médio Mensal:** **${NumFmt.money(lastRend)} por cota**  
+**Score de Valuation & Qualidade:** \`${score}/100\` â€” **${verdictBadge}**
 
 ---
 
-#### 🧱 2. Estrutura & Portfólio
-• **Segmento:** \`${category} • ${segment}\`  
-• **Gestão Profissional:** **${fund.manager || 'Gestora Especializada'}**  
-• **Patrimônio Líquido:** **R$ ${fund.netWorth ? fund.netWorth.toFixed(1) + ' Bilhões' : 'Consolidado B3'}**  
-${fund.vacancyPhysical !== undefined ? `• **Vacância Física:** **${NumFmt.num(fund.vacancyPhysical, 1)}%** (Baixo risco vacacional)` : `• **Indexadores da Carteira:** **${fund.benchmarkIndex || 'IPCA+ e CDI+'}**`}  
+#### ðŸ“Œ 1. Valuation & Proventos Mensais
+â€¢ **CotaÃ§Ã£o Atual:** ${NumFmt.money(price)}  
+â€¢ **P/VP (PreÃ§o / Valor Patrimonial):** \`${NumFmt.num(pvp, 2)}x\` â€” ${isDiscount ? `**+${NumFmt.num(discPct, 1)}% de desconto patrimonial** âœ…` : (pvp <= 1.02 ? 'PreÃ§o justo alinhado ao laudo âš–ï¸' : `Negociando com **+${NumFmt.num(Math.abs(discPct), 1)}% de Ã¡gio** âš ï¸`)}  
+â€¢ **Dividend Yield (12 Meses):** **${NumFmt.num(dy12m, 2)}% a.a.** (Rendimentos 100% Isentos de IR para PF)  
+â€¢ **Rendimento MÃ©dio Mensal:** **${NumFmt.money(lastRend)} por cota**  
 
 ---
 
-#### 💡 3. Veredito para Investidores de Renda Passiva
+#### ðŸ§± 2. Estrutura & PortfÃ³lio
+â€¢ **Segmento:** \`${category} â€¢ ${segment}\`  
+â€¢ **GestÃ£o Profissional:** **${fund.manager || 'Gestora Especializada'}**  
+â€¢ **PatrimÃ´nio LÃ­quido:** **R$ ${fund.netWorth ? fund.netWorth.toFixed(1) + ' BilhÃµes' : 'Consolidado B3'}**  
+${fund.vacancyPhysical !== undefined ? `â€¢ **VacÃ¢ncia FÃ­sica:** **${NumFmt.num(fund.vacancyPhysical, 1)}%** (Baixo risco vacacional)` : `â€¢ **Indexadores da Carteira:** **${fund.benchmarkIndex || 'IPCA+ e CDI+'}**`}  
+
+---
+
+#### ðŸ’¡ 3. Veredito para Investidores de Renda Passiva
 ${isDiscount
-  ? `O fundo **${sym}** está negociando com desconto patrimonial atrativo em relação aos imóveis e recebíveis físicos da carteira. Excelente opção para reforçar o fluxo de proventos mensais da sua carteira.`
-  : `O fundo **${sym}** possui carteira de alta qualidade. Avalie se o Dividend Yield de ${NumFmt.num(dy12m, 1)}% compensa a cotação atual frente a alternativas de Tijolo/Papel com maior desconto.`}
+  ? `O fundo **${sym}** estÃ¡ negociando com desconto patrimonial atrativo em relaÃ§Ã£o aos imÃ³veis e recebÃ­veis fÃ­sicos da carteira. Excelente opÃ§Ã£o para reforÃ§ar o fluxo de proventos mensais da sua carteira.`
+  : `O fundo **${sym}** possui carteira de alta qualidade. Avalie se o Dividend Yield de ${NumFmt.num(dy12m, 1)}% compensa a cotaÃ§Ã£o atual frente a alternativas de Tijolo/Papel com maior desconto.`}
     `;
   },
 
   generateStockDiagnosis(sym, context) {
     const price = context.price || 0;
     const fund = B3_FUNDAMENTAL_DB[sym] || {};
-    const dpa12m = fund.dpa || (price * 0.06);
-    const dpa5y = fund.dpa5y || (fund.dpa ? fund.dpa * 0.90 : price * 0.054);
+    const dpa12m = fund.dpa || 0;
+    const dpa5y = fund.dpa5y || fund.dpa || 0;
     const precoTeto5y = dpa5y > 0 ? (dpa5y / 0.06) : (price * 1.05);
-    const dy = (dpa12m / price) * 100;
-    const margin5y = ((precoTeto5y - price) / precoTeto5y) * 100;
+    const dy = (price > 0 && dpa12m > 0) ? ((dpa12m / price) * 100) : (fund.ey || 6.0);
+    const margin5y = (precoTeto5y > 0 && price > 0) ? (((precoTeto5y - price) / precoTeto5y) * 100) : 0;
     const isBelowTeto = price <= precoTeto5y;
     const divYears = fund.divYears != null ? fund.divYears : 5;
     const has5Years = divYears >= 5;
-    const roe = fund.roe || 16.0;
-    const pvp = fund.pvp || 1.2;
-    const payout = fund.payout || 50;
-    const sector = fund.sector || context.sector || 'Indústria';
+    const roe = fund.roe || 0;
+    const pvp = fund.pvp || 0;
+    const pl = fund.pl || 0;
+    const payout = fund.payout || 0;
+    const sector = fund.sector || context.sector || 'B3';
     const isBesst = evaluateBESSTSector(sector, sym).isBESST;
 
     let score = 50;
@@ -7887,50 +8019,47 @@ ${isDiscount
     if (has5Years) score += 10; else score -= 10;
     if (dy >= 8.0) score += 15; else if (dy >= 6.0) score += 10;
     if (roe >= 18.0) score += 10; else if (roe >= 14.0) score += 5;
-    if (pvp <= 1.5) score += 5; else if (pvp > 3.0) score -= 10;
+    if (pvp <= 1.5 && pvp > 0) score += 5; else if (pvp > 3.0) score -= 10;
     if (isBesst) score += 10;
     score = Math.min(Math.max(score, 20), 98);
 
-    const verdictBadge = score >= 75 ? '🟢 OPORTUNIDADE DE COMPRA' : score >= 55 ? '🟡 ACUMULAR / NEUTRO' : '🔴 AGUARDAR CORREÇÃO';
+    const verdictBadge = score >= 75 ? 'ðŸŸ¢ OPORTUNIDADE DE COMPRA' : score >= 55 ? 'ðŸŸ¡ ACUMULAR / NEUTRO' : 'ðŸ”´ AGUARDAR CORREÃ‡ÃƒO';
 
     return `
-### 📊 Diagnóstico da IA: **${sym} — ${fund.name || sym}**
+### ðŸ“Š DiagnÃ³stico da IA: **${sym} â€” ${fund.name || sym}**
 
-**Score de Oportunidade:** \`${score}/100\` — **${verdictBadge}**
-
----
-
-#### 📌 1. Visão Geral & Preço Teto (5 Anos)
-• **Cotação Atual:** R$ ${NumFmt.num(price)}  
-• **Preço Teto Conservador (5 Anos):** R$ ${NumFmt.num(precoTeto5y)}  
-• **Margem de Segurança (5A):** ${isBelowTeto ? `**+${NumFmt.num(margin5y, 1)}%** (Ação negociada com desconto!)` : `**-${NumFmt.num(Math.abs(margin5y), 1)}%** (Acima do teto ideal)`}  
-• **Histórico de Dividendos:** **${divYears} anos ininterruptos** ${has5Years ? '✅ (Aprovado na Regra Barsi ≥ 5 anos)' : '⚠️ (Histórico curto na Bolsa)'}  
-• **Dividend Yield Estimado:** **${NumFmt.num(dy, 2)}% ao ano**  
+**Score de Oportunidade:** \`${score}/100\` â€” **${verdictBadge}**
 
 ---
 
-#### 🏆 2. Pontos Fortes
-• **Setor ${isBesst ? 'BESST (Perene)' : sector}:** ${isBesst ? 'Alta previsibilidade de caixa e proteção contra recessões econômicas.' : 'Companhia com sólida fatia de mercado.'}  
-• **Rentabilidade:** ROE de **${NumFmt.num(roe, 1)}%**, demonstrando capacidade de gerar retorno com o patrimônio.  
-• **Payout:** Distribui **${payout}%** do lucro líquido, equilibrando proventos e crescimento.  
+#### ðŸ“Œ 1. VisÃ£o Geral & PreÃ§o Teto Barsi (5 Anos)
+â€¢ **CotaÃ§Ã£o Atual:** R$ ${NumFmt.num(price)}  
+â€¢ **PreÃ§o Teto Conservador (5 Anos):** R$ ${NumFmt.num(precoTeto5y)}  
+â€¢ **Margem de SeguranÃ§a (5A):** ${isBelowTeto ? `**+${NumFmt.num(margin5y, 1)}%** (AÃ§Ã£o negociada com desconto!)` : `**-${NumFmt.num(Math.abs(margin5y), 1)}%** (Acima do teto ideal)`}  
+â€¢ **DPA MÃ©dio 5 Anos:** R$ ${NumFmt.num(dpa5y, 4)} por aÃ§Ã£o  
+â€¢ **HistÃ³rico de Dividendos:** **${divYears} anos ininterruptos** ${has5Years ? 'âœ… (Aprovado na Regra Barsi â‰¥ 5 anos)' : 'âš ï¸ (HistÃ³rico curto na Bolsa)'}  
+â€¢ **Dividend Yield Estimado:** **${NumFmt.num(dy, 2)}% ao ano**  
 
 ---
 
-#### ⚠️ 3. Pontos de Atenção & Riscos
-• **Taxa de Juros:** Movimentações na taxa Selic podem impactar os custos de dívida ou a atratividade dos dividendos.  
-• ${pvp > 2.0 ? `**P/VP de ${NumFmt.num(pvp, 1)}x:** O mercado cobra um prêmio acima do patrimônio líquido contábil.` : `**P/VP de ${NumFmt.num(pvp, 1)}x:** Nível de valuation atrativo, sem ágio excessivo.`}  
+#### ðŸ† 2. Indicadores Fundamentalistas Auditados
+â€¢ **Setor:** \`${sector}\` ${isBesst ? 'â€” **Setor BESST (Perene & Anti-crise)** ðŸ›ï¸' : ''}  
+â€¢ **Lucro LÃ­quido 12M:** R$ ${fund.netIncome ? (fund.netIncome >= 1.0 ? fund.netIncome.toFixed(2) + ' BilhÃµes' : (fund.netIncome * 1000).toFixed(0) + ' MilhÃµes') : 'Auditado'}  
+â€¢ **NÂº Total de PapÃ©is:** ${fund.totalShares ? fund.totalShares.toLocaleString('pt-BR') : 'Consolidado'}  
+â€¢ **LPA (Lucro por AÃ§Ã£o):** R$ ${NumFmt.num(fund.lpa, 2)} | **VPA (PatrimÃ´nio por AÃ§Ã£o):** R$ ${NumFmt.num(fund.vpa, 2)}  
+â€¢ **P/L:** \`${NumFmt.num(pl, 1)}x\` | **P/VP:** \`${NumFmt.num(pvp, 2)}x\` | **ROE:** \`${NumFmt.num(roe, 1)}%\` | **Payout:** \`${payout}%\`  
 
 ---
 
-#### 💡 4. Veredito Final para o Investidor
+#### ðŸ’¡ 3. Veredito Final para o Investidor
 ${isBelowTeto && has5Years
-  ? `Para a estratégia de **Buy & Hold (Foco em Renda Passiva)**, ${sym} está em uma **excelente zona de compra**, com mais de 5 anos de dividendos comprovados e margem de segurança favorável.` 
-  : `Para a estratégia de **Renda Passiva**, acompanhe a cotação e audite os relatórios oficiais nos links externos.`}
+  ? `Para a estratÃ©gia de **Buy & Hold (Foco em Renda Passiva)**, ${sym} estÃ¡ em uma **excelente zona de compra**, com mais de 5 anos de dividendos comprovados e margem de seguranÃ§a favorÃ¡vel frente ao teto de 6%.` 
+  : `Para a estratÃ©gia de **Renda Passiva**, acompanhe a cotaÃ§Ã£o e audite os relatÃ³rios oficiais nos links externos.`}
     `;
   },
 
   async generateComparisonReport(t1, t2) {
-    const [q1, q2] = await Promise.all([StockAPI.getSingleQuote(t1), StockAPI.getSingleQuote(t2)]);
+    const [q1, q2] = await Promise.all([StockAPI.getSingleQuote(t1).catch(()=>null), StockAPI.getSingleQuote(t2).catch(()=>null)]);
     const p1 = q1?.regularMarketPrice || 30.0;
     const p2 = q2?.regularMarketPrice || 30.0;
     const f1 = B3_FUNDAMENTAL_DB[t1] || { dpa: p1*0.06, dpa5y: p1*0.054, divYears: 5, roe: 16, pvp: 1.2, payout: 50, sector: 'B3' };
@@ -7938,85 +8067,85 @@ ${isBelowTeto && has5Years
 
     const teto1 = (f1.dpa5y || f1.dpa) / 0.06;
     const teto2 = (f2.dpa5y || f2.dpa) / 0.06;
-    const dy1 = (f1.dpa / p1) * 100;
-    const dy2 = (f2.dpa / p2) * 100;
-    const margin1 = ((teto1 - p1) / teto1) * 100;
-    const margin2 = ((teto2 - p2) / teto2) * 100;
+    const dy1 = p1 > 0 ? ((f1.dpa / p1) * 100) : 6.0;
+    const dy2 = p2 > 0 ? ((f2.dpa / p2) * 100) : 6.0;
+    const margin1 = teto1 > 0 ? (((teto1 - p1) / teto1) * 100) : 0;
+    const margin2 = teto2 > 0 ? (((teto2 - p2) / teto2) * 100) : 0;
 
     const winnerDY = dy1 >= dy2 ? t1 : t2;
     const winnerSafety = margin1 >= margin2 ? t1 : t2;
-    const winnerROE = f1.roe >= f2.roe ? t1 : t2;
+    const winnerROE = (f1.roe || 0) >= (f2.roe || 0) ? t1 : t2;
 
     return `
-### ⚔️ Comparativo da IA: **${t1} vs ${t2}**
+### âš”ï¸ Comparativo da IA: **${t1} vs ${t2}**
 
 | Indicador Fundamentalista | **${t1}** (${f1.name || t1}) | **${t2}** (${f2.name || t2}) | Vantagem |
 |---|---|---|:---:|
-| **Cotação Atual** | R$ ${NumFmt.num(p1)} | R$ ${NumFmt.num(p2)} | — |
-| **Histórico de Dividendos** | ${f1.divYears || 5} anos | ${f2.divYears || 5} anos | ${(f1.divYears || 5) >= (f2.divYears || 5) ? `**${t1}**` : `**${t2}**`} |
-| **Preço Teto 5A (6% DY)** | R$ ${NumFmt.num(teto1)} | R$ ${NumFmt.num(teto2)} | — |
-| **Margem de Segurança 5A** | ${margin1 >= 0 ? '+' : ''}${NumFmt.num(margin1, 1)}% | ${margin2 >= 0 ? '+' : ''}${NumFmt.num(margin2, 1)}% | **${winnerSafety}** |
+| **CotaÃ§Ã£o Atual** | R$ ${NumFmt.num(p1)} | R$ ${NumFmt.num(p2)} | â€” |
+| **HistÃ³rico de Dividendos** | ${f1.divYears || 5} anos | ${f2.divYears || 5} anos | ${(f1.divYears || 5) >= (f2.divYears || 5) ? `**${t1}**` : `**${t2}**`} |
+| **PreÃ§o Teto 5A (6% DY)** | R$ ${NumFmt.num(teto1)} | R$ ${NumFmt.num(teto2)} | â€” |
+| **Margem de SeguranÃ§a 5A** | ${margin1 >= 0 ? '+' : ''}${NumFmt.num(margin1, 1)}% | ${margin2 >= 0 ? '+' : ''}${NumFmt.num(margin2, 1)}% | **${winnerSafety}** |
 | **Dividend Yield (12M)** | **${NumFmt.num(dy1, 2)}%** | **${NumFmt.num(dy2, 2)}%** | **${winnerDY}** |
 | **ROE (Rentabilidade)** | ${NumFmt.num(f1.roe, 1)}% | ${NumFmt.num(f2.roe, 1)}% | **${winnerROE}** |
-| **P/VP (Valuation)** | ${NumFmt.num(f1.pvp, 2)}x | ${NumFmt.num(f2.pvp, 2)}x | ${f1.pvp <= f2.pvp ? `**${t1}**` : `**${t2}**`} |
-| **Setor de Atuação** | ${f1.sector} | ${f2.sector} | — |
+| **P/VP (Valuation)** | ${NumFmt.num(f1.pvp, 2)}x | ${NumFmt.num(f2.pvp, 2)}x | ${(f1.pvp || 1) <= (f2.pvp || 1) ? `**${t1}**` : `**${t2}**`} |
+| **Setor de AtuaÃ§Ã£o** | ${f1.sector || 'B3'} | ${f2.sector || 'B3'} | â€” |
 
 ---
 
-#### 🔍 Parecer Técnico da IA:
-• **Para Dividendos Imediatos:** **${winnerDY}** leva vantagem por entregar um dividend yield projetado maior no preço atual.  
-• **Para Margem de Segurança (5A):** **${winnerSafety}** está com o preço mais descontado em relação ao Preço Teto Barsi.  
-• **Para Rentabilidade de Capital:** **${winnerROE}** gera maior lucro para cada real de patrimônio próprio.
+#### ðŸ” Parecer TÃ©cnico da IA:
+â€¢ **Para Dividendos Imediatos:** **${winnerDY}** leva vantagem por entregar um dividend yield projetado maior no preÃ§o atual.  
+â€¢ **Para Margem de SeguranÃ§a (5A):** **${winnerSafety}** estÃ¡ com o preÃ§o mais descontado em relaÃ§Ã£o ao PreÃ§o Teto Barsi.  
+â€¢ **Para Rentabilidade de Capital:** **${winnerROE}** gera maior lucro para cada real de patrimÃ´nio prÃ³prio.
     `;
   },
 
   explainPrecoTeto() {
     return `
-### 💡 O que é o Preço Teto Barsi e Como Calcular?
+### ðŸ’¡ O que Ã© o PreÃ§o Teto Barsi e Como Calcular?
 
-O **Preço Teto** é o conceito central da filosofia de **Luiz Barsi Filho**.
+O **PreÃ§o Teto** Ã© o conceito central da filosofia de **Luiz Barsi Filho**.
 
-#### 🎯 Como funciona:
-Barsi não aceita receber menos de **6% de dividendo ao ano**. O Preço Teto é o **valor máximo** que você pode pagar em uma ação para que o dividendo pago represente no mínimo 6% de retorno.
+#### ðŸŽ¯ Como funciona:
+Barsi nÃ£o aceita receber menos de **6% de dividendo ao ano**. O PreÃ§o Teto Ã© o **valor mÃ¡ximo** que vocÃª pode pagar em uma aÃ§Ã£o para que o dividendo pago represente no mÃ­nimo 6% de retorno.
 
-#### 📐 Fórmula com Base nos 5 Anos:
-\`Preço Teto (5 Anos) = DPA Médio dos Últimos 5 Anos ÷ 0,06\`
+#### ðŸ“ FÃ³rmula com Base nos 5 Anos:
+\`PreÃ§o Teto (5 Anos) = DPA MÃ©dio dos Ãšltimos 5 Anos Ã· 0,06\`
     `;
   },
 
   explainBESST() {
     return `
-### 🏛️ O que é o Setor BESST de Luiz Barsi?
+### ðŸ›ï¸ O que Ã© o Setor BESST de Luiz Barsi?
 
-O acrônimo **BESST** reúne os 5 setores à prova de crises:
+O acrÃ´nimo **BESST** reÃºne os 5 setores Ã  prova de crises:
 
-1. 🏛️ **B — Bancos** (*BBAS3, ITUB3, BBDC3, SANB3, ABCB4*)
-2. ⚡ **E — Energia Elétrica** (*TAEE3, CMIG3, EGIE3, CPFE3, CPLE3*)
-3. 🚰 **S — Saneamento** (*SBSP3, SAPR3, CSMG3*)
-4. 🛡️ **S — Seguros** (*CXSE3, PSSA3, BBSE3, IRBR3*)
-5. 📡 **T — Telecomunicações** (*VIVT3, TIMS3, FIQE3, DESK3*)
+1. ðŸ›ï¸ **B â€” Bancos** (*BBAS3, ITUB4, BBDC4, SANB4, ABCB4*)
+2. âš¡ **E â€” Energia ElÃ©trica** (*TAEE4, CMIG4, EGIE3, CPFE3, CPLE6*)
+3. ðŸš° **S â€” Saneamento** (*SBSP3, SAPR4, CSMG3*)
+4. ðŸ›¡ï¸ **S â€” Seguros** (*CXSE3, PSSA3, BBSE3, IRBR3*)
+5. ðŸ“¡ **T â€” TelecomunicaÃ§Ãµes** (*VIVT3, TIMS3*)
     `;
   },
 
   explainDividendYield() {
     return `
-### 💰 O que é Dividend Yield (DY)?
-Mede quanto a ação pagou em proventos nos últimos 12 meses em relação ao preço atual:
-\`DY (%) = (Dividendo Anual ÷ Preço da Ação) × 100\`
+### ðŸ’° O que Ã© Dividend Yield (DY)?
+Mede quanto a aÃ§Ã£o pagou em proventos nos Ãºltimos 12 meses em relaÃ§Ã£o ao preÃ§o atual:
+\`DY (%) = (Dividendo Anual Ã· PreÃ§o da AÃ§Ã£o) Ã— 100\`
     `;
   },
 
   explainPayout() {
     return `
-### 📊 O que é Payout Ratio?
-Porcentagem do lucro líquido que a empresa distribui aos acionistas em proventos (ideal: entre 30% e 80%).
+### ðŸ“Š O que Ã© Payout Ratio?
+Porcentagem do lucro lÃ­quido que a empresa distribui aos acionistas em proventos (ideal para previdÃªncia: entre 40% e 85%).
     `;
   },
 
   explainMagicFormula() {
     return `
-### 🟢 Como Funciona a Fórmula Mágica de Joel Greenblatt?
-Junta **Qualidade (ROIC)** e **Preço Baixo (Earnings Yield: EBIT/EV)**. A menor soma dos dois rankings indica a melhor oportunidade!
+### ðŸŸ¢ Como Funciona a FÃ³rmula MÃ¡gica de Joel Greenblatt?
+Junta **Qualidade (ROIC)** e **PreÃ§o Baixo (Earnings Yield: EBIT/EV)**. A menor soma dos dois rankings indica a melhor oportunidade!
     `;
   },
 
@@ -8024,41 +8153,61 @@ Junta **Qualidade (ROIC)** e **Preço Baixo (Earnings Yield: EBIT/EV)**. A menor
     let list = AppState.favorites.map(sym => {
       const f = B3_FUNDAMENTAL_DB[sym] || {};
       const approxPrice = 30.0;
-      const dpa5y = f.dpa5y || f.dpa || (approxPrice * 0.06);
-      const teto = dpa5y / 0.06;
+      const dpa5y = f.dpa5y || f.dpa || 0;
+      const teto = dpa5y > 0 ? (dpa5y / 0.06) : 0;
       return { sym, ...f, dpa5y, teto };
-    });
+    }).filter(i => i.teto > 0);
+    
     list.sort((a, b) => b.dpa5y - a.dpa5y);
-    const top = list.slice(0, 5);
+    const top = list.slice(0, 6);
     const rows = top.map((item, idx) => `
-${idx + 1}. **${item.sym} (${item.name || item.sym}):** DPA 5A: R$ ${NumFmt.num(item.dpa5y)} | Preço Teto 5A: R$ ${NumFmt.num(item.teto)} | Histórico: ${item.divYears || 5} anos
+${idx + 1}. **${item.sym} (${item.name || item.sym}):** DPA 5A: R$ ${NumFmt.num(item.dpa5y)} | PreÃ§o Teto 5A: R$ ${NumFmt.num(item.teto)} | Setor: ${item.sector || 'B3'}
 `).join('');
-    return `### 🏆 Top Oportunidades das suas Favoritas (Regra Barsi 5 Anos):\n${rows}`;
+    return `### ðŸ† Top Oportunidades das suas Favoritas (Regra Barsi 5 Anos):\n${rows}`;
   },
 
   generateGeneralHelpResponse(query) {
     return `
-### 🤖 Assistente IA — Como posso ajudar?
-Pergunte sobre qualquer ação (ex: *"Analisar TAEE3"*), compare ativos (ex: *"BBAS3 vs ITUB3"*) ou tire dúvidas sobre Preço Teto e relatórios na pasta **Conteudo para IA**!
+### ðŸ¤– Assistente IA de Investimentos â€” Como posso ajudar?
+
+VocÃª pode me perguntar sobre:
+â€¢ **DiagnÃ³stico de AÃ§Ãµes ou FIIs:** ex: *"Como estÃ¡ a Petrobras?"*, *"Analise TAEE4"*, *"O que acha de HGLG11?"*
+â€¢ **Comparativo Direto:** ex: *"BBAS3 vs ITUB4"*, *"Taesa ou Engie?"*
+â€¢ **Sua Carteira:** ex: *"Analise minha carteira"*, *"Quais aÃ§Ãµes da minha carteira estÃ£o abaixo do teto?"*
+â€¢ **Conceitos:** *"O que Ã© PreÃ§o Teto?"*, *"O que Ã© o setor BESST?"*, *"Como funciona a FÃ³rmula MÃ¡gica?"*
+â€¢ **Base de Documentos:** Coloque relatÃ³rios na pasta **\`Conteudo para IA\`** e faÃ§a perguntas com ancoragem estrita!
     `;
   },
 
-  async generateGeminiResponse(userPrompt, activeStock) {
+  async generateGeminiResponse(userPrompt, activeStock, mentionedTickers = []) {
     if (!AppState.geminiKey) {
-      throw new Error('Chave do Google Gemini não configurada.');
+      throw new Error('Chave do Google Gemini nÃ£o configurada.');
     }
-    const fund = B3_FUNDAMENTAL_DB[activeStock] || {};
-    const quote = await StockAPI.getSingleQuote(activeStock).catch(() => null);
-    const price = quote?.regularMarketPrice || 30.0;
-    const dpa5y = fund.dpa5y || fund.dpa || (price * 0.06);
-    const precoTeto = dpa5y > 0 ? (dpa5y / 0.06) : price;
+    const tickersToInclude = mentionedTickers.length > 0 ? mentionedTickers : [activeStock || 'BBAS3'];
+    
+    let fundamentalContext = '';
+    for (const sym of tickersToInclude.slice(0, 3)) {
+      const fund = B3_FUNDAMENTAL_DB[sym] || {};
+      const quote = await StockAPI.getSingleQuote(sym).catch(() => null);
+      const price = quote?.regularMarketPrice || 0;
+      const dpa5y = fund.dpa5y || fund.dpa || 0;
+      const precoTeto = dpa5y > 0 ? (dpa5y / 0.06) : 0;
+      
+      fundamentalContext += `
+DADOS OFICIAIS DO ATIVO ${sym} (${fund.name || sym}):
+â€¢ CotaÃ§Ã£o Atual: R$ ${price.toFixed(2)}
+â€¢ PreÃ§o Teto Barsi 5A (DY 6%): R$ ${precoTeto.toFixed(2)}
+â€¢ DPA MÃ©dio 5 Anos: R$ ${dpa5y.toFixed(4)}
+â€¢ HistÃ³rico de Dividendos: ${fund.divYears || 5} anos
+â€¢ Lucro LÃ­quido 12M: R$ ${fund.netIncome ? fund.netIncome.toFixed(2) + ' Bi' : 'N/A'}
+â€¢ Total de AÃ§Ãµes: ${fund.totalShares || 'N/A'}
+â€¢ LPA: R$ ${fund.lpa || 'N/A'} | VPA: R$ ${fund.vpa || 'N/A'} | ROE: ${fund.roe || 16}% | P/VP: ${fund.pvp || 1.2}x | P/L: ${fund.pl || 6}x | Setor: ${fund.sector || 'B3'}
+`;
+    }
 
-    let systemPrompt = '';
     const isNotebookLm = AppState.aiGroundingMode === 'notebooklm';
-
+    let docsText = '';
     if (isNotebookLm) {
-      // Assemble files from Conteudo para IA
-      let docsText = '';
       if (AppState.aiFolderFiles && AppState.aiFolderFiles.length > 0) {
         docsText = AppState.aiFolderFiles.map(f => `
 ========================================
@@ -8070,44 +8219,45 @@ ${f.content}
       } else {
         docsText = '(Nenhum arquivo adicionado ainda na pasta Conteudo para IA)';
       }
+    }
 
-      // User wallet portfolio summary
-      const portList = getConsolidatedPortfolio();
-      const portSummary = portList.length > 0 
-        ? portList.map(p => `${p.symbol}: ${p.qty} ações (Preço Médio: R$ ${p.avgPrice.toFixed(2)})`).join(', ')
-        : 'Nenhuma posição cadastrada';
+    // User wallet portfolio summary
+    const portList = getConsolidatedPortfolio();
+    const portSummary = portList.length > 0 
+      ? portList.map(p => `${p.symbol}: ${p.quantity} aÃ§Ãµes (PreÃ§o MÃ©dio: R$ ${p.avgPrice.toFixed(2)})`).join(', ')
+      : 'Nenhuma posiÃ§Ã£o cadastrada';
 
-      systemPrompt = `Você é o Assistente IA de Investimentos da Bolsa B3 operando no MODO NOTEBOOKLM (Ancoragem Estrita em Fontes / Grounding).
+    let systemPrompt = '';
+    if (isNotebookLm) {
+      systemPrompt = `VocÃª Ã© o Assistente IA de Investimentos da Bolsa B3 operando no MODO NOTEBOOKLM (Ancoragem Estrita em Fontes / Grounding).
 
 BASE DE CONHECIMENTO DA PASTA LOCAL "Conteudo para IA":
 ${docsText}
 
-DADOS OFICIAIS DO ATIVO ATUAL (${activeStock}):
-• Cotação Atual: R$ ${price.toFixed(2)}
-• Preço Teto Barsi 5A: R$ ${precoTeto.toFixed(2)}
-• DPA Médio 5A: R$ ${dpa5y.toFixed(2)}
-• Histórico de Dividendos: ${fund.divYears || 5} anos
-• ROE: ${fund.roe || 16}% | P/VP: ${fund.pvp || 1.2}x | Setor: ${fund.sector || 'B3'}
+DADOS FUNDAMENTALISTAS OFICIAIS:
+${fundamentalContext}
 
 MINHA CARTEIRA:
-• Posições: ${portSummary}
+â€¢ PosiÃ§Ãµes: ${portSummary}
 
-REGRAS DE ANCORAGEM NOTEBOOKLM (INQUEBRÁVEIS):
-1. Você deve responder EXCLUSIVAMENTE com base nas informações contidas nos arquivos da pasta "Conteudo para IA" listados acima e nos dados oficiais B3.
-2. É ESTRITAMENTE PROIBIDO inventar fatos, números ou extrapolar além do que está comprovado nos documentos.
-3. Se a informação solicitada NÃO constar nos arquivos da pasta "Conteudo para IA" nem nos dados do ativo, responda claramente:
-   "⚠️ **Nota de Ancoragem (Modo NotebookLM):** Esta informação não consta nos arquivos da pasta 'Conteudo para IA' nem nos balanços cadastrados."
-4. Ao final da sua resposta, adicione SEMPRE a seção:
-   "📚 **Fontes Consultadas:**" citando os nomes exatos dos arquivos da pasta utilizados (ex: "Conteudo para IA/${AppState.aiFolderFiles[0]?.name || 'arquivo.txt'}").`;
-
+REGRAS DE ANCORAGEM NOTEBOOKLM (INQUEBRÃVEIS):
+1. VocÃª deve responder com base nas informaÃ§Ãµes contidas nos arquivos da pasta "Conteudo para IA" listados acima e nos dados oficiais B3.
+2. Ã‰ ESTRITAMENTE PROIBIDO inventar fatos, nÃºmeros ou extrapolar alÃ©m do que estÃ¡ comprovado nos documentos.
+3. Se a informaÃ§Ã£o solicitada NÃƒO constar nos arquivos da pasta "Conteudo para IA" nem nos dados do ativo, responda claramente indicando a ausÃªncia da informaÃ§Ã£o nos documentos.
+4. Ao final da sua resposta, adicione a seÃ§Ã£o "ðŸ“š **Fontes Consultadas:**" citando os arquivos ou base de dados utilizada.`;
     } else {
-      systemPrompt = `Você é um Analista de Investimentos sênior (CNPI) da Bolsa brasileira (B3) no Modo Consultor Geral.
-DADOS REAIS: ${activeStock} | Preço: R$ ${price.toFixed(2)} | Preço Teto Barsi 5A: R$ ${precoTeto.toFixed(2)} | DPA 5A: R$ ${dpa5y.toFixed(2)} | Histórico de Dividendos: ${fund.divYears || 5} anos | ROE: ${fund.roe || 16}%`;
+      systemPrompt = `VocÃª Ã© um Analista de Investimentos sÃªnior (CNPI) da Bolsa brasileira (B3) no Modo Consultor Geral.
+DADOS FUNDAMENTALISTAS OFICIAIS:
+${fundamentalContext}
+
+MINHA CARTEIRA:
+â€¢ PosiÃ§Ãµes: ${portSummary}
+Responda de forma analÃ­tica, estruturada com tabelas e bullet points.`;
     }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${AppState.geminiKey}`;
     const body = {
-      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nPERGUNTA DO USUÁRIO:\n${userPrompt}` }] }],
+      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nPERGUNTA DO USUÃRIO:\n${userPrompt}` }] }],
       generationConfig: { temperature: isNotebookLm ? 0.2 : 0.4, maxOutputTokens: 1800 }
     };
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -8537,8 +8687,11 @@ async function handleSendChatMessage() {
 
   try {
     let aiResponse = '';
+    const mentionedTickers = resolveTickersFromQuery(text);
+    const primaryTicker = mentionedTickers[0] || AppState.activeChartTicker || 'BBAS3';
+
     if (AppState.aiMode === 'gemini' && AppState.geminiKey) {
-      aiResponse = await FinancialAI.generateGeminiResponse(text, AppState.activeChartTicker || 'BBAS3');
+      aiResponse = await FinancialAI.generateGeminiResponse(text, primaryTicker, mentionedTickers);
     } else {
       await new Promise(r => setTimeout(r, 250));
       aiResponse = await FinancialAI.processOfflineQuery(text);
