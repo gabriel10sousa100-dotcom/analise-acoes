@@ -8199,9 +8199,7 @@ VocÃª pode me perguntar sobre:
     if (!key) {
       throw new Error('Chave de API do Google Gemini nÃ£o configurada. Cole sua chave em ConfiguraÃ§Ãµes.');
     }
-    if (!key.startsWith('AIza')) {
-      throw new Error('Formato de chave invÃ¡lido. A chave do Google AI Studio deve comeÃ§ar com "AIza...". Verifique se vocÃª copiou a API Key em aistudio.google.com.');
-    }
+    
 
     const tickersToInclude = mentionedTickers.length > 0 ? mentionedTickers : [activeStock || 'BBAS3'];
     
