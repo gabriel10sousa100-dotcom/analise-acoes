@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -765,6 +765,20 @@
               <div class="state-icon">💼</div>
               <div class="state-title">Nenhum lançamento registrado</div>
               <div class="state-desc">Clique no botão "+ Lançar Compra / Aporte" para adicionar as ações que você comprou e começar a acompanhar sua rentabilidade!</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PORTFOLIO DIVIDENDS TABLE -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <div class="card-title">💰 Extrato de Proventos da Minha Carteira</div>
+            <div style="font-size: 12px; color: var(--text-sub);" id="port-div-summary">0 lançamentos de proventos</div>
+          </div>
+          <div class="table-responsive" id="portfolio-dividends-container">
+            <div class="state-box">
+              <div class="spinner-ring"></div>
+              <div class="state-title">Carregando proventos da carteira...</div>
             </div>
           </div>
         </div>
@@ -1707,6 +1721,10 @@
         <div>
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Data da Compra</label>
           <input type="date" class="input-field" id="trade-date" required style="width: 100%;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">ObservaÃ§Ãµes / DescriÃ§Ã£o (Opcional)</label>
+          <input type="text" class="input-field" id="trade-notes" placeholder="ex: Aporte mensal, Reinvestimento de dividendos..." style="width: 100%;">
         </div>
 
         <div style="display: flex; gap: 10px; margin-top: 10px;">
@@ -6373,11 +6391,11 @@ function closePortfolioAiModal() {
 function deepDivePortfolioInChat() {
   closePortfolioAiModal();
   setTab('ai');
-  const input = document.getElementById('ai-chat-input');
+  const input = document.getElementById('chat-user-input');
   if (input) {
     input.value = 'Faça uma análise detalhada da minha carteira de ações e FIIs, indicando onde estão as maiores assimetrias de dividendos para o próximo aporte.';
-    if (typeof handleSendMessage === 'function') {
-      handleSendMessage();
+    if (typeof handleSendChatMessage === 'function') {
+      handleSendChatMessage();
     }
   }
 }
@@ -9271,6 +9289,101 @@ async function testAiEngine() {
     }
   } catch (e) {
     showToast(`Erro na IA: ${e.message}`, 'error');
+  }
+}
+
+// ==========================================
+// BACKUP, RESTORE & DATA EXPORT HANDLERS
+// ==========================================
+function exportAppData() {
+  const data = {
+    version: '2.5',
+    exportDate: new Date().toISOString(),
+    trades: AppState.trades || [],
+    favorites: AppState.favorites || [],
+    fiiFavorites: AppState.fiiFavorites || [],
+    portfolioDividends: AppState.portfolioDividends || [],
+    comparatorStocks: AppState.comparatorStocks || [],
+    aiMode: AppState.aiMode,
+    geminiModel: AppState.geminiModel,
+    geminiKey: AppState.geminiKey,
+    brapiToken: AppState.token,
+    aiFolderFiles: AppState.aiFolderFiles || []
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `backup_carteira_b3_${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Backup exportado com sucesso!', 'success');
+}
+
+function triggerImportData() {
+  const input = document.getElementById('import-file-input');
+  if (input) input.click();
+}
+
+function importAppData(event) {
+  const file = event.target?.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.trades) {
+        AppState.trades = data.trades;
+        localStorage.setItem('b3_user_trades', JSON.stringify(data.trades));
+      }
+      if (data.favorites) {
+        AppState.favorites = data.favorites;
+        localStorage.setItem('b3_favorites', JSON.stringify(data.favorites));
+      }
+      if (data.fiiFavorites) {
+        AppState.fiiFavorites = data.fiiFavorites;
+        localStorage.setItem('b3_fii_favorites', JSON.stringify(data.fiiFavorites));
+      }
+      if (data.portfolioDividends) {
+        AppState.portfolioDividends = data.portfolioDividends;
+        localStorage.setItem('b3_portfolio_dividends', JSON.stringify(data.portfolioDividends));
+      }
+      if (data.comparatorStocks) {
+        AppState.comparatorStocks = data.comparatorStocks;
+        localStorage.setItem('b3_comparator', JSON.stringify(data.comparatorStocks));
+      }
+      if (data.brapiToken) {
+        AppState.token = data.brapiToken;
+        localStorage.setItem('brapi_token', data.brapiToken);
+      }
+      if (data.geminiKey) {
+        AppState.geminiKey = data.geminiKey;
+        localStorage.setItem('gemini_api_key', data.geminiKey);
+      }
+      if (data.aiFolderFiles) {
+        AppState.aiFolderFiles = data.aiFolderFiles;
+        localStorage.setItem('b3_ai_folder_files', JSON.stringify(data.aiFolderFiles));
+      }
+
+      syncAutomatedDividends();
+      showToast('Dados restaurados com sucesso!', 'success');
+      setTimeout(() => location.reload(), 1000);
+    } catch (err) {
+      showToast(`Erro ao restaurar backup: ${err.message}`, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function clearAllCache() {
+  if (confirm('Tem certeza que deseja limpar os dados locais e cache da aplicaÃ§Ã£o?')) {
+    localStorage.clear();
+    showToast('Cache limpo com sucesso!', 'info');
+    setTimeout(() => location.reload(), 1000);
   }
 }
 
