@@ -8195,9 +8195,14 @@ VocÃª pode me perguntar sobre:
   },
 
   async generateGeminiResponse(userPrompt, activeStock, mentionedTickers = []) {
-    if (!AppState.geminiKey) {
-      throw new Error('Chave do Google Gemini nÃ£o configurada.');
+    const key = (AppState.geminiKey || document.getElementById('cfg-gemini-key')?.value || '').trim();
+    if (!key) {
+      throw new Error('Chave de API do Google Gemini nÃ£o configurada. Cole sua chave em ConfiguraÃ§Ãµes.');
     }
+    if (!key.startsWith('AIza')) {
+      throw new Error('Formato de chave invÃ¡lido. A chave do Google AI Studio deve comeÃ§ar com "AIza...". Verifique se vocÃª copiou a API Key em aistudio.google.com.');
+    }
+
     const tickersToInclude = mentionedTickers.length > 0 ? mentionedTickers : [activeStock || 'BBAS3'];
     
     let fundamentalContext = '';
@@ -8215,7 +8220,7 @@ DADOS OFICIAIS DO ATIVO ${sym} (${fund.name || sym}):
 â€¢ DPA MÃ©dio 5 Anos: R$ ${dpa5y.toFixed(4)}
 â€¢ HistÃ³rico de Dividendos: ${fund.divYears || 5} anos
 â€¢ Lucro LÃ­quido 12M: R$ ${fund.netIncome ? fund.netIncome.toFixed(2) + ' Bi' : 'N/A'}
-â€¢ Total de AÃ§Ãµes: ${fund.totalShares || 'N/A'}
+â€¢ Total de AÃ§Ãµes: ${fund.totalShares ? fund.totalShares.toLocaleString('pt-BR') : 'N/A'}
 â€¢ LPA: R$ ${fund.lpa || 'N/A'} | VPA: R$ ${fund.vpa || 'N/A'} | ROE: ${fund.roe || 16}% | P/VP: ${fund.pvp || 1.2}x | P/L: ${fund.pl || 6}x | Setor: ${fund.sector || 'B3'}
 `;
     }
@@ -8236,7 +8241,6 @@ ${f.content}
       }
     }
 
-    // User wallet portfolio summary
     const portList = getConsolidatedPortfolio();
     const portSummary = portList.length > 0 
       ? portList.map(p => `${p.symbol}: ${p.quantity} aÃ§Ãµes (PreÃ§o MÃ©dio: R$ ${p.avgPrice.toFixed(2)})`).join(', ')
@@ -8255,11 +8259,11 @@ ${fundamentalContext}
 MINHA CARTEIRA:
 â€¢ PosiÃ§Ãµes: ${portSummary}
 
-REGRAS DE ANCORAGEM NOTEBOOKLM (INQUEBRÃVEIS):
-1. VocÃª deve responder com base nas informaÃ§Ãµes contidas nos arquivos da pasta "Conteudo para IA" listados acima e nos dados oficiais B3.
-2. Ã‰ ESTRITAMENTE PROIBIDO inventar fatos, nÃºmeros ou extrapolar alÃ©m do que estÃ¡ comprovado nos documentos.
-3. Se a informaÃ§Ã£o solicitada NÃƒO constar nos arquivos da pasta "Conteudo para IA" nem nos dados do ativo, responda claramente indicando a ausÃªncia da informaÃ§Ã£o nos documentos.
-4. Ao final da sua resposta, adicione a seÃ§Ã£o "ðŸ“š **Fontes Consultadas:**" citando os arquivos ou base de dados utilizada.`;
+REGRAS DE ANCORAGEM NOTEBOOKLM:
+1. Responda com base nos arquivos da pasta "Conteudo para IA" e dados oficiais B3.
+2. Ã‰ terminantemente proibido inventar dados ou estimativas.
+3. Se nÃ£o constar nos documentos nem nos balanÃ§os, informe com transparÃªncia.
+4. Finalize com a seÃ§Ã£o "ðŸ“š Fontes Consultadas:".`;
     } else {
       systemPrompt = `VocÃª Ã© um Analista de Investimentos sÃªnior (CNPI) da Bolsa brasileira (B3) no Modo Consultor Geral.
 DADOS FUNDAMENTALISTAS OFICIAIS:
@@ -8270,12 +8274,42 @@ MINHA CARTEIRA:
 Responda de forma analÃ­tica, estruturada com tabelas e bullet points.`;
     }
 
-        const model = AppState.geminiModel || 'gemini-1.5-pro';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${AppState.geminiKey}`;
-    const body = {
-      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nPERGUNTA DO USUÃRIO:\n${userPrompt}` }] }],
-      generationConfig: { temperature: isNotebookLm ? 0.2 : 0.4, maxOutputTokens: 1800 }
-    };
+    // Models to try in order of preference
+    const primaryModel = AppState.geminiModel || 'gemini-1.5-pro';
+    const modelsToTry = [primaryModel, 'gemini-2.0-flash', 'gemini-1.5-flash'].filter((v, i, a) => a.indexOf(v) === i);
+
+    let lastError = null;
+
+    for (const m of modelsToTry) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`;
+        const body = {
+          contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nPERGUNTA DO USUÃRIO:\n${userPrompt}` }] }],
+          generationConfig: { temperature: isNotebookLm ? 0.2 : 0.4, maxOutputTokens: 2000 }
+        };
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        
+        if (res.ok) {
+          const data = await res.json();
+          const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (reply) return reply;
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          const errMsg = errData.error?.message || `HTTP ${res.status}`;
+          lastError = new Error(`Modelo ${m}: ${errMsg}`);
+          if (res.status === 400 || res.status === 403 || errMsg.toLowerCase().includes('api key') || errMsg.toLowerCase().includes('permission')) {
+            throw new Error(`Chave Google invÃ¡lida ou sem permissÃ£o (${errMsg}). Obtenha uma chave em aistudio.google.com`);
+          }
+        }
+      } catch (err) {
+        if (err.message.includes('Chave Google invÃ¡lida')) throw err;
+        lastError = err;
+      }
+    }
+
+    throw lastError || new Error('NÃ£o foi possÃ­vel conectar ao Google Gemini. Verifique sua chave de API.');
+  }
+};
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) throw new Error(`Erro no Gemini (${res.status})`);
     const data = await res.json();
@@ -9216,12 +9250,31 @@ function saveAiSettings() {
 }
 
 async function testAiEngine() {
-  showToast('Testando IA...', 'ai');
+  const mode = document.getElementById('cfg-ai-mode-select')?.value || 'builtin';
+  const key = (document.getElementById('cfg-gemini-key')?.value || '').trim();
+  const model = document.getElementById('cfg-gemini-model-select')?.value || 'gemini-1.5-pro';
+
+  // Auto-save values before testing
+  saveAiSettings();
+
+  showToast('Testando conexÃ£o com a IA...', 'ai');
   try {
-    if (AppState.aiMode === 'gemini' && AppState.geminiKey) {
-      await FinancialAI.generateGeminiResponse('Teste de conexão', 'BBAS3');
-      showToast('IA Gemini conectada!', 'success');
+    if (mode === 'gemini') {
+      if (!key) {
+        throw new Error('Por favor, cole sua chave de API do Google AI Studio no campo antes de testar.');
+      }
+      const reply = await FinancialAI.generateGeminiResponse('Responda em uma linha curta: "ConexÃ£o Gemini Pro 100% OK!"', 'BBAS3');
+      showToast(`âœ… Gemini conectado com sucesso!`, 'success');
+      alert(`ðŸŽ‰ Sucesso na ConexÃ£o com o Google Gemini!\n\nModelo Ativo: ${model}\nResposta do Google: ${reply.trim()}\n\nO Assistente IA estÃ¡ pronto para uso no Chat!`);
     } else {
+      showToast('âš¡ Motor Especialista Offline operacional!', 'success');
+      alert('âš¡ Motor Especialista Offline estÃ¡ 100% ativo e pronto para uso!');
+    }
+  } catch (e) {
+    showToast(`Erro na IA: ${e.message}`, 'error');
+    alert(`âŒ Falha na ConexÃ£o com o Google Gemini:\n\n${e.message}\n\nðŸ‘‰ Como resolver:\n1. Acesse: https://aistudio.google.com/app/apikey com sua conta Google;\n2. Clique no botÃ£o azul "Create API key";\n3. Copie a chave gerada (comeÃ§a com "AIza...") e cole no campo da aplicaÃ§Ã£o.`);
+  }
+} else {
       showToast('Motor Especialista Offline 100% operacional!', 'success');
     }
   } catch (e) {
