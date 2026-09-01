@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -3071,9 +3071,30 @@ const AppState = {
   activeBenchmarkTf: '12m',
   activeCalendarCategory: 'all',
   expandedPositions: {},
-  favorites: JSON.parse(localStorage.getItem('b3_favorites') || JSON.stringify(DEFAULT_FAVORITES)),
-  fiiFavorites: JSON.parse(localStorage.getItem('b3_fii_favorites') || JSON.stringify(DEFAULT_FII_FAVORITES)),
-  trades: JSON.parse(localStorage.getItem('b3_user_trades') || JSON.stringify(DEFAULT_USER_TRADES)),
+  favorites: (function() {
+    try {
+      const f = JSON.parse(localStorage.getItem('b3_favorites') || '[]');
+      return (Array.isArray(f) && f.length > 0) ? f : [...DEFAULT_FAVORITES];
+    } catch(e) {
+      return [...DEFAULT_FAVORITES];
+    }
+  })(),
+  fiiFavorites: (function() {
+    try {
+      const f = JSON.parse(localStorage.getItem('b3_fii_favorites') || '[]');
+      return (Array.isArray(f) && f.length > 0) ? f : [...DEFAULT_FII_FAVORITES];
+    } catch(e) {
+      return [...DEFAULT_FII_FAVORITES];
+    }
+  })(),
+  trades: (function() {
+    try {
+      const t = JSON.parse(localStorage.getItem('b3_user_trades') || '[]');
+      return (Array.isArray(t) && t.length > 0) ? t : [...DEFAULT_USER_TRADES];
+    } catch(e) {
+      return [...DEFAULT_USER_TRADES];
+    }
+  })(),
   portfolioDividends: JSON.parse(localStorage.getItem('b3_portfolio_dividends') || '[]'),
   comparatorStocks: JSON.parse(localStorage.getItem('b3_comparator') || '["BBAS3", "TAEE4", "ITUB4", "EGIE3", "SAPR4"]'),
   activeChartTicker: 'BBAS3',
@@ -9674,10 +9695,31 @@ async function initApp() {
     });
   }
 
-  await AiFolderWatcher.init();
-  syncAutomatedDividends();
-  await StockAPI.getFullB3List();
-  renderFavoritesView();
+  try {
+    if (!AppState.favorites || !AppState.favorites.length) {
+      AppState.favorites = [...DEFAULT_FAVORITES];
+    }
+    renderFavoritesView();
+  } catch (e) {
+    console.error('Erro na renderizaÃ§Ã£o inicial de favoritos:', e);
+  }
+
+  try {
+    await AiFolderWatcher.init().catch(err => console.warn('AiFolderWatcher init:', err));
+  } catch (e) {}
+
+  try {
+    syncAutomatedDividends();
+  } catch (e) {}
+
+  // Fetch live quotes asynchronously in background
+  try {
+    StockAPI.getFullB3List().then(() => {
+      if (AppState.activeTab === 'favoritos') {
+        renderFavoritesView();
+      }
+    }).catch(err => console.warn('B3 list sync:', err));
+  } catch (e) {}
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
