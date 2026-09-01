@@ -9295,7 +9295,7 @@ async function testAiEngine() {
         throw new Error('Por favor, cole sua chave de API do Google AI Studio no campo antes de testar.');
       }
       const reply = await FinancialAI.generateGeminiResponse('Responda em uma linha curta: "ConexÃ£o Gemini Pro 100% OK!"', 'BBAS3');
-      showToast(`âœ… Gemini conectado com sucesso!`, 'success');
+      showToast('âœ… Gemini conectado com sucesso!', 'success');
       alert(`ðŸŽ‰ Sucesso na ConexÃ£o com o Google Gemini!\n\nModelo Ativo: ${model}\nResposta do Google: ${reply.trim()}\n\nO Assistente IA estÃ¡ pronto para uso no Chat!`);
     } else {
       showToast('âš¡ Motor Especialista Offline operacional!', 'success');
@@ -9304,12 +9304,6 @@ async function testAiEngine() {
   } catch (e) {
     showToast(`Erro na IA: ${e.message}`, 'error');
     alert(`âŒ Falha na ConexÃ£o com o Google Gemini:\n\n${e.message}\n\nðŸ‘‰ Como resolver:\n1. Acesse: https://aistudio.google.com/app/apikey com sua conta Google;\n2. Clique no botÃ£o azul "Create API key";\n3. Copie a chave gerada (comeÃ§a com "AIza...") e cole no campo da aplicaÃ§Ã£o.`);
-  }
-} else {
-      showToast('Motor Especialista Offline 100% operacional!', 'success');
-    }
-  } catch (e) {
-    showToast(`Erro na IA: ${e.message}`, 'error');
   }
 }
 
