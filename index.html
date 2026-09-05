@@ -16,6 +16,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Firebase (Sincronização em Nuvem - opcional, só é usado se o usuário configurar em Configurações) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <style>
     :root {
       --bg: #07090e;
@@ -652,6 +656,9 @@
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <button class="btn btn-primary btn-sm" onclick="runPortfolioAiDiagnosis()" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); border-color: #8b5cf6; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25); font-weight: 700;" title="Executar diagnóstico inteligente e parecer executivo da carteira com a IA">
               <span style="font-size: 13px;">🤖</span> Diagnóstico IA da Carteira
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="openAiHistoryModal()" title="Ver histórico de diagnósticos executivos gerados anteriormente">
+              🕐 Histórico de Diagnósticos
             </button>
             <button class="btn btn-secondary btn-sm" onclick="openSmartRebalanceModal()" style="display: flex; align-items: center; gap: 6px; font-weight: 600; border-color: rgba(56, 189, 248, 0.4);" title="Abrir calculadora inteligente de aporte e rebalanceamento em janela pop-up">
               <span style="font-size: 13px;">🎯</span> Calculadora de Aporte
@@ -1672,6 +1679,58 @@
             </div>
           </div>
 
+          <!-- PRICE & DIVIDEND ALERTS -->
+          <div class="card" style="border-color: rgba(245, 158, 11, 0.3); background: linear-gradient(135deg, rgba(245, 158, 11, 0.04), var(--card));">
+            <div class="card-title" style="margin-bottom: 12px; color: var(--yellow);">🔔 Alertas de Preço & Proventos</div>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+              Receba uma notificação do sistema quando um ativo atingir seu preço-alvo, ou quando um provento estiver com data-com próxima. Funciona apenas com o app aberto no navegador (não há servidor de push).
+            </p>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+              <button class="btn btn-primary btn-sm" onclick="enableNotifications()">🔔 Ativar Notificações do Navegador</button>
+              <span id="notif-status-text" style="font-size: 12px;"></span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+              <label style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase;">Avisar proventos com</label>
+              <input type="number" min="1" max="30" class="input-field" id="cfg-dividend-alert-days" style="width: 70px;" onchange="saveDividendAlertDays()">
+              <span style="font-size: 12px; color: var(--text-muted);">dias de antecedência (data-com)</span>
+            </div>
+            <div style="border-top: 1px solid var(--border); padding-top: 12px;">
+              <label style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 8px;">Novo Alerta de Preço</label>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;">
+                <input type="text" class="input-field input-mono" id="alert-ticker-input" placeholder="Ticker (ex: BBAS3)" style="width: 130px; text-transform: uppercase;">
+                <select class="select-field" id="alert-direction-select" style="width: 110px;">
+                  <option value="above">Acima de</option>
+                  <option value="below">Abaixo de</option>
+                </select>
+                <input type="number" step="0.01" class="input-field" id="alert-price-input" placeholder="Preço-alvo (R$)" style="width: 130px;">
+                <button class="btn btn-secondary btn-sm" onclick="addPriceAlert()">+ Adicionar</button>
+              </div>
+              <div id="price-alerts-list"></div>
+            </div>
+          </div>
+
+          <!-- CLOUD SYNC (FIREBASE) -->
+          <div class="card" style="border-color: rgba(56, 189, 248, 0.3); background: linear-gradient(135deg, rgba(56, 189, 248, 0.04), var(--card));">
+            <div class="card-title" style="margin-bottom: 12px; color: var(--accent);">☁️ Sincronização em Nuvem</div>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+              Sincronize sua carteira, favoritos e histórico entre dispositivos usando seu próprio projeto Firebase (Firestore + Login Google). Seus dados ficam no seu projeto, não em servidores da aplicação.
+            </p>
+            <div style="margin-bottom: 10px;">
+              <label style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 4px;">Configuração do Firebase (JSON)</label>
+              <textarea class="input-field" id="cfg-firebase-config" rows="3" style="width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 11px; resize: vertical;" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea>
+              <div style="font-size: 11px; color: var(--text-dim); margin-top: 6px;">
+                💡 Crie um projeto grátis em <a href="https://console.firebase.google.com" target="_blank" style="color: var(--accent); text-decoration: underline;">console.firebase.google.com</a>, habilite <strong>Authentication → Google</strong> e <strong>Firestore Database</strong>, e cole a "Configuração do SDK" aqui. Depois, restrinja as regras do Firestore para que cada usuário só leia/escreva seu próprio documento (<code>request.auth.uid == userId</code>).
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+              <button class="btn btn-primary btn-sm" onclick="saveFirebaseConfig()">Salvar Configuração</button>
+            </div>
+            <div style="border-top: 1px solid var(--border); padding-top: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+              <div id="cloud-sync-status"></div>
+              <div id="cloud-sync-actions" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+            </div>
+          </div>
+
           <!-- DATA & CACHE -->
           <div class="card" style="grid-column: span 2;">
             <div class="card-title" style="margin-bottom: 12px;">💾 Armazenamento & Backup da Carteira</div>
@@ -1900,6 +1959,23 @@
       <button class="modal-close" onclick="closePortfolioAiModal()">✕</button>
     </div>
     <div id="portfolio-ai-modal-content">
+      <!-- Populated dynamically via JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- MODAL: HISTÓRICO DE DIAGNÓSTICOS DA IA                          -->
+<!-- ================================================================ -->
+<div class="modal-overlay" id="ai-history-modal">
+  <div class="modal-box modal-lg" style="max-width: 880px;">
+    <div class="modal-header">
+      <div class="modal-title">
+        <span>🕐 Histórico de Diagnósticos da IA</span>
+      </div>
+      <button class="modal-close" onclick="closeAiHistoryModal()">✕</button>
+    </div>
+    <div id="ai-history-modal-content">
       <!-- Populated dynamically via JS -->
     </div>
   </div>
@@ -3110,7 +3186,14 @@ const AppState = {
   runtimeCache: {},
   chatHistory: [],
   syncTimer: null,
-  syncIntervalMs: parseInt(localStorage.getItem('b3_sync_interval') || '300000')
+  syncIntervalMs: parseInt(localStorage.getItem('b3_sync_interval') || '300000'),
+  aiDiagnosisHistory: JSON.parse(localStorage.getItem('b3_ai_diagnosis_history') || '[]'),
+  priceAlerts: JSON.parse(localStorage.getItem('b3_price_alerts') || '[]'),
+  notificationsEnabled: localStorage.getItem('b3_notifications_enabled') === 'true',
+  dividendAlertDays: parseInt(localStorage.getItem('b3_dividend_alert_days') || '3'),
+  triggeredDividendAlerts: JSON.parse(localStorage.getItem('b3_triggered_div_alerts') || '[]'),
+  firebaseConfig: JSON.parse(localStorage.getItem('b3_firebase_config') || 'null'),
+  cloudUser: null
 };
 
 // ==========================================
@@ -6326,6 +6409,13 @@ function runPortfolioAiDiagnosis() {
   }
   recommendations.push(`<strong>Reinvestimento Disciplinado da Renda Passiva:</strong> A cada provento creditado, utilize a <em>Calculadora de Rebalanceamento Inteligente</em> para adquirir mais unidades do ativo com maior margem de desconto no dia.`);
 
+  saveAiDiagnosisToHistory({
+    id: 'diag_' + Date.now(),
+    timestamp: new Date().toISOString(),
+    score, scoreBadge, totalValue, annualProjectedDivs, avgYoC, besstPct,
+    strengths: [...strengths], vulnerabilities: [...vulnerabilities], recommendations: [...recommendations]
+  });
+
   container.innerHTML = `
     <!-- HEADER SUMMARY CARD -->
     <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
@@ -9255,6 +9345,15 @@ function loadConfigValues() {
   if (gKeyEl) gKeyEl.value = AppState.geminiKey;
   if (gModelEl) gModelEl.value = AppState.geminiModel || 'gemini-1.5-pro';
   toggleAiModeFields();
+
+  const divDaysEl = document.getElementById('cfg-dividend-alert-days');
+  if (divDaysEl) divDaysEl.value = AppState.dividendAlertDays;
+  const fbCfgEl = document.getElementById('cfg-firebase-config');
+  if (fbCfgEl && AppState.firebaseConfig) fbCfgEl.value = JSON.stringify(AppState.firebaseConfig, null, 2);
+
+  renderNotificationStatus();
+  renderPriceAlertsList();
+  renderCloudSyncStatus();
 }
 
 function toggleAiModeFields() {
@@ -9311,20 +9410,7 @@ async function testAiEngine() {
 // BACKUP, RESTORE & DATA EXPORT HANDLERS
 // ==========================================
 function exportAppData() {
-  const data = {
-    version: '2.5',
-    exportDate: new Date().toISOString(),
-    trades: AppState.trades || [],
-    favorites: AppState.favorites || [],
-    fiiFavorites: AppState.fiiFavorites || [],
-    portfolioDividends: AppState.portfolioDividends || [],
-    comparatorStocks: AppState.comparatorStocks || [],
-    aiMode: AppState.aiMode,
-    geminiModel: AppState.geminiModel,
-    geminiKey: AppState.geminiKey,
-    brapiToken: AppState.token,
-    aiFolderFiles: AppState.aiFolderFiles || []
-  };
+  const data = buildBackupPayload();
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -9351,38 +9437,7 @@ function importAppData(event) {
   reader.onload = function(e) {
     try {
       const data = JSON.parse(e.target.result);
-      if (data.trades) {
-        AppState.trades = data.trades;
-        localStorage.setItem('b3_user_trades', JSON.stringify(data.trades));
-      }
-      if (data.favorites) {
-        AppState.favorites = data.favorites;
-        localStorage.setItem('b3_favorites', JSON.stringify(data.favorites));
-      }
-      if (data.fiiFavorites) {
-        AppState.fiiFavorites = data.fiiFavorites;
-        localStorage.setItem('b3_fii_favorites', JSON.stringify(data.fiiFavorites));
-      }
-      if (data.portfolioDividends) {
-        AppState.portfolioDividends = data.portfolioDividends;
-        localStorage.setItem('b3_portfolio_dividends', JSON.stringify(data.portfolioDividends));
-      }
-      if (data.comparatorStocks) {
-        AppState.comparatorStocks = data.comparatorStocks;
-        localStorage.setItem('b3_comparator', JSON.stringify(data.comparatorStocks));
-      }
-      if (data.brapiToken) {
-        AppState.token = data.brapiToken;
-        localStorage.setItem('brapi_token', data.brapiToken);
-      }
-      if (data.geminiKey) {
-        AppState.geminiKey = data.geminiKey;
-        localStorage.setItem('gemini_api_key', data.geminiKey);
-      }
-      if (data.aiFolderFiles) {
-        AppState.aiFolderFiles = data.aiFolderFiles;
-        localStorage.setItem('b3_ai_folder_files', JSON.stringify(data.aiFolderFiles));
-      }
+      applyBackupPayload(data);
 
       syncAutomatedDividends();
       showToast('Dados restaurados com sucesso!', 'success');
@@ -9451,7 +9506,411 @@ function triggerPwaInstall() {
   }
 }
 
+// ==========================================
+// AI DIAGNOSIS HISTORY
+// ==========================================
+function saveAiDiagnosisToHistory(entry) {
+  AppState.aiDiagnosisHistory.unshift(entry);
+  if (AppState.aiDiagnosisHistory.length > 50) AppState.aiDiagnosisHistory.length = 50;
+  localStorage.setItem('b3_ai_diagnosis_history', JSON.stringify(AppState.aiDiagnosisHistory));
+}
 
+function renderDiagnosisSnapshotHtml(d) {
+  return `
+    <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+      <div>
+        <span style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 4px;">Score Geral de Saúde Patrimonial</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <strong style="font-size: 26px; font-family: 'JetBrains Mono', monospace; color: #fff;">${d.score}<span style="font-size: 15px; color: var(--text-sub);">/100</span></strong>
+          <span class="status-pill good" style="font-size: 12px; font-weight: 700;">${d.scoreBadge}</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+        <div>
+          <span style="font-size: 11px; color: var(--text-sub); display: block;">Patrimônio na Data</span>
+          <strong style="font-size: 16px; font-family: 'JetBrains Mono', monospace; color: #fff;">${NumFmt.money(d.totalValue)}</strong>
+        </div>
+        <div>
+          <span style="font-size: 11px; color: var(--text-sub); display: block;">Renda Anual Prevista</span>
+          <strong style="font-size: 16px; font-family: 'JetBrains Mono', monospace; color: var(--yellow);">${NumFmt.money(d.annualProjectedDivs)}</strong>
+        </div>
+        <div>
+          <span style="font-size: 11px; color: var(--text-sub); display: block;">Yield on Cost Real</span>
+          <strong style="font-size: 16px; font-family: 'JetBrains Mono', monospace; color: var(--green);">${NumFmt.num(d.avgYoC, 2)}% a.a.</strong>
+        </div>
+        <div>
+          <span style="font-size: 11px; color: var(--text-sub); display: block;">Blindagem BESST</span>
+          <strong style="font-size: 16px; font-family: 'JetBrains Mono', monospace; color: var(--accent);">${NumFmt.num(d.besstPct, 1)}%</strong>
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-md); padding: 16px;">
+        <div style="font-size: 13.5px; font-weight: 800; color: var(--green); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.3px;">🌟 Fortalezas</div>
+        <ul style="margin: 0; padding-left: 20px; font-size: 12.5px; line-height: 1.6; color: var(--text);">${(d.strengths || []).map(s => `<li style="margin-bottom: 6px;">${s}</li>`).join('')}</ul>
+      </div>
+      <div style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: var(--radius-md); padding: 16px;">
+        <div style="font-size: 13.5px; font-weight: 800; color: var(--yellow); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.3px;">⚠️ Vulnerabilidades</div>
+        <ul style="margin: 0; padding-left: 20px; font-size: 12.5px; line-height: 1.6; color: var(--text);">${(d.vulnerabilities || []).map(v => `<li style="margin-bottom: 6px;">${v}</li>`).join('')}</ul>
+      </div>
+      <div style="background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: var(--radius-md); padding: 16px;">
+        <div style="font-size: 13.5px; font-weight: 800; color: var(--accent); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.3px;">🎯 Recomendações</div>
+        <ul style="margin: 0; padding-left: 20px; font-size: 12.5px; line-height: 1.6; color: var(--text);">${(d.recommendations || []).map(r => `<li style="margin-bottom: 6px;">${r}</li>`).join('')}</ul>
+      </div>
+    </div>`;
+}
+
+function openAiHistoryModal() {
+  renderAiHistoryList();
+  document.getElementById('ai-history-modal')?.classList.add('active');
+}
+
+function closeAiHistoryModal() {
+  document.getElementById('ai-history-modal')?.classList.remove('active');
+}
+
+function renderAiHistoryList() {
+  const container = document.getElementById('ai-history-modal-content');
+  if (!container) return;
+  const history = AppState.aiDiagnosisHistory || [];
+  if (!history.length) {
+    container.innerHTML = `<div class="state-box" style="padding: 30px; text-align: center;">Nenhum diagnóstico salvo ainda. Execute o "Diagnóstico IA da Carteira" para começar a acumular histórico.</div>`;
+    return;
+  }
+  container.innerHTML = `
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      ${history.map(d => `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <strong style="font-family: 'JetBrains Mono', monospace; font-size: 13px;">${new Date(d.timestamp).toLocaleString('pt-BR')}</strong>
+            <span style="font-size: 12px; color: var(--text-muted); margin-left: 10px;">Score ${d.score}/100 · ${NumFmt.money(d.totalValue)}</span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn btn-secondary btn-sm" onclick="viewAiHistoryEntry('${d.id}')">👁 Ver</button>
+            <button class="btn btn-secondary btn-sm" style="color: var(--red);" onclick="deleteAiHistoryEntry('${d.id}')">🗑</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function viewAiHistoryEntry(id) {
+  const entry = (AppState.aiDiagnosisHistory || []).find(d => d.id === id);
+  const container = document.getElementById('ai-history-modal-content');
+  if (!entry || !container) return;
+  container.innerHTML = `
+    <div style="margin-bottom: 14px;">
+      <button class="btn btn-secondary btn-sm" onclick="renderAiHistoryList()">← Voltar ao Histórico</button>
+      <span style="font-size: 12px; color: var(--text-muted); margin-left: 10px;">Diagnóstico de ${new Date(entry.timestamp).toLocaleString('pt-BR')}</span>
+    </div>
+    ${renderDiagnosisSnapshotHtml(entry)}`;
+}
+
+function deleteAiHistoryEntry(id) {
+  AppState.aiDiagnosisHistory = (AppState.aiDiagnosisHistory || []).filter(d => d.id !== id);
+  localStorage.setItem('b3_ai_diagnosis_history', JSON.stringify(AppState.aiDiagnosisHistory));
+  renderAiHistoryList();
+}
+
+// ==========================================
+// PRICE & DIVIDEND ALERTS (LOCAL NOTIFICATIONS)
+// ==========================================
+async function enableNotifications() {
+  if (!('Notification' in window)) {
+    showToast('Seu navegador não suporta notificações.', 'error');
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  AppState.notificationsEnabled = perm === 'granted';
+  localStorage.setItem('b3_notifications_enabled', AppState.notificationsEnabled ? 'true' : 'false');
+  renderNotificationStatus();
+  if (AppState.notificationsEnabled) {
+    showToast('Notificações ativadas!', 'success');
+    notifyUser('🔔 Notificações Ativadas', 'Você será avisado sobre metas de preço e proventos agendados.', 'notif-welcome');
+  } else {
+    showToast('Permissão de notificação negada pelo navegador.', 'error');
+  }
+}
+
+function renderNotificationStatus() {
+  const el = document.getElementById('notif-status-text');
+  if (!el) return;
+  if (!('Notification' in window)) {
+    el.innerHTML = '<span class="status-pill bad">Não suportado neste navegador</span>';
+  } else if (Notification.permission === 'granted' && AppState.notificationsEnabled) {
+    el.innerHTML = '<span class="status-pill good">Ativadas</span>';
+  } else if (Notification.permission === 'denied') {
+    el.innerHTML = '<span class="status-pill bad">Bloqueadas nas configurações do navegador</span>';
+  } else {
+    el.innerHTML = '<span class="status-pill warn">Desativadas</span>';
+  }
+}
+
+function notifyUser(title, body, tag) {
+  if (!AppState.notificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const opts = { body, icon: './icon-192.png', badge: './icon-192.png', tag: tag || undefined };
+  if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+    navigator.serviceWorker.ready.then(reg => reg.showNotification(title, opts)).catch(() => {
+      try { new Notification(title, opts); } catch (e) {}
+    });
+  } else {
+    try { new Notification(title, opts); } catch (e) {}
+  }
+}
+
+function saveDividendAlertDays() {
+  const v = parseInt(document.getElementById('cfg-dividend-alert-days')?.value || '3', 10);
+  AppState.dividendAlertDays = isNaN(v) || v < 1 ? 3 : v;
+  localStorage.setItem('b3_dividend_alert_days', String(AppState.dividendAlertDays));
+  showToast('Preferência de alerta de proventos salva!', 'success');
+}
+
+function addPriceAlert() {
+  const tickerEl = document.getElementById('alert-ticker-input');
+  const priceEl = document.getElementById('alert-price-input');
+  const dirEl = document.getElementById('alert-direction-select');
+  const ticker = (tickerEl?.value || '').trim().toUpperCase();
+  const targetPrice = parseFloat(priceEl?.value);
+  const direction = dirEl?.value || 'above';
+  if (!ticker || isNaN(targetPrice) || targetPrice <= 0) {
+    showToast('Preencha um ticker e um preço-alvo válidos.', 'error');
+    return;
+  }
+  AppState.priceAlerts.push({
+    id: 'al_' + Date.now(),
+    ticker, targetPrice, direction,
+    createdAt: new Date().toISOString(),
+    active: true
+  });
+  localStorage.setItem('b3_price_alerts', JSON.stringify(AppState.priceAlerts));
+  if (tickerEl) tickerEl.value = '';
+  if (priceEl) priceEl.value = '';
+  renderPriceAlertsList();
+  showToast(`Alerta criado para ${ticker}!`, 'success');
+}
+
+function removePriceAlert(id) {
+  AppState.priceAlerts = AppState.priceAlerts.filter(a => a.id !== id);
+  localStorage.setItem('b3_price_alerts', JSON.stringify(AppState.priceAlerts));
+  renderPriceAlertsList();
+}
+
+function renderPriceAlertsList() {
+  const el = document.getElementById('price-alerts-list');
+  if (!el) return;
+  if (!AppState.priceAlerts.length) {
+    el.innerHTML = '<div class="state-box" style="padding: 12px; font-size: 12px;">Nenhum alerta de preço configurado.</div>';
+    return;
+  }
+  el.innerHTML = AppState.priceAlerts.map(a => `
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px;">
+      <span style="font-size: 12.5px;">
+        <strong class="input-mono">${a.ticker}</strong>
+        ${a.direction === 'above' ? '≥' : '≤'} ${NumFmt.money(a.targetPrice)}
+        ${a.active ? '' : '<span class="status-pill good" style="margin-left: 8px;">DISPARADO</span>'}
+      </span>
+      <button class="btn btn-secondary btn-sm" onclick="removePriceAlert('${a.id}')">🗑</button>
+    </div>
+  `).join('');
+}
+
+async function checkAlerts() {
+  if (!AppState.priceAlerts.some(a => a.active) && !AppState.favorites.length && !AppState.fiiFavorites.length && !AppState.trades.length) return;
+
+  let priceDirty = false;
+  for (const a of AppState.priceAlerts) {
+    if (!a.active) continue;
+    try {
+      const q = await StockAPI.getSingleQuote(a.ticker);
+      const price = q?.regularMarketPrice ?? AppState.stockMap[a.ticker]?.close;
+      if (price == null) continue;
+      const hit = a.direction === 'above' ? price >= a.targetPrice : price <= a.targetPrice;
+      if (hit) {
+        notifyUser(
+          `🎯 Meta atingida: ${a.ticker}`,
+          `${a.ticker} está ${a.direction === 'above' ? 'acima' : 'abaixo'} de ${NumFmt.money(a.targetPrice)} (atual: ${NumFmt.money(price)}).`,
+          `alert-${a.id}`
+        );
+        showToast(`🎯 ${a.ticker} atingiu sua meta de preço!`, 'success');
+        a.active = false;
+        a.triggeredAt = new Date().toISOString();
+        priceDirty = true;
+      }
+    } catch (e) {}
+  }
+  if (priceDirty) {
+    localStorage.setItem('b3_price_alerts', JSON.stringify(AppState.priceAlerts));
+    renderPriceAlertsList();
+  }
+
+  const watched = new Set([...(AppState.favorites || []), ...(AppState.fiiFavorites || []), ...(AppState.trades || []).map(t => t.symbol)]);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const horizon = new Date(today.getTime() + AppState.dividendAlertDays * 86400000);
+  let divDirty = false;
+  for (const ev of B3_DIVIDEND_CALENDAR) {
+    if (!watched.has(ev.symbol)) continue;
+    const comDate = new Date(ev.dateCom + 'T00:00:00');
+    if (isNaN(comDate.getTime()) || comDate < today || comDate > horizon) continue;
+    if (AppState.triggeredDividendAlerts.includes(ev.id)) continue;
+    notifyUser(
+      `💰 Provento agendado: ${ev.symbol}`,
+      `${ev.type} de ${NumFmt.money(ev.valUnit)} — data-com em ${comDate.toLocaleDateString('pt-BR')}.`,
+      `div-${ev.id}`
+    );
+    showToast(`💰 ${ev.symbol}: provento com data-com se aproximando!`, 'info');
+    AppState.triggeredDividendAlerts.push(ev.id);
+    divDirty = true;
+  }
+  if (divDirty) localStorage.setItem('b3_triggered_div_alerts', JSON.stringify(AppState.triggeredDividendAlerts));
+}
+
+// ==========================================
+// CLOUD SYNC (FIREBASE - OPCIONAL, CONFIGURADO PELO USUÁRIO)
+// ==========================================
+let firebaseAuthRef = null, firebaseDbRef = null;
+
+function initFirebaseIfConfigured() {
+  if (!AppState.firebaseConfig || typeof firebase === 'undefined') return;
+  try {
+    const app = firebase.apps && firebase.apps.length ? firebase.app() : firebase.initializeApp(AppState.firebaseConfig);
+    firebaseAuthRef = firebase.auth(app);
+    firebaseDbRef = firebase.firestore(app);
+    firebaseAuthRef.onAuthStateChanged(user => {
+      AppState.cloudUser = user ? { uid: user.uid, email: user.email } : null;
+      renderCloudSyncStatus();
+    });
+  } catch (e) {
+    console.warn('Falha ao iniciar Firebase:', e);
+    showToast('Configuração do Firebase inválida.', 'error');
+  }
+}
+
+function saveFirebaseConfig() {
+  const raw = (document.getElementById('cfg-firebase-config')?.value || '').trim();
+  if (!raw) {
+    showToast('Cole a configuração do Firebase antes de salvar.', 'error');
+    return;
+  }
+  try {
+    const cfg = JSON.parse(raw);
+    if (!cfg.apiKey || !cfg.projectId) throw new Error('Configuração incompleta (faltando apiKey ou projectId).');
+    AppState.firebaseConfig = cfg;
+    localStorage.setItem('b3_firebase_config', JSON.stringify(cfg));
+    showToast('Configuração do Firebase salva!', 'success');
+    initFirebaseIfConfigured();
+    renderCloudSyncStatus();
+  } catch (e) {
+    showToast(`JSON inválido: ${e.message}`, 'error');
+  }
+}
+
+async function signInWithGoogleForSync() {
+  if (!firebaseAuthRef) {
+    showToast('Salve a configuração do Firebase primeiro.', 'error');
+    return;
+  }
+  try {
+    await firebaseAuthRef.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    showToast('Login realizado com sucesso!', 'success');
+  } catch (e) {
+    showToast(`Erro no login: ${e.message}`, 'error');
+  }
+}
+
+async function signOutCloudSync() {
+  if (firebaseAuthRef) await firebaseAuthRef.signOut();
+  showToast('Desconectado da nuvem.', 'info');
+}
+
+function buildBackupPayload() {
+  return {
+    version: '2.5',
+    exportDate: new Date().toISOString(),
+    trades: AppState.trades || [],
+    favorites: AppState.favorites || [],
+    fiiFavorites: AppState.fiiFavorites || [],
+    portfolioDividends: AppState.portfolioDividends || [],
+    comparatorStocks: AppState.comparatorStocks || [],
+    priceAlerts: AppState.priceAlerts || [],
+    aiDiagnosisHistory: AppState.aiDiagnosisHistory || [],
+    aiMode: AppState.aiMode,
+    geminiModel: AppState.geminiModel,
+    geminiKey: AppState.geminiKey,
+    brapiToken: AppState.token,
+    aiFolderFiles: AppState.aiFolderFiles || []
+  };
+}
+
+function applyBackupPayload(data) {
+  if (data.trades) { AppState.trades = data.trades; localStorage.setItem('b3_user_trades', JSON.stringify(data.trades)); }
+  if (data.favorites) { AppState.favorites = data.favorites; localStorage.setItem('b3_favorites', JSON.stringify(data.favorites)); }
+  if (data.fiiFavorites) { AppState.fiiFavorites = data.fiiFavorites; localStorage.setItem('b3_fii_favorites', JSON.stringify(data.fiiFavorites)); }
+  if (data.portfolioDividends) { AppState.portfolioDividends = data.portfolioDividends; localStorage.setItem('b3_portfolio_dividends', JSON.stringify(data.portfolioDividends)); }
+  if (data.comparatorStocks) { AppState.comparatorStocks = data.comparatorStocks; localStorage.setItem('b3_comparator', JSON.stringify(data.comparatorStocks)); }
+  if (data.priceAlerts) { AppState.priceAlerts = data.priceAlerts; localStorage.setItem('b3_price_alerts', JSON.stringify(data.priceAlerts)); }
+  if (data.aiDiagnosisHistory) { AppState.aiDiagnosisHistory = data.aiDiagnosisHistory; localStorage.setItem('b3_ai_diagnosis_history', JSON.stringify(data.aiDiagnosisHistory)); }
+  if (data.brapiToken) { AppState.token = data.brapiToken; localStorage.setItem('brapi_token', data.brapiToken); }
+  if (data.geminiKey) { AppState.geminiKey = data.geminiKey; localStorage.setItem('gemini_api_key', data.geminiKey); }
+  if (data.aiFolderFiles) { AppState.aiFolderFiles = data.aiFolderFiles; localStorage.setItem('b3_ai_folder_files', JSON.stringify(data.aiFolderFiles)); }
+}
+
+async function pushToCloud() {
+  if (!firebaseDbRef || !AppState.cloudUser) {
+    showToast('Faça login com Google primeiro.', 'error');
+    return;
+  }
+  try {
+    showToast('Enviando dados para a nuvem...', 'info');
+    const payload = buildBackupPayload();
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await firebaseDbRef.collection('b3_sync').doc(AppState.cloudUser.uid).set(payload);
+    showToast('Dados enviados para a nuvem com sucesso!', 'success');
+  } catch (e) {
+    showToast(`Erro ao sincronizar: ${e.message}`, 'error');
+  }
+}
+
+async function pullFromCloud() {
+  if (!firebaseDbRef || !AppState.cloudUser) {
+    showToast('Faça login com Google primeiro.', 'error');
+    return;
+  }
+  if (!confirm('Isso vai SUBSTITUIR seus dados locais pelos dados salvos na nuvem. Deseja continuar?')) return;
+  try {
+    showToast('Baixando dados da nuvem...', 'info');
+    const doc = await firebaseDbRef.collection('b3_sync').doc(AppState.cloudUser.uid).get();
+    if (!doc.exists) {
+      showToast('Nenhum backup encontrado na nuvem para esta conta.', 'error');
+      return;
+    }
+    applyBackupPayload(doc.data());
+    syncAutomatedDividends();
+    showToast('Dados restaurados da nuvem! Recarregando...', 'success');
+    setTimeout(() => location.reload(), 1000);
+  } catch (e) {
+    showToast(`Erro ao baixar dados: ${e.message}`, 'error');
+  }
+}
+
+function renderCloudSyncStatus() {
+  const statusEl = document.getElementById('cloud-sync-status');
+  const actionsEl = document.getElementById('cloud-sync-actions');
+  if (!statusEl || !actionsEl) return;
+
+  if (!AppState.firebaseConfig) {
+    statusEl.innerHTML = '<span class="status-pill warn">Não configurado</span>';
+    actionsEl.innerHTML = '';
+  } else if (!AppState.cloudUser) {
+    statusEl.innerHTML = '<span class="status-pill info">Configurado — desconectado</span>';
+    actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" onclick="signInWithGoogleForSync()">🔐 Conectar com Google</button>`;
+  } else {
+    statusEl.innerHTML = `<span class="status-pill good">Conectado como ${AppState.cloudUser.email}</span>`;
+    actionsEl.innerHTML = `
+      <button class="btn btn-primary btn-sm" onclick="pushToCloud()">☁️⬆️ Enviar</button>
+      <button class="btn btn-secondary btn-sm" onclick="pullFromCloud()">☁️⬇️ Baixar</button>
+      <button class="btn btn-secondary btn-sm" style="color: var(--red);" onclick="signOutCloudSync()">Desconectar</button>`;
+  }
+}
 
 // ==========================================
 // SEARCH & AUTOCOMPLETE
@@ -9643,6 +10102,7 @@ async function initApp() {
       closePortfolioAiModal();
       closeSmartRebalanceModal();
       closeBenchmarkEditorModal();
+      closeAiHistoryModal();
     }
   });
 
@@ -9712,8 +10172,13 @@ async function initApp() {
       if (AppState.activeTab === 'favoritos') {
         renderFavoritesView();
       }
+      checkAlerts().catch(() => {});
     }).catch(err => console.warn('B3 list sync:', err));
   } catch (e) {}
+
+  // Reconnect to previously configured cloud sync (if any) and re-check alerts periodically
+  try { initFirebaseIfConfigured(); } catch (e) {}
+  setInterval(() => { checkAlerts().catch(() => {}); }, 5 * 60 * 1000);
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
