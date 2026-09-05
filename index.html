@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>B3 — Análise de Ações, Barsi & Carteira</title>
   <meta name="description" content="Plataforma de análise de ações da B3 com acompanhamento de carteira real, favoritos, validação externa e inteligência artificial">
-  <meta name="theme-color" content="#07090e">
+  <meta name="theme-color" content="#faf6ee">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <!-- Firebase (Sincronização em Nuvem - opcional, só é usado se o usuário configurar em Configurações) -->
@@ -22,40 +22,42 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <style>
     :root {
-      --bg: #07090e;
-      --surf: #0c1017;
-      --card: #111724;
-      --card-hover: #161e2e;
-      --card-elevated: #1a2337;
-      --border: rgba(255, 255, 255, 0.07);
-      --border-focus: rgba(56, 189, 248, 0.4);
-      --border-active: rgba(255, 255, 255, 0.14);
-      
-      --accent: #38bdf8;
-      --accent-glow: rgba(56, 189, 248, 0.15);
-      --accent-soft: rgba(56, 189, 248, 0.08);
-      
-      --green: #10b981;
-      --green-glow: rgba(16, 185, 129, 0.15);
-      --green-soft: rgba(16, 185, 129, 0.08);
-      
-      --red: #f43f5e;
-      --red-glow: rgba(244, 63, 94, 0.15);
-      --red-soft: rgba(244, 63, 94, 0.08);
-      
-      --yellow: #f59e0b;
-      --yellow-glow: rgba(245, 158, 11, 0.15);
-      --yellow-soft: rgba(245, 158, 11, 0.08);
-      
-      --purple: #a855f7;
-      --purple-glow: rgba(168, 85, 247, 0.18);
-      --purple-soft: rgba(168, 85, 247, 0.08);
-      
-      --text: #f1f5f9;
-      --text-muted: #94a3b8;
-      --text-sub: #64748b;
-      --text-dim: #475569;
-      
+      /* "Extrato" theme: papel/extrato bancário impresso */
+      --bg: #faf6ee;
+      --surf: #ffffff;
+      --card: #ffffff;
+      --card-hover: #f2ede0;
+      --card-elevated: #fffdf9;
+      --border: rgba(28, 25, 20, 0.12);
+      --border-focus: rgba(15, 107, 76, 0.45);
+      --border-active: rgba(28, 25, 20, 0.22);
+
+      --accent: #0f6b4c;
+      --accent-glow: rgba(15, 107, 76, 0.14);
+      --accent-soft: rgba(15, 107, 76, 0.07);
+      --accent-ink: #fdf9ef;
+
+      --green: #15803d;
+      --green-glow: rgba(21, 128, 61, 0.14);
+      --green-soft: rgba(21, 128, 61, 0.07);
+
+      --red: #a3271f;
+      --red-glow: rgba(163, 39, 31, 0.14);
+      --red-soft: rgba(163, 39, 31, 0.07);
+
+      --yellow: #92610d;
+      --yellow-glow: rgba(146, 97, 13, 0.14);
+      --yellow-soft: rgba(146, 97, 13, 0.07);
+
+      --purple: #6d4a8f;
+      --purple-glow: rgba(109, 74, 143, 0.16);
+      --purple-soft: rgba(109, 74, 143, 0.07);
+
+      --text: #201d18;
+      --text-muted: #57503f;
+      --text-sub: #78715f;
+      --text-dim: #a89f8a;
+
       --radius-sm: 6px;
       --radius-md: 10px;
       --radius-lg: 14px;
@@ -68,8 +70,8 @@
     
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
 
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
@@ -98,26 +100,26 @@
     .app-container.sidebar-collapsed .sidebar-brand { justify-content: center; padding: 16px 8px; }
 
     /* SUB-TRADES ACCORDION */
-    .sub-trades-row { background: rgba(0, 0, 0, 0.4) !important; }
+    .sub-trades-row { background: rgba(0, 0, 0, 0.035) !important; }
     .sub-trades-cell { padding: 0 !important; border-top: none !important; }
-    .sub-trades-box { padding: 14px 18px 16px; border-left: 3px solid var(--green); margin: 6px 12px 14px; background: rgba(16, 185, 129, 0.03); border-radius: var(--radius-md); border: 1px solid rgba(16, 185, 129, 0.18); }
+    .sub-trades-box { padding: 14px 18px 16px; border-left: 3px solid var(--green); margin: 6px 12px 14px; background: rgba(21, 128, 61, 0.03); border-radius: var(--radius-md); border: 1px solid rgba(21, 128, 61, 0.18); }
     .sub-trades-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
     .sub-trades-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .sub-trades-table th { text-align: left; padding: 6px 8px; color: var(--text-sub); font-weight: 600; text-transform: uppercase; font-size: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
-    .sub-trades-table td { padding: 7px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+    .sub-trades-table th { text-align: left; padding: 6px 8px; color: var(--text-sub); font-weight: 600; text-transform: uppercase; font-size: 10px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); }
+    .sub-trades-table td { padding: 7px 8px; border-bottom: 1px solid rgba(0, 0, 0, 0.04); }
 
     .sidebar-menu { flex: 1; padding: 14px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
     .menu-group { display: flex; flex-direction: column; gap: 2px; }
     .menu-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); padding: 0 10px; margin-bottom: 6px; }
     .nav-btn { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-md); color: var(--text-muted); font-size: 13.5px; font-weight: 500; cursor: pointer; transition: all 0.15s ease; border: 1px solid transparent; background: transparent; width: 100%; text-align: left; }
-    .nav-btn:hover { background: rgba(255, 255, 255, 0.04); color: var(--text); }
-    .nav-btn.active { background: var(--accent-glow); color: var(--accent); font-weight: 600; border-color: rgba(56, 189, 248, 0.2); }
-    .nav-btn.nav-wallet.active { background: var(--green-glow); color: var(--green); border-color: rgba(16, 185, 129, 0.3); }
-    .nav-btn.nav-ai.active { background: var(--purple-glow); color: #c084fc; border-color: rgba(168, 85, 247, 0.3); }
-    .nav-btn.nav-cal.active { background: var(--yellow-glow); color: var(--yellow); border-color: rgba(245, 158, 11, 0.3); }
+    .nav-btn:hover { background: rgba(0, 0, 0, 0.04); color: var(--text); }
+    .nav-btn.active { background: var(--accent-glow); color: var(--accent); font-weight: 600; border-color: rgba(15, 107, 76, 0.2); }
+    .nav-btn.nav-wallet.active { background: var(--green-glow); color: var(--green); border-color: rgba(21, 128, 61, 0.3); }
+    .nav-btn.nav-ai.active { background: var(--purple-glow); color: #6d4a8f; border-color: rgba(109, 74, 143, 0.3); }
+    .nav-btn.nav-cal.active { background: var(--yellow-glow); color: var(--yellow); border-color: rgba(146, 97, 13, 0.3); }
     .nav-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
 
-    .sidebar-footer { padding: 14px; border-top: 1px solid var(--border); background: rgba(0, 0, 0, 0.2); }
+    .sidebar-footer { padding: 14px; border-top: 1px solid var(--border); background: rgba(0, 0, 0, 0.025); }
     .market-badge { display: flex; align-items: center; gap: 9px; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .status-dot.open { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
@@ -135,14 +137,14 @@
     .search-input { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); padding: 9px 12px 9px 38px; font-size: 13px; font-family: 'Inter', sans-serif; outline: none; transition: all 0.2s; }
     .search-input:focus { border-color: var(--accent); background: var(--card-hover); box-shadow: 0 0 0 3px var(--accent-soft); }
     .search-icon-abs { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-sub); font-size: 13px; pointer-events: none; }
-    .search-dropdown { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--card-elevated); border: 1px solid var(--border-active); border-radius: var(--radius-md); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); max-height: 280px; overflow-y: auto; display: none; z-index: 100; }
+    .search-dropdown { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--card-elevated); border: 1px solid var(--border-active); border-radius: var(--radius-md); box-shadow: 0 10px 25px -5px rgba(28, 25, 20, 0.16); max-height: 280px; overflow-y: auto; display: none; z-index: 100; }
     .search-dropdown.visible { display: block; }
-    .search-item { padding: 9px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background 0.12s; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
+    .search-item { padding: 9px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background 0.12s; border-bottom: 1px solid rgba(0, 0, 0, 0.03); }
     .search-item:last-child { border-bottom: none; }
-    .search-item:hover { background: rgba(255, 255, 255, 0.06); }
+    .search-item:hover { background: rgba(0, 0, 0, 0.06); }
     .search-tkr { font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--accent); font-size: 13px; }
     .search-name { font-size: 12px; color: var(--text-muted); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .search-sec { font-size: 10.5px; color: var(--text-sub); background: rgba(255, 255, 255, 0.05); padding: 2px 6px; border-radius: 4px; }
+    .search-sec { font-size: 10.5px; color: var(--text-sub); background: rgba(0, 0, 0, 0.05); padding: 2px 6px; border-radius: 4px; }
 
     .header-actions { display: flex; align-items: center; gap: 12px; }
     .live-clock { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-sub); background: var(--card); padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
@@ -154,31 +156,31 @@
     @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
     /* TYPOGRAPHY */
-    .page-title { font-size: 22px; font-weight: 800; letter-spacing: -0.6px; color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .page-title { font-family: 'Source Serif 4', serif; font-size: 24px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
     .page-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
 
     /* BUTTONS */
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 15px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; border: 1px solid transparent; transition: all 0.15s ease; user-select: none; }
-    .btn-primary { background: var(--accent); color: #07090e; font-weight: 700; }
+    .btn-primary { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
     .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 12px var(--accent-glow); }
     .btn-secondary { background: var(--card); border-color: var(--border); color: var(--text-muted); }
     .btn-secondary:hover { background: var(--card-hover); color: var(--text); border-color: var(--border-active); }
-    .btn-success { background: var(--green); color: #07090e; font-weight: 700; }
+    .btn-success { background: var(--green); color: var(--accent-ink); font-weight: 700; }
     .btn-success:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 14px var(--green-glow); }
     .btn-danger { background: var(--red); color: #ffffff; font-weight: 700; border-color: var(--red); }
     .btn-danger:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 14px var(--red-glow); }
-    .btn-ai { background: linear-gradient(135deg, #a855f7, #6366f1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 14px rgba(168, 85, 247, 0.25); }
-    .btn-ai:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4); }
+    .btn-ai { background: linear-gradient(135deg, #6d4a8f, #453163); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 14px rgba(109, 74, 143, 0.25); }
+    .btn-ai:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(109, 74, 143, 0.4); }
     .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: var(--radius-sm); }
     .btn-icon { width: 30px; height: 30px; padding: 0; border-radius: var(--radius-sm); background: var(--card); border: 1px solid var(--border); color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
     .btn-icon:hover { color: var(--text); border-color: var(--border-active); background: var(--card-hover); }
 
     /* EXTERNAL VALIDATION LINKS */
     .ext-link-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 600; background: var(--card-elevated); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; transition: all 0.15s ease; white-space: nowrap; }
-    .ext-link-btn:hover { color: #fff; border-color: var(--accent); background: var(--accent-soft); text-decoration: none; }
-    .ext-link-btn.statusinvest:hover { border-color: #38bdf8; color: #38bdf8; }
-    .ext-link-btn.investidor10:hover { border-color: #10b981; color: #10b981; }
-    .ext-link-btn.tradingview:hover { border-color: #a855f7; color: #a855f7; }
+    .ext-link-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); text-decoration: none; }
+    .ext-link-btn.statusinvest:hover { border-color: #0e7490; color: #0e7490; }
+    .ext-link-btn.investidor10:hover { border-color: #15803d; color: #15803d; }
+    .ext-link-btn.tradingview:hover { border-color: #6d4a8f; color: #6d4a8f; }
     .ext-link-group { display: inline-flex; gap: 4px; align-items: center; }
 
     /* CARDS */
@@ -201,16 +203,16 @@
 
     /* PILLS & BADGES */
     .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 100px; font-size: 11.5px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
-    .badge-up { background: var(--green-glow); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.25); }
-    .badge-down { background: var(--red-glow); color: var(--red); border: 1px solid rgba(244, 63, 94, 0.25); }
-    .badge-flat { background: rgba(255, 255, 255, 0.05); color: var(--text-sub); border: 1px solid var(--border); }
+    .badge-up { background: var(--green-glow); color: var(--green); border: 1px solid rgba(21, 128, 61, 0.25); }
+    .badge-down { background: var(--red-glow); color: var(--red); border: 1px solid rgba(163, 39, 31, 0.25); }
+    .badge-flat { background: rgba(0, 0, 0, 0.05); color: var(--text-sub); border: 1px solid var(--border); }
     
     .status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
-    .status-pill.good { background: var(--green-glow); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.3); }
-    .status-pill.warn { background: var(--yellow-glow); color: var(--yellow); border: 1px solid rgba(245, 158, 11, 0.3); }
-    .status-pill.bad { background: var(--red-glow); color: var(--red); border: 1px solid rgba(244, 63, 94, 0.3); }
-    .status-pill.info { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.3); }
-    .status-pill.purple { background: var(--purple-glow); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .status-pill.good { background: var(--green-glow); color: var(--green); border: 1px solid rgba(21, 128, 61, 0.3); }
+    .status-pill.warn { background: var(--yellow-glow); color: var(--yellow); border: 1px solid rgba(146, 97, 13, 0.3); }
+    .status-pill.bad { background: var(--red-glow); color: var(--red); border: 1px solid rgba(163, 39, 31, 0.3); }
+    .status-pill.info { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(15, 107, 76, 0.3); }
+    .status-pill.purple { background: var(--purple-glow); color: #6d4a8f; border: 1px solid rgba(109, 74, 143, 0.3); }
 
     /* TICKER TAPE / STRIP */
     .ticker-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 16px; scrollbar-width: none; }
@@ -225,8 +227,8 @@
     .table-responsive { width: 100%; overflow-x: auto; }
     .custom-table { width: 100%; border-collapse: collapse; text-align: left; }
     .custom-table th { padding: 11px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-sub); border-bottom: 1px solid var(--border); white-space: nowrap; user-select: none; vertical-align: middle; }
-    .custom-table td { padding: 12px 14px; font-size: 12.8px; border-bottom: 1px solid rgba(255, 255, 255, 0.03); white-space: nowrap; vertical-align: middle; }
-    .custom-table tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    .custom-table td { padding: 12px 14px; font-size: 12.8px; border-bottom: 1px solid rgba(0, 0, 0, 0.03); white-space: nowrap; vertical-align: middle; }
+    .custom-table tr:hover td { background: rgba(0, 0, 0, 0.02); }
     .custom-table tr:last-child td { border-bottom: none; }
     .text-mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
     .text-right { text-align: right !important; }
@@ -241,17 +243,17 @@
     .asset-info span { font-size: 11px; color: var(--text-sub); max-width: 160px; overflow: hidden; text-overflow: ellipsis; display: block; }
 
     /* EXPLANATION / DIDACTIC BOX */
-    .didactic-box { background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(56, 189, 248, 0.02)); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 22px; position: relative; }
-    .didactic-box.yellow { background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.02)); border-color: rgba(245, 158, 11, 0.25); }
-    .didactic-box.green { background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.02)); border-color: rgba(16, 185, 129, 0.25); }
-    .didactic-box.purple { background: linear-gradient(135deg, rgba(168, 85, 247, 0.10), rgba(99, 102, 241, 0.03)); border-color: rgba(168, 85, 247, 0.3); }
-    .didactic-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 15px; font-weight: 700; color: #fff; }
+    .didactic-box { background: linear-gradient(135deg, rgba(15, 107, 76, 0.08), rgba(15, 107, 76, 0.02)); border: 1px solid rgba(15, 107, 76, 0.2); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 22px; position: relative; }
+    .didactic-box.yellow { background: linear-gradient(135deg, rgba(146, 97, 13, 0.08), rgba(146, 97, 13, 0.02)); border-color: rgba(146, 97, 13, 0.25); }
+    .didactic-box.green { background: linear-gradient(135deg, rgba(21, 128, 61, 0.08), rgba(21, 128, 61, 0.02)); border-color: rgba(21, 128, 61, 0.25); }
+    .didactic-box.purple { background: linear-gradient(135deg, rgba(109, 74, 143, 0.10), rgba(69, 49, 99, 0.03)); border-color: rgba(109, 74, 143, 0.3); }
+    .didactic-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 15px; font-weight: 700; color: var(--text); }
     .didactic-body { font-size: 13px; color: var(--text-muted); line-height: 1.65; display: flex; flex-direction: column; gap: 8px; }
     .didactic-body strong { color: var(--text); }
     .didactic-body .highlight { color: var(--accent); font-weight: 600; }
     .didactic-body .highlight-yellow { color: var(--yellow); font-weight: 600; }
     .didactic-body .highlight-green { color: var(--green); font-weight: 600; }
-    .didactic-body .highlight-purple { color: #c084fc; font-weight: 600; }
+    .didactic-body .highlight-purple { color: #6d4a8f; font-weight: 600; }
 
     /* STOCK HEADER CARD */
     .stock-detail-header { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 16px; }
@@ -266,18 +268,18 @@
 
     /* PREÇO TETO HERO CARD */
     .teto-hero { border-radius: var(--radius-lg); padding: 22px; margin-bottom: 20px; border: 1px solid; }
-    .teto-hero.opportunity { background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.02)); border-color: rgba(16, 185, 129, 0.3); }
-    .teto-hero.expensive { background: linear-gradient(135deg, rgba(244, 63, 94, 0.12), rgba(244, 63, 94, 0.02)); border-color: rgba(244, 63, 94, 0.3); }
+    .teto-hero.opportunity { background: linear-gradient(135deg, rgba(21, 128, 61, 0.12), rgba(21, 128, 61, 0.02)); border-color: rgba(21, 128, 61, 0.3); }
+    .teto-hero.expensive { background: linear-gradient(135deg, rgba(163, 39, 31, 0.12), rgba(163, 39, 31, 0.02)); border-color: rgba(163, 39, 31, 0.3); }
     .teto-hero.neutral { background: var(--card); border-color: var(--border); }
-    .teto-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+    .teto-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0, 0, 0, 0.08); }
     .teto-stat-val { font-size: 22px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
     .teto-stat-lbl { font-size: 11px; color: var(--text-sub); text-transform: uppercase; font-weight: 600; margin-top: 2px; }
 
     /* TIMEFRAME SELECTOR */
     .tf-selector { display: flex; gap: 4px; background: var(--surf); padding: 3px; border-radius: var(--radius-md); border: 1px solid var(--border); }
     .tf-btn { padding: 5px 10px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--text-sub); font-family: 'Inter', sans-serif; transition: all 0.12s; }
-    .tf-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
-    .tf-btn.active { background: var(--accent); color: #07090e; font-weight: 700; }
+    .tf-btn:hover { color: var(--text); background: rgba(0, 0, 0, 0.04); }
+    .tf-btn.active { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
 
     /* CHAT & AI UI */
     .chat-layout { display: flex; flex-direction: column; height: calc(100vh - 180px); min-height: 520px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
@@ -289,25 +291,25 @@
     .msg-row.ai { align-self: flex-start; width: 100%; max-width: 92%; }
     
     .msg-avatar { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-    .msg-avatar.ai-av { background: linear-gradient(135deg, #a855f7, #6366f1); color: #fff; box-shadow: 0 2px 8px rgba(168, 85, 247, 0.3); }
-    .msg-avatar.user-av { background: var(--accent); color: #07090e; font-weight: 800; font-size: 12px; }
+    .msg-avatar.ai-av { background: linear-gradient(135deg, #6d4a8f, #453163); color: #fff; box-shadow: 0 2px 8px rgba(109, 74, 143, 0.3); }
+    .msg-avatar.user-av { background: var(--accent); color: var(--accent-ink); font-weight: 800; font-size: 12px; }
     
     .msg-bubble { background: var(--card-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 20px; font-size: 13.5px; line-height: 1.7; color: var(--text); flex: 1; }
-    .msg-row.user .msg-bubble { background: var(--accent-glow); border-color: rgba(56, 189, 248, 0.25); color: #fff; flex: initial; }
-    .msg-bubble h3 { color: #fff; margin: 10px 0 6px; font-size: 15px; font-weight: 700; }
+    .msg-row.user .msg-bubble { background: var(--accent-glow); border-color: rgba(15, 107, 76, 0.25); color: var(--text); flex: initial; }
+    .msg-bubble h3 { color: var(--text); margin: 10px 0 6px; font-size: 15px; font-weight: 700; }
     .msg-bubble h4 { color: var(--accent); margin: 10px 0 4px; font-size: 13.5px; font-weight: 700; }
     .msg-bubble ul, .msg-bubble ol { padding-left: 20px; margin: 6px 0; }
     .msg-bubble li { margin-bottom: 5px; }
-    .msg-bubble strong { color: #fff; font-weight: 700; }
-    .msg-bubble code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
+    .msg-bubble strong { color: var(--text); font-weight: 700; }
+    .msg-bubble code { background: rgba(0,0,0,0.04); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
     .msg-bubble table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12.5px; }
-    .msg-bubble th, .msg-bubble td { padding: 8px 12px; border: 1px solid rgba(255, 255, 255, 0.08); text-align: left; }
-    .msg-bubble th { background: rgba(255, 255, 255, 0.04); color: var(--text-muted); font-weight: 700; }
+    .msg-bubble th, .msg-bubble td { padding: 8px 12px; border: 1px solid rgba(0, 0, 0, 0.08); text-align: left; }
+    .msg-bubble th { background: rgba(0, 0, 0, 0.04); color: var(--text-muted); font-weight: 700; }
 
-    .chat-suggestions { padding: 10px 16px; background: rgba(0,0,0,0.15); border-top: 1px solid var(--border); display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+    .chat-suggestions { padding: 10px 16px; background: rgba(0,0,0,0.025); border-top: 1px solid var(--border); display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
     .chat-suggestions::-webkit-scrollbar { display: none; }
     .sug-chip { padding: 6px 12px; background: var(--card-elevated); border: 1px solid var(--border); border-radius: 100px; font-size: 12px; color: var(--text-muted); cursor: pointer; white-space: nowrap; transition: all 0.15s; }
-    .sug-chip:hover { border-color: var(--purple); color: #fff; background: var(--purple-soft); }
+    .sug-chip:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-soft); }
 
     .chat-input-bar { padding: 14px 18px; background: var(--surf); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
     .chat-input { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 11px 16px; font-size: 13.5px; color: var(--text); outline: none; font-family: 'Inter', sans-serif; transition: all 0.2s; }
@@ -318,27 +320,27 @@
     .metric-category-bar::-webkit-scrollbar { display: none; }
     .cat-btn { padding: 7px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 100px; font-size: 12.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; white-space: nowrap; transition: all 0.15s; }
     .cat-btn:hover { background: var(--card-hover); color: var(--text); border-color: var(--border-active); }
-    .cat-btn.active { background: var(--accent-glow); color: var(--accent); border-color: rgba(56, 189, 248, 0.3); font-weight: 700; }
+    .cat-btn.active { background: var(--accent-glow); color: var(--accent); border-color: rgba(15, 107, 76, 0.3); font-weight: 700; }
 
     .param-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px; display: flex; flex-direction: column; gap: 12px; transition: all 0.2s; }
     .param-card:hover { border-color: var(--border-active); background: var(--card-hover); transform: translateY(-2px); }
     .param-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-    .param-badge-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.05); color: var(--text-sub); }
-    .param-title { font-size: 16px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .param-badge-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; background: rgba(0, 0, 0, 0.05); color: var(--text-sub); }
+    .param-title { font-size: 16px; font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 8px; }
     .param-abbr { font-family: 'JetBrains Mono', monospace; color: var(--accent); font-size: 18px; }
-    .param-formula { background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.05); padding: 8px 12px; border-radius: var(--radius-sm); font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--yellow); }
+    .param-formula { background: rgba(0, 0, 0, 0.035); border: 1px solid rgba(0, 0, 0, 0.08); padding: 8px 12px; border-radius: var(--radius-sm); font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--yellow); }
     .param-body { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
-    .param-ranges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+    .param-ranges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px solid rgba(0, 0, 0, 0.05); }
     .range-box { padding: 8px 10px; border-radius: var(--radius-sm); font-size: 11.5px; display: flex; flex-direction: column; gap: 2px; }
-    .range-box.good { background: var(--green-soft); border: 1px solid rgba(16, 185, 129, 0.2); }
-    .range-box.warn { background: var(--yellow-soft); border: 1px solid rgba(245, 158, 11, 0.2); }
-    .range-box.bad { background: var(--red-soft); border: 1px solid rgba(244, 63, 94, 0.2); }
+    .range-box.good { background: var(--green-soft); border: 1px solid rgba(21, 128, 61, 0.2); }
+    .range-box.warn { background: var(--yellow-soft); border: 1px solid rgba(146, 97, 13, 0.2); }
+    .range-box.bad { background: var(--red-soft); border: 1px solid rgba(163, 39, 31, 0.2); }
     .range-title { font-weight: 700; text-transform: uppercase; font-size: 10px; }
     .range-box.good .range-title { color: var(--green); }
     .range-box.warn .range-title { color: var(--yellow); }
     .range-box.bad .range-title { color: var(--red); }
     .range-val { font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--text); }
-    .param-analogy { background: rgba(56, 189, 248, 0.05); border-left: 3px solid var(--accent); padding: 8px 12px; font-size: 12px; color: var(--text-muted); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+    .param-analogy { background: rgba(15, 107, 76, 0.05); border-left: 3px solid var(--accent); padding: 8px 12px; font-size: 12px; color: var(--text-muted); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 
     /* MODAL OVERLAY & POPUP PROPORTIONS */
     .modal-overlay { 
@@ -361,21 +363,21 @@
       width: 100%; 
       max-width: 520px; 
       padding: 24px; 
-      box-shadow: 0 24px 50px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(255, 255, 255, 0.08); 
+      box-shadow: 0 20px 45px rgba(28, 25, 20, 0.18);
       position: relative; 
       max-height: 90vh; 
       overflow-y: auto; 
     }
     .modal-box.modal-lg { max-width: 860px; }
     .modal-box.modal-md { max-width: 620px; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); padding-bottom: 12px; }
-    .modal-title { font-size: 16.5px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); padding-bottom: 12px; }
+    .modal-title { font-family: 'Source Serif 4', serif; font-size: 18px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
     .modal-close { background: transparent; border: none; font-size: 18px; color: var(--text-sub); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-sm); transition: all 0.15s; }
-    .modal-close:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+    .modal-close:hover { color: var(--text); background: rgba(0, 0, 0, 0.08); }
 
     /* AUDIT POPUP KPI CARDS & SECTIONS */
     .audit-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
-    .audit-kpi-card { background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+    .audit-kpi-card { background: rgba(0, 0, 0, 0.03); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
     .audit-kpi-lbl { font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.3px; }
     .audit-kpi-val { font-size: 18px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--text); }
     .audit-kpi-sub { font-size: 11.5px; color: var(--text-muted); }
@@ -384,14 +386,14 @@
     @media (max-width: 768px) {
       .audit-columns-grid { grid-template-columns: 1fr; }
     }
-    .audit-section-box { background: rgba(0, 0, 0, 0.18); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
+    .audit-section-box { background: rgba(0, 0, 0, 0.025); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
     .audit-section-title { font-size: 12.5px; font-weight: 800; color: var(--accent); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.4px; display: flex; align-items: center; gap: 6px; }
     .audit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .audit-table tr { border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+    .audit-table tr { border-bottom: 1px solid rgba(0, 0, 0, 0.04); }
     .audit-table tr:last-child { border-bottom: none; }
     .audit-table td { padding: 8px 6px; vertical-align: middle; }
     .audit-table td.audit-lbl { color: var(--text-muted); font-weight: 500; width: 55%; }
-    .audit-table td.audit-val { text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #fff; width: 45%; }
+    .audit-table td.audit-val { text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text); width: 45%; }
 
     /* INPUT CONTROLS */
     .input-field { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); padding: 9px 12px; font-size: 13px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s; }
@@ -409,7 +411,7 @@
 
     /* LOADING & EMPTY STATES */
     .state-box { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px 20px; text-align: center; gap: 12px; }
-    .spinner-ring { width: 32px; height: 32px; border: 3px solid rgba(255, 255, 255, 0.08); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .spinner-ring { width: 32px; height: 32px; border: 3px solid rgba(0, 0, 0, 0.08); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .state-icon { font-size: 42px; opacity: 0.4; }
     .state-title { font-size: 16px; font-weight: 700; color: var(--text); }
@@ -417,7 +419,7 @@
 
     /* TOAST NOTIFICATIONS */
     .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
-    .toast-msg { background: var(--card-elevated); border: 1px solid var(--border-active); border-radius: var(--radius-md); padding: 12px 18px; font-size: 13px; color: var(--text); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6); pointer-events: auto; animation: slideIn 0.2s ease; display: flex; align-items: center; gap: 10px; }
+    .toast-msg { background: var(--card-elevated); border: 1px solid var(--border-active); border-radius: var(--radius-md); padding: 12px 18px; font-size: 13px; color: var(--text); box-shadow: 0 10px 30px rgba(28, 25, 20, 0.18); pointer-events: auto; animation: slideIn 0.2s ease; display: flex; align-items: center; gap: 10px; }
     .toast-msg.success { border-left: 4px solid var(--green); }
     .toast-msg.error { border-left: 4px solid var(--red); }
     .toast-msg.info { border-left: 4px solid var(--accent); }
@@ -430,23 +432,23 @@
 
     /* AI KNOWLEDGE FOLDER MANAGER (NOTEBOOKLM STYLE) */
     .ai-folder-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 20px; transition: all 0.2s ease; }
-    .ai-folder-card.drag-over { border-color: var(--purple); background: rgba(168, 85, 247, 0.08); box-shadow: 0 0 20px rgba(168, 85, 247, 0.2); }
+    .ai-folder-card.drag-over { border-color: var(--purple); background: rgba(109, 74, 143, 0.08); box-shadow: 0 0 20px rgba(109, 74, 143, 0.2); }
     .ai-folder-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
     .ai-folder-files-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 14px; }
     .ai-file-item { background: var(--card-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; transition: border-color 0.15s; }
-    .ai-file-item:hover { border-color: rgba(168, 85, 247, 0.4); }
+    .ai-file-item:hover { border-color: rgba(109, 74, 143, 0.4); }
     .ai-file-info { display: flex; align-items: center; gap: 8px; overflow: hidden; min-width: 0; }
     .ai-file-name { font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'JetBrains Mono', monospace; }
     .ai-file-meta { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
     .mode-pill-btn { background: transparent; border: 1px solid var(--border); color: var(--text-sub); border-radius: 100px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
-    .mode-pill-btn:hover { border-color: var(--purple); color: #c084fc; }
-    .mode-pill-btn.active { background: rgba(168, 85, 247, 0.15); border-color: var(--purple); color: #c084fc; box-shadow: 0 0 12px rgba(168, 85, 247, 0.25); }
+    .mode-pill-btn:hover { border-color: var(--purple); color: #6d4a8f; }
+    .mode-pill-btn.active { background: rgba(109, 74, 143, 0.15); border-color: var(--purple); color: #6d4a8f; box-shadow: 0 0 12px rgba(109, 74, 143, 0.25); }
 
     /* REBALANCE CALCULATOR STYLES */
     .rebalance-calc-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 20px; }
     .shortcut-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .shortcut-chip { background: var(--card-elevated); border: 1px solid var(--border); border-radius: 100px; padding: 4px 12px; font-size: 11.5px; font-weight: 600; color: var(--text-sub); cursor: pointer; transition: all 0.15s; font-family: 'JetBrains Mono', monospace; }
-    .shortcut-chip:hover { border-color: var(--accent); color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+    .shortcut-chip:hover { border-color: var(--accent); color: var(--accent); background: rgba(15, 107, 76, 0.1); }
 
     /* EXECUTIVE PRINTABLE REPORT (@media print) */
     #printable-executive-report { display: none; }
@@ -568,7 +570,7 @@
 
       <div class="header-actions">
         <div class="live-clock" id="clock-display">--:--:--</div>
-        <button class="btn btn-success btn-sm" id="btn-pwa-install" onclick="triggerPwaInstall()" style="display: none; align-items: center; gap: 6px; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); border-color: #10b981;" title="Instalar aplicativo no seu celular Android">
+        <button class="btn btn-success btn-sm" id="btn-pwa-install" onclick="triggerPwaInstall()" style="display: none; align-items: center; gap: 6px; font-weight: 700; background: linear-gradient(135deg, #15803d, #059669); border-color: #15803d;" title="Instalar aplicativo no seu celular Android">
           <span style="font-size: 13px;">📲</span> Instalar App
         </button>
         <button class="btn btn-secondary btn-sm" onclick="syncAllData()" title="Sincronizar cotações com o mercado">
@@ -654,13 +656,13 @@
             <p class="page-desc" style="margin-bottom:0">Acompanhe suas compras reais, preço médio, rentabilidade periódica e controle de proventos (dividendos/JCP).</p>
           </div>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <button class="btn btn-primary btn-sm" onclick="runPortfolioAiDiagnosis()" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); border-color: #8b5cf6; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25); font-weight: 700;" title="Executar diagnóstico inteligente e parecer executivo da carteira com a IA">
+            <button class="btn btn-primary btn-sm" onclick="runPortfolioAiDiagnosis()" style="background: linear-gradient(135deg, #6d4a8f, #453163); border-color: #6d4a8f; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25); font-weight: 700;" title="Executar diagnóstico inteligente e parecer executivo da carteira com a IA">
               <span style="font-size: 13px;">🤖</span> Diagnóstico IA da Carteira
             </button>
             <button class="btn btn-secondary btn-sm" onclick="openAiHistoryModal()" title="Ver histórico de diagnósticos executivos gerados anteriormente">
               🕐 Histórico de Diagnósticos
             </button>
-            <button class="btn btn-secondary btn-sm" onclick="openSmartRebalanceModal()" style="display: flex; align-items: center; gap: 6px; font-weight: 600; border-color: rgba(56, 189, 248, 0.4);" title="Abrir calculadora inteligente de aporte e rebalanceamento em janela pop-up">
+            <button class="btn btn-secondary btn-sm" onclick="openSmartRebalanceModal()" style="display: flex; align-items: center; gap: 6px; font-weight: 600; border-color: rgba(15, 107, 76, 0.4);" title="Abrir calculadora inteligente de aporte e rebalanceamento em janela pop-up">
               <span style="font-size: 13px;">🎯</span> Calculadora de Aporte
             </button>
             <button class="btn btn-secondary btn-sm" onclick="generateExecutiveReport()" title="Exportar relatório consolidado executivo para PDF ou impressão">
@@ -673,9 +675,9 @@
 
         <!-- PORTFOLIO HERO KPI CARDS -->
         <div class="grid grid-4" style="margin-bottom: 20px;">
-          <div class="stat-card" style="border-color: rgba(56, 189, 248, 0.3); background: linear-gradient(135deg, rgba(56, 189, 248, 0.05), var(--card));">
+          <div class="stat-card" style="border-color: rgba(15, 107, 76, 0.3); background: linear-gradient(135deg, rgba(15, 107, 76, 0.05), var(--card));">
             <span class="stat-label">Patrimônio Atual</span>
-            <div class="stat-val" style="color: #fff;" id="port-total-value">R$ 0,00</div>
+            <div class="stat-val" style="color: var(--text);" id="port-total-value">R$ 0,00</div>
             <div class="stat-meta" id="port-total-cost-sub">Total Investido: R$ 0,00</div>
           </div>
           <div class="stat-card" id="port-profit-card">
@@ -698,7 +700,7 @@
         <!-- BENCHMARK COMPARISON BAR WITH TIMEFRAME CONTROLS -->
         <div class="card" style="margin-bottom: 20px;">
           <div class="card-header" style="flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center;">
-            <button class="btn btn-primary btn-sm" onclick="openBenchmarkEditorModal()" style="font-size: 12px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; background: linear-gradient(135deg, #0284c7, #2563eb); border-color: #0284c7;" title="Ver e editar tabela histórica dos índices ou buscar atualização automática no Mais Retorno / Status Invest / Banco Central">
+            <button class="btn btn-primary btn-sm" onclick="openBenchmarkEditorModal()" style="font-size: 12px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; background: linear-gradient(135deg, #0f6b4c, #0a4a34); border-color: #0f6b4c;" title="Ver e editar tabela histórica dos índices ou buscar atualização automática no Mais Retorno / Status Invest / Banco Central">
               <span>⚙️ Gerenciador da Tabela de Rentabilidade (Índices)</span>
             </button>
             <div class="tf-selector" id="bench-tf-selector">
@@ -817,7 +819,7 @@
             <div class="stat-val" style="color: var(--yellow);" id="cal-pending-events">0</div>
             <div class="stat-meta">Próximos cortes ou créditos</div>
           </div>
-          <div class="stat-card" style="border-color: rgba(16, 185, 129, 0.3); background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), var(--card));">
+          <div class="stat-card" style="border-color: rgba(21, 128, 61, 0.3); background: linear-gradient(135deg, rgba(21, 128, 61, 0.05), var(--card));">
             <span class="stat-label">Minha Previsão a Receber (12M)</span>
             <div class="stat-val" style="color: var(--green);" id="cal-my-forecast-val">R$ 0,00</div>
             <div class="stat-meta" id="cal-my-forecast-sub">Proventos previstos para sua carteira</div>
@@ -926,11 +928,11 @@
         <div class="ai-folder-card" id="ai-folder-drop-zone">
           <div class="ai-folder-header">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="width: 34px; height: 34px; border-radius: 8px; background: rgba(168, 85, 247, 0.15); display: flex; align-items: center; justify-content: center; font-size: 18px;">
+              <div style="width: 34px; height: 34px; border-radius: 8px; background: rgba(109, 74, 143, 0.15); display: flex; align-items: center; justify-content: center; font-size: 18px;">
                 📁
               </div>
               <div>
-                <strong style="font-size: 13.5px; color: #fff;">Pasta de Conhecimento: <code>Conteudo para IA</code></strong>
+                <strong style="font-size: 13.5px; color: var(--text);">Pasta de Conhecimento: <code>Conteudo para IA</code></strong>
                 <span id="ai-folder-summary-text" style="font-size: 11.5px; color: var(--text-sub); display: block;">Lendo arquivos locais automaticamente para ancorar as respostas</span>
               </div>
             </div>
@@ -954,7 +956,7 @@
 
           <!-- DYNAMIC FILES CONTAINER -->
           <div id="ai-folder-files-container">
-            <div style="text-align: center; padding: 22px 14px; color: var(--text-dim); font-size: 12.5px; border: 1px dashed rgba(255,255,255,0.1); border-radius: var(--radius-md); background: rgba(0,0,0,0.15);">
+            <div style="text-align: center; padding: 22px 14px; color: var(--text-dim); font-size: 12.5px; border: 1px dashed rgba(0,0,0,0.1); border-radius: var(--radius-md); background: rgba(0,0,0,0.15);">
               📂 A pasta <code>Conteudo para IA</code> está pronta. Coloque seus relatórios, releases ou anotações na pasta <strong><code>Conteudo para IA</code></strong> do seu computador ou clique em <strong>"Conectar / Selecionar Pasta"</strong> para leitura automática em tempo real.
             </div>
           </div>
@@ -964,7 +966,7 @@
         <div class="chat-layout">
           <div class="chat-header">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <span style="font-weight: 700; font-size: 13.5px; color: #fff;" id="chat-title-mode">💬 Chat de Análise — Modo NotebookLM</span>
+              <span style="font-weight: 700; font-size: 13.5px; color: var(--text);" id="chat-title-mode">💬 Chat de Análise — Modo NotebookLM</span>
             </div>
             <div style="display: flex; gap: 6px;">
               <button class="btn btn-secondary btn-sm" onclick="clearChatHistory()">🗑 Limpar Chat</button>
@@ -1028,14 +1030,14 @@
           </div>
           <div class="didactic-body">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px;">
-              <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: var(--radius-md); border-left: 3px solid var(--yellow);">
+              <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: var(--radius-md); border-left: 3px solid var(--yellow);">
                 <strong style="color: var(--yellow); display: block; margin-bottom: 4px;">1. 🏛️ Preço Teto (Método Barsi 5 Anos):</strong>
                 <code>Preço Teto = DPA Médio dos Últimos 5 Anos ÷ 0,06</code>
                 <p style="font-size: 12px; margin-top: 6px; color: var(--text-muted);">
                   Usa a média dos proventos dos últimos 5 anos para garantir <strong>segurança e consistência histórica</strong>, eliminando anos atípicos.
                 </p>
               </div>
-              <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: var(--radius-md); border-left: 3px solid var(--green);">
+              <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: var(--radius-md); border-left: 3px solid var(--green);">
                 <strong style="color: var(--green); display: block; margin-bottom: 4px;">2. 🚀 Preço Teto Projetivo (Futuro / Guidance):</strong>
                 <code>Preço Teto Projetivo = DPA Projetado ÷ 0,06</code>
                 <p style="font-size: 12px; margin-top: 6px; color: var(--text-muted);">
@@ -1602,7 +1604,7 @@
             </div>
           </div>
 
-          <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
+          <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.06);">
             <span style="font-size: 11px; color: var(--text-sub); display: block; margin-bottom: 6px;">Ações no comparador:</span>
             <div class="tag-cloud" id="comparator-tags"></div>
           </div>
@@ -1627,8 +1629,8 @@
 
         <div class="grid grid-2">
           <!-- AI ENGINE CONFIG -->
-          <div class="card" style="border-color: rgba(168, 85, 247, 0.3); background: linear-gradient(135deg, rgba(168, 85, 247, 0.04), var(--card));">
-            <div class="card-title" style="margin-bottom: 12px; color: #c084fc;">🤖 Motor de Inteligência Artificial</div>
+          <div class="card" style="border-color: rgba(109, 74, 143, 0.3); background: linear-gradient(135deg, rgba(109, 74, 143, 0.04), var(--card));">
+            <div class="card-title" style="margin-bottom: 12px; color: #6d4a8f;">🤖 Motor de Inteligência Artificial</div>
             <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">
               Escolha qual cérebro de IA você deseja utilizar para gerar diagnósticos e responder no Chat:
             </p>
@@ -1655,7 +1657,7 @@
                 <input type="text" class="input-field" id="cfg-gemini-key" placeholder="Cole sua chave aqui (AIzaSy...)">
               </div>
               <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 6px;">
-                💡 Obtenha sua chave gratuita ou da conta paga em <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #c084fc; text-decoration: underline;">Google AI Studio (aistudio.google.com)</a>.
+                💡 Obtenha sua chave gratuita ou da conta paga em <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #6d4a8f; text-decoration: underline;">Google AI Studio (aistudio.google.com)</a>.
               </div>
             </div>
 
@@ -1681,7 +1683,7 @@
           </div>
 
           <!-- PRICE & DIVIDEND ALERTS -->
-          <div class="card" style="border-color: rgba(245, 158, 11, 0.3); background: linear-gradient(135deg, rgba(245, 158, 11, 0.04), var(--card));">
+          <div class="card" style="border-color: rgba(146, 97, 13, 0.3); background: linear-gradient(135deg, rgba(146, 97, 13, 0.04), var(--card));">
             <div class="card-title" style="margin-bottom: 12px; color: var(--yellow);">🔔 Alertas de Preço & Proventos</div>
             <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
               Receba uma notificação do sistema quando um ativo atingir seu preço-alvo, ou quando um provento estiver com data-com próxima. Funciona apenas com o app aberto no navegador (não há servidor de push).
@@ -1711,7 +1713,7 @@
           </div>
 
           <!-- CLOUD SYNC (FIREBASE) -->
-          <div class="card" style="border-color: rgba(56, 189, 248, 0.3); background: linear-gradient(135deg, rgba(56, 189, 248, 0.04), var(--card));">
+          <div class="card" style="border-color: rgba(15, 107, 76, 0.3); background: linear-gradient(135deg, rgba(15, 107, 76, 0.04), var(--card));">
             <div class="card-title" style="margin-bottom: 12px; color: var(--accent);">☁️ Sincronização em Nuvem</div>
             <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
               Sincronize sua carteira, favoritos e histórico entre dispositivos usando seu próprio projeto Firebase (Firestore + Login Google). Seus dados ficam no seu projeto, não em servidores da aplicação.
@@ -1738,7 +1740,7 @@
             <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5;">
               Exporte todos os seus lançamentos da Minha Carteira, ações favoritas e preferências para um arquivo seguro no seu computador.
             </p>
-            <div id="data-freshness-status" style="font-size: 11.5px; color: var(--text-sub); background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 14px;"></div>
+            <div id="data-freshness-status" style="font-size: 11.5px; color: var(--text-sub); background: rgba(0,0,0,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 14px;"></div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <button class="btn btn-primary btn-sm" onclick="exportAppData()">📥 Exportar Backup Completo (JSON)</button>
               <button class="btn btn-secondary btn-sm" onclick="triggerImportData()">📤 Restaurar Backup</button>
@@ -1864,7 +1866,7 @@
           </div>
         </div>
 
-        <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <div style="background: rgba(0,0,0,0.035); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
           <div>
             <span style="font-size: 11px; color: var(--text-sub); text-transform: uppercase; font-weight: 700; display: block;">Valor Líquido a Receber</span>
             <span style="font-size: 11px; color: var(--text-muted);" id="div-tax-note">Sem desconto de IR (Dividendo)</span>
@@ -1899,7 +1901,7 @@
       <div class="modal-title" id="ai-doc-preview-title" style="font-family: 'JetBrains Mono', monospace; font-size: 14px;">📄 Visualizar Documento</div>
       <button class="modal-close" onclick="closeAiDocPreviewModal()">✕</button>
     </div>
-    <div style="flex: 1; overflow-y: auto; padding: 14px; background: rgba(0,0,0,0.3); border-radius: var(--radius-md); font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; color: var(--text); max-height: 55vh;" id="ai-doc-preview-body"></div>
+    <div style="flex: 1; overflow-y: auto; padding: 14px; background: rgba(0,0,0,0.04); border-radius: var(--radius-md); font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; color: var(--text); max-height: 55vh;" id="ai-doc-preview-body"></div>
     <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
       <button class="btn btn-secondary" onclick="closeAiDocPreviewModal()">Fechar</button>
     </div>
@@ -1999,7 +2001,7 @@
         Defina o valor disponível para investir hoje. O algoritmo prioriza as melhores oportunidades com maior Margem de Segurança Barsi.
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: flex-end; margin-bottom: 16px; flex-wrap: wrap; background: rgba(0,0,0,0.25); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+      <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: flex-end; margin-bottom: 16px; flex-wrap: wrap; background: rgba(0,0,0,0.035); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border);">
         <div>
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">
             💵 Valor a Aportar Hoje (R$)
@@ -2059,7 +2061,7 @@
           CDI (Banco Central) e Ibovespa (mês corrente) são buscados automaticamente 1x/dia. <strong>IFIX não tem fonte gratuita disponível</strong> — continue editando manualmente contra o Status Invest/Mais Retorno.
         </div>
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-primary btn-sm" onclick="fetchLiveBenchmarkUpdates(false)" id="btn-fetch-benchmarks-live" style="background: linear-gradient(135deg, #0284c7, #2563eb); font-weight: 700;" title="Busca CDI real (Banco Central) e o retorno do Ibovespa no mês corrente. IFIX precisa ser editado manualmente.">
+          <button class="btn btn-primary btn-sm" onclick="fetchLiveBenchmarkUpdates(false)" id="btn-fetch-benchmarks-live" style="background: linear-gradient(135deg, #0f6b4c, #0a4a34); font-weight: 700;" title="Busca CDI real (Banco Central) e o retorno do Ibovespa no mês corrente. IFIX precisa ser editado manualmente.">
             <span>🌐 Atualizar CDI + Ibovespa Agora</span>
           </button>
         </div>
@@ -2074,7 +2076,7 @@
       </div>
 
       <!-- LIVE METRICS PREVIEW BAR -->
-      <div class="grid grid-4" style="margin-bottom: 16px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border);" id="bench-editor-preview-bar">
+      <div class="grid grid-4" style="margin-bottom: 16px; background: rgba(0,0,0,0.04); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border);" id="bench-editor-preview-bar">
         <div>
           <span style="font-size: 10px; color: var(--text-sub); text-transform: uppercase; font-weight: 700;">📅 1 Mês (Recente)</span>
           <div style="font-size: 16px; font-weight: 800;" id="bench-prev-1m">+0,83%</div>
@@ -3119,8 +3121,8 @@ function getAssetLogoHtml(symbol, size = 34) {
 
   const fallbackText = sym.length >= 4 ? sym.substring(0, 4) : sym;
   const bgGrad = isFiiAsset 
-    ? 'background: linear-gradient(135deg, rgba(168,85,247,0.18), rgba(168,85,247,0.06)); border: 1px solid rgba(168,85,247,0.35); color: #c084fc;' 
-    : 'background: linear-gradient(135deg, rgba(56,189,248,0.18), rgba(56,189,248,0.06)); border: 1px solid rgba(56,189,248,0.35); color: var(--accent);';
+    ? 'background: linear-gradient(135deg, rgba(109,74,143,0.18), rgba(109,74,143,0.06)); border: 1px solid rgba(109,74,143,0.35); color: #6d4a8f;' 
+    : 'background: linear-gradient(135deg, rgba(15,107,76,0.18), rgba(15,107,76,0.06)); border: 1px solid rgba(15,107,76,0.35); color: var(--accent);';
 
   return `
     <div class="asset-logo" style="width:${size}px; height:${size}px; font-size:${Math.max(9, Math.round(size * 0.32))}px; ${bgGrad}">
@@ -3347,12 +3349,12 @@ function openAuditModal(ticker) {
 
   container.innerHTML = `
     <!-- HEADER BAR -->
-    <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <div style="background: rgba(0,0,0,0.035); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
       <div style="display: flex; align-items: center; gap: 14px;">
         ${getAssetLogoHtml(t, 46)}
         <div>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <strong style="font-size: 20px; font-family: 'JetBrains Mono', monospace; color: #fff;">${t}</strong>
+            <strong style="font-size: 20px; font-family: 'JetBrains Mono', monospace; color: var(--text);">${t}</strong>
             <span class="status-pill good">${fund.sector || 'Ação B3'}</span>
           </div>
           <span style="font-size: 12px; color: var(--text-muted);">${fund.name} | CNPJ: <code>${fund.cnpj || '—'}</code> | CVM: <code>${fund.cvmCode || '—'}</code></span>
@@ -3471,41 +3473,41 @@ function openAuditModal(ticker) {
     </div>
 
     <!-- 3. FUNDAMENTAL & VALUATION METRICS (INVESTIDOR10 AUDITED) -->
-    <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
+    <div style="background: rgba(0,0,0,0.035); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
       <div class="audit-section-title" style="display: flex; justify-content: space-between; align-items: center;">
         <span>🔟 3. Indicadores Fundamentalistas & Valuation (Fonte: Investidor10)</span>
         <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" style="font-size: 11px; color: var(--green); text-decoration: none; font-weight: 600;">🔗 Ver no Investidor10</a>
       </div>
       <div class="grid grid-4" style="margin-top: 10px; gap: 10px;">
-        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="background: rgba(0,0,0,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">P/L ${effFund.isLive ? '<span class="status-pill good" style="font-size:9px;padding:1px 6px;" title="LPA obtido ao vivo hoje via brapi.dev">AO VIVO</span>' : ''}</span>
-          <strong style="font-size: 14px; font-family: monospace; color: #fff;">${(lpa > 0 && price > 0) ? (price / lpa).toFixed(2) : (fund.pl ? fund.pl.toFixed(2) : '—')}</strong>
+          <strong style="font-size: 14px; font-family: monospace; color: var(--text);">${(lpa > 0 && price > 0) ? (price / lpa).toFixed(2) : (fund.pl ? fund.pl.toFixed(2) : '—')}</strong>
         </div>
-        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="background: rgba(0,0,0,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">P/VP</span>
-          <strong style="font-size: 14px; font-family: monospace; color: #fff;">${(fund.vpa > 0 && price > 0) ? (price / fund.vpa).toFixed(2) : (fund.pvp ? fund.pvp.toFixed(2) : '—')}</strong>
+          <strong style="font-size: 14px; font-family: monospace; color: var(--text);">${(fund.vpa > 0 && price > 0) ? (price / fund.vpa).toFixed(2) : (fund.pvp ? fund.pvp.toFixed(2) : '—')}</strong>
         </div>
-        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="background: rgba(0,0,0,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">ROE</span>
           <strong style="font-size: 14px; font-family: monospace; color: var(--green);">${fund.roe ? fund.roe.toFixed(2) + '%' : '—'}</strong>
         </div>
-        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="background: rgba(0,0,0,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">ROIC</span>
-          <strong style="font-size: 14px; font-family: monospace; color: #38bdf8;">${fund.roic != null ? fund.roic.toFixed(2) + '%' : '—'}</strong>
+          <strong style="font-size: 14px; font-family: monospace; color: #0f6b4c;">${fund.roic != null ? fund.roic.toFixed(2) + '%' : '—'}</strong>
         </div>
-        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="background: rgba(0,0,0,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">Margem Líquida</span>
-          <strong style="font-size: 14px; font-family: monospace; color: #fff;" title="${fund.margemLiq > 100 ? 'Margem acima de 100% é comum em holdings com forte equivalência patrimonial (ex: participação em outras empresas) — não é um erro de cadastro.' : ''}">${fund.margemLiq ? fund.margemLiq.toFixed(2) + '%' : '—'}${fund.margemLiq > 100 ? ' ⓘ' : ''}</strong>
+          <strong style="font-size: 14px; font-family: monospace; color: var(--text);" title="${fund.margemLiq > 100 ? 'Margem acima de 100% é comum em holdings com forte equivalência patrimonial (ex: participação em outras empresas) — não é um erro de cadastro.' : ''}">${fund.margemLiq ? fund.margemLiq.toFixed(2) + '%' : '—'}${fund.margemLiq > 100 ? ' ⓘ' : ''}</strong>
         </div>
-        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="background: rgba(0,0,0,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">Dív. Líq. / EBITDA</span>
           <strong style="font-size: 14px; font-family: monospace; color: ${fund.divLiqEbitda > 3 ? 'var(--yellow)' : 'var(--green)'};">${fund.divLiqEbitda != null ? fund.divLiqEbitda.toFixed(2) + 'x' : '—'}</strong>
         </div>
-        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="background: rgba(0,0,0,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">VPA (Patrimonial)</span>
-          <strong style="font-size: 14px; font-family: monospace; color: #fff;">${fund.vpa ? NumFmt.money(fund.vpa) : (fund.pvp ? NumFmt.money(price / fund.pvp) : '—')}</strong>
+          <strong style="font-size: 14px; font-family: monospace; color: var(--text);">${fund.vpa ? NumFmt.money(fund.vpa) : (fund.pvp ? NumFmt.money(price / fund.pvp) : '—')}</strong>
         </div>
-        <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="background: rgba(0,0,0,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">Dividend Yield (12M)</span>
           <strong style="font-size: 14px; font-family: monospace; color: var(--green);">${(fund.dpa && price > 0) ? ((fund.dpa / price) * 100).toFixed(2) + '%' : (fund.ey ? fund.ey.toFixed(2) + '%' : '—')}</strong>
         </div>
@@ -3513,14 +3515,14 @@ function openAuditModal(ticker) {
     </div>
 
     <!-- EXTERNAL OFFICIAL LINKS BAR -->
-    <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px;">
+    <div style="background: rgba(0,0,0,0.035); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px;">
       <span style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 10px;">
         🌐 Portais Oficiais para Validação e Auditoria da Ação:
       </span>
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
         <a href="${links.riUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center;">🌐 RI Oficial da Empresa</a>
-        <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;">📊 Status Invest</a>
-        <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(16, 185, 129, 0.4); color: #10b981;">🔟 Investidor10</a>
+        <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(15, 107, 76, 0.4); color: #0f6b4c;">📊 Status Invest</a>
+        <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(21, 128, 61, 0.4); color: #15803d;">🔟 Investidor10</a>
       </div>
     </div>
   `;
@@ -4108,7 +4110,7 @@ function renderBenchmarkEditorTable() {
   let html = `
     <table class="data-table" style="width: 100%; font-size: 12px; text-align: center;">
       <thead>
-        <tr style="background: rgba(255,255,255,0.05);">
+        <tr style="background: rgba(0,0,0,0.05);">
           <th style="text-align: left; padding: 8px 12px; width: 70px;">ANO</th>
           ${MONTH_NAMES_SHORT.map(m => `<th style="padding: 8px 4px;">${m}</th>`).join('')}
           <th style="padding: 8px 12px; font-weight: 800; color: var(--accent);">No Ano</th>
@@ -4122,7 +4124,7 @@ function renderBenchmarkEditorTable() {
     const ytdVal = calcCompoundReturn(row);
     html += `
       <tr>
-        <td style="font-weight: 800; text-align: left; padding: 8px 12px; color: ${year === 2026 ? '#38bdf8' : 'var(--text-sub)'};">
+        <td style="font-weight: 800; text-align: left; padding: 8px 12px; color: ${year === 2026 ? '#0f6b4c' : 'var(--text-sub)'};">
           ${year}
         </td>
         ${MONTH_NAMES_SHORT.map((m, idx) => {
@@ -4620,7 +4622,7 @@ async function renderFavoritesView() {
 
     const besstBadge = isBesst 
       ? `<span class="status-pill good" style="font-size:10px; padding: 2px 6px;">BESST</span>` 
-      : `<span class="badge badge-flat" style="color:var(--accent); border-color:rgba(56,189,248,0.3); font-size:10px;">AÇÃO</span>`;
+      : `<span class="badge badge-flat" style="color:var(--accent); border-color:rgba(15,107,76,0.3); font-size:10px;">AÇÃO</span>`;
 
     return `
       <tr class="fav-table-row" data-type="STOCK" data-besst="${isBesst}" data-search="${sym} ${name} ${sectorStr}">
@@ -4648,7 +4650,7 @@ async function renderFavoritesView() {
           <div style="display: flex; gap: 4px; justify-content: center;">
             <button class="btn btn-icon btn-sm" onclick="openAddTradeModal('${sym}', ${price})" title="Lançar Compra deste Ativo na Minha Carteira" style="color: var(--green);">➕</button>
             <button class="btn btn-icon btn-sm" onclick="openAuditModal('${sym}')" title="Auditoria de Balanço">🔍</button>
-            <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${sym}')" title="Diagnóstico IA" style="color: #c084fc;">🤖</button>
+            <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${sym}')" title="Diagnóstico IA" style="color: #6d4a8f;">🤖</button>
             <button class="btn btn-icon btn-sm" onclick="openTickerDirect('${sym}')" title="Ver Gráfico">📈</button>
             <button class="btn btn-icon btn-sm" onclick="removeFromFavorites('${sym}')" title="Remover dos Favoritos" style="color: var(--red);">✕</button>
           </div>
@@ -4671,10 +4673,10 @@ async function renderFavoritesView() {
     // 1. SEGMENTO
     let segIcon = '🏢';
     let segColor = 'var(--accent)';
-    if (fund.category === 'TIJOLO') { segIcon = '🧱'; segColor = '#38bdf8'; }
-    else if (fund.category === 'PAPEL') { segIcon = '📄'; segColor = '#a855f7'; }
-    else if (fund.category === 'FIAGRO') { segIcon = '🌾'; segColor = '#10b981'; }
-    else if (fund.category === 'FOF') { segIcon = '🏢'; segColor = '#f59e0b'; }
+    if (fund.category === 'TIJOLO') { segIcon = '🧱'; segColor = '#0f6b4c'; }
+    else if (fund.category === 'PAPEL') { segIcon = '📄'; segColor = '#6d4a8f'; }
+    else if (fund.category === 'FIAGRO') { segIcon = '🌾'; segColor = '#15803d'; }
+    else if (fund.category === 'FOF') { segIcon = '🏢'; segColor = '#92610d'; }
     const segBadge = `<span class="badge badge-flat" style="color:${segColor}; border-color:${segColor}44; font-size:11.5px; font-weight:600;">${segIcon} ${fund.segment || 'FII'}</span>`;
 
     // 2. P/VP (SEMÁFORO)
@@ -4683,7 +4685,7 @@ async function renderFavoritesView() {
     if (pvp < 0.95) {
       pvpPill = `<span class="badge badge-up" title="Negociando com desconto">${NumFmt.num(pvp, 2)}x (Desconto)</span>`;
     } else if (pvp <= 1.02) {
-      pvpPill = `<span class="badge badge-flat" style="color:var(--yellow); border-color:rgba(245,158,11,0.3);" title="Preço alinhado ao laudo patrimonial">${NumFmt.num(pvp, 2)}x (Preço Justo)</span>`;
+      pvpPill = `<span class="badge badge-flat" style="color:var(--yellow); border-color:rgba(146,97,13,0.3);" title="Preço alinhado ao laudo patrimonial">${NumFmt.num(pvp, 2)}x (Preço Justo)</span>`;
     } else {
       pvpPill = `<span class="badge badge-down" title="Negociando com ágio">${NumFmt.num(pvp, 2)}x (Ágio)</span>`;
     }
@@ -4711,7 +4713,7 @@ async function renderFavoritesView() {
             <div class="asset-info">
               <div style="display:flex; align-items:center; gap:6px;">
                 <strong>${sym}</strong>
-                <span class="badge badge-flat" style="color:#a855f7; border-color:rgba(168,85,247,0.3); font-size:10px;">FII</span>
+                <span class="badge badge-flat" style="color:#6d4a8f; border-color:rgba(109,74,143,0.3); font-size:10px;">FII</span>
               </div>
               <span>${name}</span>
             </div>
@@ -4719,7 +4721,7 @@ async function renderFavoritesView() {
         </td>
         <td>${segBadge}</td>
         <td class="text-right">${pvpPill}</td>
-        <td class="text-right text-mono" style="font-weight: 700; color: #fff;">${NumFmt.money(price)}</td>
+        <td class="text-right text-mono" style="font-weight: 700; color: var(--text);">${NumFmt.money(price)}</td>
         <td class="text-right"><span class="badge ${badgeCls}">${NumFmt.pct(chg)}</span></td>
         <td class="text-right text-mono" style="color: var(--yellow); font-weight: 700;">${NumFmt.num(dy, 2)}%</td>
         <td class="text-right text-mono" style="color: var(--green); font-weight: 700;">${NumFmt.money(lastRend)}/cota</td>
@@ -4729,7 +4731,7 @@ async function renderFavoritesView() {
           <div style="display: flex; gap: 4px; justify-content: center;">
             <button class="btn btn-icon btn-sm" onclick="openAddTradeModal('${sym}', ${price})" title="Lançar Compra deste FII na Carteira" style="color: var(--green);">➕</button>
             <button class="btn btn-icon btn-sm" onclick="openFiiAuditModal('${sym}')" title="Raio-X & Auditoria do FII">🔍</button>
-            <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${sym}')" title="Diagnóstico IA Especialista" style="color: #c084fc;">🤖</button>
+            <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${sym}')" title="Diagnóstico IA Especialista" style="color: #6d4a8f;">🤖</button>
             <button class="btn btn-icon btn-sm" onclick="openTickerDirect('${sym}')" title="Ver Gráfico">📈</button>
             <button class="btn btn-icon btn-sm" onclick="removeFromFavorites('${sym}')" title="Remover dos Favoritos" style="color: var(--red);">✕</button>
           </div>
@@ -4745,7 +4747,7 @@ async function renderFavoritesView() {
       <div class="fav-section-block" id="fav-stocks-section" style="margin-bottom: 24px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; padding: 0 4px;">
           <div style="display:flex; align-items:center; gap:8px;">
-            <strong style="color: #fff; font-size: 14.5px;">📈 Ações B3 Monitoradas</strong>
+            <strong style="color: var(--text); font-size: 14.5px;">📈 Ações B3 Monitoradas</strong>
             <span class="badge badge-flat" style="color:var(--accent); font-size:11px;">${stockQuotes.length} ${stockQuotes.length === 1 ? 'ação' : 'ações'}</span>
           </div>
         </div>
@@ -4779,8 +4781,8 @@ async function renderFavoritesView() {
       <div class="fav-section-block" id="fav-fiis-section">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; padding: 0 4px;">
           <div style="display:flex; align-items:center; gap:8px;">
-            <strong style="color: #fff; font-size: 14.5px;">🏢 Fundos Imobiliários & Fiagros Monitorados</strong>
-            <span class="badge badge-flat" style="color:#a855f7; font-size:11px;">${fiiQuotes.length} ${fiiQuotes.length === 1 ? 'fundo' : 'fundos'}</span>
+            <strong style="color: var(--text); font-size: 14.5px;">🏢 Fundos Imobiliários & Fiagros Monitorados</strong>
+            <span class="badge badge-flat" style="color:#6d4a8f; font-size:11px;">${fiiQuotes.length} ${fiiQuotes.length === 1 ? 'fundo' : 'fundos'}</span>
           </div>
         </div>
         <div class="table-responsive">
@@ -5171,7 +5173,7 @@ async function renderFiisView() {
     if (q.pvp < 0.95) {
       pvpPill = `<span class="badge badge-up" title="Negociando com mais de 5% de desconto sobre o valor patrimonial">${NumFmt.num(q.pvp, 2)}x (Desconto)</span>`;
     } else if (q.pvp <= 1.02) {
-      pvpPill = `<span class="badge badge-flat" style="color:var(--yellow); border-color:rgba(245,158,11,0.3);" title="Preço de mercado alinhado com o laudo patrimonial">${NumFmt.num(q.pvp, 2)}x (Preço Justo)</span>`;
+      pvpPill = `<span class="badge badge-flat" style="color:var(--yellow); border-color:rgba(146,97,13,0.3);" title="Preço de mercado alinhado com o laudo patrimonial">${NumFmt.num(q.pvp, 2)}x (Preço Justo)</span>`;
     } else {
       pvpPill = `<span class="badge badge-down" title="Negociando com ágio acima do patrimônio">${NumFmt.num(q.pvp, 2)}x (Ágio)</span>`;
     }
@@ -5179,13 +5181,13 @@ async function renderFiisView() {
     // Segment badge
     let segBadge = '';
     if (q.category === 'TIJOLO') {
-      segBadge = `<span class="badge badge-flat" style="color:#38bdf8; border-color:rgba(56,189,248,0.3);">🧱 ${q.segment}</span>`;
+      segBadge = `<span class="badge badge-flat" style="color:#0f6b4c; border-color:rgba(15,107,76,0.3);">🧱 ${q.segment}</span>`;
     } else if (q.category === 'PAPEL') {
-      segBadge = `<span class="badge badge-flat" style="color:#a855f7; border-color:rgba(168,85,247,0.3);">📄 ${q.segment}</span>`;
+      segBadge = `<span class="badge badge-flat" style="color:#6d4a8f; border-color:rgba(109,74,143,0.3);">📄 ${q.segment}</span>`;
     } else if (q.category === 'FIAGRO') {
-      segBadge = `<span class="badge badge-flat" style="color:#10b981; border-color:rgba(16,185,129,0.3);">🌾 ${q.segment}</span>`;
+      segBadge = `<span class="badge badge-flat" style="color:#15803d; border-color:rgba(21,128,61,0.3);">🌾 ${q.segment}</span>`;
     } else {
-      segBadge = `<span class="badge badge-flat" style="color:#f59e0b; border-color:rgba(245,158,11,0.3);">🏢 ${q.segment}</span>`;
+      segBadge = `<span class="badge badge-flat" style="color:#92610d; border-color:rgba(146,97,13,0.3);">🏢 ${q.segment}</span>`;
     }
 
     // Vacancy / Indexer Info
@@ -5219,7 +5221,7 @@ async function renderFiisView() {
           <div style="display: flex; gap: 4px; justify-content: center;">
             <button class="btn btn-icon btn-sm" onclick="openAddTradeModal('${sym}', ${q.price})" title="Lançar Compra deste FII" style="color: var(--green);">➕</button>
             <button class="btn btn-icon btn-sm" onclick="openFiiAuditModal('${sym}')" title="Raio-X & Auditoria do FII">🔍</button>
-            <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${sym}')" title="Diagnóstico IA Especialista em FIIs" style="color: #c084fc;">🤖</button>
+            <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${sym}')" title="Diagnóstico IA Especialista em FIIs" style="color: #6d4a8f;">🤖</button>
             <button class="btn btn-icon btn-sm" onclick="openTickerDirect('${sym}')" title="Ver Gráfico">📈</button>
             <button class="btn btn-icon btn-sm" onclick="removeFromFiiFavorites('${sym}')" title="Remover do Radar FII" style="color: var(--red);">✕</button>
           </div>
@@ -5358,12 +5360,12 @@ function openFiiAuditModal(ticker) {
 
   content.innerHTML = `
     <!-- HEADER BAR -->
-    <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <div style="background: rgba(0,0,0,0.035); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
       <div style="display: flex; align-items: center; gap: 14px;">
         ${getAssetLogoHtml(t, 46)}
         <div>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <strong style="font-size: 20px; font-family: 'JetBrains Mono', monospace; color: #fff;">${t}</strong>
+            <strong style="font-size: 20px; font-family: 'JetBrains Mono', monospace; color: var(--text);">${t}</strong>
             <span class="badge badge-flat" style="color:var(--accent); font-size:11.5px;">${fund.category} • ${fund.segment}</span>
           </div>
           <span style="font-size: 12px; color: var(--text-muted);">${fund.name} | Gestão: <strong>${fund.manager || '—'}</strong> | CNPJ: <code>${fund.cnpj || '—'}</code></span>
@@ -5381,7 +5383,7 @@ function openFiiAuditModal(ticker) {
     </div>
 
     ${!B3_FII_DB[t] ? '' : `
-    <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 16px; font-size: 12px; color: var(--yellow);">
+    <div style="background: rgba(146, 97, 13, 0.08); border: 1px solid rgba(146, 97, 13, 0.3); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 16px; font-size: 12px; color: var(--yellow);">
       ⚠️ P/VP, DY e vacância desta base são <strong>curadoria manual</strong> (${B3_FII_DB_META.source}), última revisão em ${new Date(B3_FII_DB_META.lastReview + 'T00:00:00').toLocaleDateString('pt-BR')} — diferente das ações, não passam por auditoria automática. Confirme no Investidor10 antes de decisões importantes.
     </div>`}
 
@@ -5487,15 +5489,15 @@ function openFiiAuditModal(ticker) {
     </div>
 
     <!-- EXTERNAL OFFICIAL LINKS BAR -->
-    <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px;">
+    <div style="background: rgba(0,0,0,0.035); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px;">
       <span style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 10px;">
         🌐 Portais Especializados para Validação e Auditoria do FII:
       </span>
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
         ${links.riUrl ? `<a href="${links.riUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center;">🌐 RI Oficial do Fundo</a>` : ''}
-        <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;">📊 Status Invest</a>
-        <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(16, 185, 129, 0.4); color: #10b981;">🔟 Investidor10</a>
-        <a href="${links.clubeFii}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(245, 158, 11, 0.4); color: var(--yellow);">🏢 Clube FII</a>
+        <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(15, 107, 76, 0.4); color: #0f6b4c;">📊 Status Invest</a>
+        <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(21, 128, 61, 0.4); color: #15803d;">🔟 Investidor10</a>
+        <a href="${links.clubeFii}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(146, 97, 13, 0.4); color: var(--yellow);">🏢 Clube FII</a>
         <a href="${links.fundsExplorer}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center;">🔍 Funds Explorer</a>
         <button class="btn btn-primary btn-sm" style="flex: 1;" onclick="openAllAuditLinks('${t}')">⚡ Abrir Todos os Links</button>
       </div>
@@ -5735,7 +5737,7 @@ async function renderPortfolioView() {
   if (summaryEl) {
     const stockPct = totalCurrentValue > 0 ? ((totalStocksVal / totalCurrentValue) * 100).toFixed(1) : '0.0';
     const fiiPct = totalCurrentValue > 0 ? ((totalFiisVal / totalCurrentValue) * 100).toFixed(1) : '0.0';
-    summaryEl.innerHTML = `${consolidated.length} posições (${AppState.trades.length} aportes) &nbsp;•&nbsp; <span style="color:var(--accent);">📈 Ações: ${stockPct}%</span> &nbsp;•&nbsp; <span style="color:#a855f7;">🏢 FIIs: ${fiiPct}%</span>`;
+    summaryEl.innerHTML = `${consolidated.length} posições (${AppState.trades.length} aportes) &nbsp;•&nbsp; <span style="color:var(--accent);">📈 Ações: ${stockPct}%</span> &nbsp;•&nbsp; <span style="color:#6d4a8f;">🏢 FIIs: ${fiiPct}%</span>`;
   }
 
   // Total dividends strictly from user's launched / automated dividends
@@ -5769,8 +5771,8 @@ async function renderPortfolioView() {
     const profitCol = p.profitR$ >= 0 ? 'var(--green)' : 'var(--red)';
     const isFiiAsset = p.isFII;
     const typeBadge = isFiiAsset 
-      ? '<span class="badge badge-flat" style="color:#a855f7; border-color:rgba(168,85,247,0.3); font-size:10px;">🏢 FII</span>' 
-      : '<span class="badge badge-flat" style="color:var(--accent); border-color:rgba(56,189,248,0.3); font-size:10px;">📈 AÇÃO</span>';
+      ? '<span class="badge badge-flat" style="color:#6d4a8f; border-color:rgba(109,74,143,0.3); font-size:10px;">🏢 FII</span>' 
+      : '<span class="badge badge-flat" style="color:var(--accent); border-color:rgba(15,107,76,0.3); font-size:10px;">📈 AÇÃO</span>';
     const extLinks = isFiiAsset ? getExternalFiiLinksHtml(p.symbol) : getExternalLinksHtml(p.symbol, true);
     const isExpanded = AppState.expandedPositions[p.symbol] || false;
 
@@ -5832,7 +5834,7 @@ async function renderPortfolioView() {
           <div style="display: flex; gap: 4px; justify-content: center;">
             <button class="btn btn-icon btn-sm" onclick="openAddTradeModal('${p.symbol}', ${p.currentPrice})" title="Adicionar novo aporte em ${p.symbol}" style="color: var(--green);">➕</button>
             <button class="btn btn-icon btn-sm" onclick="openAddDividendModal('${p.symbol}')" title="Lançar Provento em ${p.symbol}" style="color: var(--yellow);">💰</button>
-            <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${p.symbol}')" title="Diagnóstico IA" style="color: #c084fc;">🤖</button>
+            <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${p.symbol}')" title="Diagnóstico IA" style="color: #6d4a8f;">🤖</button>
             <button class="btn btn-icon btn-sm" onclick="removePortfolioPosition('${p.symbol}')" title="Excluir todos os aportes deste ativo" style="color: var(--red);">✕</button>
           </div>
         </td>
@@ -5976,7 +5978,7 @@ function renderPortfolioDividendsTable() {
       
       <!-- SEÇÃO 1: PROVENTOS A RECEBER / AGENDADOS -->
       <div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 10px 14px; background: rgba(245, 158, 11, 0.08); border-left: 3px solid var(--yellow); border-radius: var(--radius-sm);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 10px 14px; background: rgba(146, 97, 13, 0.08); border-left: 3px solid var(--yellow); border-radius: var(--radius-sm);">
           <div style="display: flex; align-items: center; gap: 8px;">
             <strong style="color: var(--yellow); font-size: 13px;">🟡 Proventos A Receber / Agendados</strong>
             <span class="badge badge-flat" style="font-size: 11px;">${pendingList.length} ${pendingList.length === 1 ? 'evento' : 'eventos'}</span>
@@ -6007,7 +6009,7 @@ function renderPortfolioDividendsTable() {
 
       <!-- SEÇÃO 2: PROVENTOS JÁ RECEBIDOS / PAGOS -->
       <div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid var(--green); border-radius: var(--radius-sm);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 10px 14px; background: rgba(21, 128, 61, 0.08); border-left: 3px solid var(--green); border-radius: var(--radius-sm);">
           <div style="display: flex; align-items: center; gap: 8px;">
             <strong style="color: var(--green); font-size: 13px;">🟢 Proventos Já Recebidos / Pagos</strong>
             <span class="badge badge-flat" style="font-size: 11px;">${paidList.length} ${paidList.length === 1 ? 'evento' : 'eventos'}</span>
@@ -6043,7 +6045,7 @@ function renderPortfolioDividendsTable() {
 function renderPortfolioCharts(assetLabels, assetValues, sectorMap) {
   if (typeof Chart === 'undefined') return;
 
-  const colors = ['#38bdf8', '#10b981', '#f59e0b', '#a855f7', '#f43f5e', '#ec4899', '#6366f1', '#14b8a6', '#f97316'];
+  const colors = ['#0f6b4c', '#92610d', '#6d4a8f', '#a3271f', '#0e7490', '#15803d', '#a54f6f', '#453163', '#b45309'];
 
   // 1. Asset Doughnut Chart
   const assetCtx = document.getElementById('port-asset-chart')?.getContext('2d');
@@ -6056,7 +6058,7 @@ function renderPortfolioCharts(assetLabels, assetValues, sectorMap) {
         datasets: [{
           data: assetValues,
           backgroundColor: colors.slice(0, assetLabels.length),
-          borderColor: '#111724',
+          borderColor: '#ffffff',
           borderWidth: 2
         }]
       },
@@ -6064,7 +6066,7 @@ function renderPortfolioCharts(assetLabels, assetValues, sectorMap) {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } },
+          legend: { position: 'right', labels: { color: '#57503f', font: { family: 'Inter', size: 11 } } },
           tooltip: {
             callbacks: {
               label: (ctx) => ` ${ctx.label}: R$ ${ctx.parsed.toLocaleString('pt-BR', {minimumFractionDigits:2})}`
@@ -6087,8 +6089,8 @@ function renderPortfolioCharts(assetLabels, assetValues, sectorMap) {
         labels: secLabels,
         datasets: [{
           data: secValues,
-          backgroundColor: ['#10b981', '#38bdf8', '#f59e0b', '#a855f7', '#f43f5e', '#6366f1'],
-          borderColor: '#111724',
+          backgroundColor: ['#0f6b4c', '#92610d', '#6d4a8f', '#a3271f', '#0e7490', '#15803d'],
+          borderColor: '#ffffff',
           borderWidth: 2
         }]
       },
@@ -6096,7 +6098,7 @@ function renderPortfolioCharts(assetLabels, assetValues, sectorMap) {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } },
+          legend: { position: 'right', labels: { color: '#57503f', font: { family: 'Inter', size: 11 } } },
           tooltip: {
             callbacks: {
               label: (ctx) => ` ${ctx.label}: R$ ${ctx.parsed.toLocaleString('pt-BR', {minimumFractionDigits:2})}`
@@ -6362,7 +6364,7 @@ function runSmartRebalance() {
             <div>
               <div style="display:flex; align-items:center; gap:6px;">
                 <strong style="color:var(--accent); font-family:'JetBrains Mono', monospace; font-size:13.5px;">${s.symbol}</strong>
-                ${s.isFii ? '<span class="badge badge-flat" style="color:#a855f7; font-size:10px;">🏢 FII</span>' : '<span class="badge badge-flat" style="color:var(--accent); font-size:10px;">📈 AÇÃO</span>'}
+                ${s.isFii ? '<span class="badge badge-flat" style="color:#6d4a8f; font-size:10px;">🏢 FII</span>' : '<span class="badge badge-flat" style="color:var(--accent); font-size:10px;">📈 AÇÃO</span>'}
               </div>
               <span style="font-size:11.5px; color:var(--text-sub); display:block;">${s.name} • ${s.sector}</span>
             </div>
@@ -6387,10 +6389,10 @@ function runSmartRebalance() {
 
   resultBox.style.display = 'block';
   resultBox.innerHTML = `
-    <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <div style="background: rgba(0,0,0,0.035); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
       <div>
         <div style="display:flex; align-items:center; gap:8px;">
-          <strong style="color: #fff; font-size: 13px;">✅ Sugestão de Alocação Calculada (${strategyLabel})</strong>
+          <strong style="color: var(--text); font-size: 13px;">✅ Sugestão de Alocação Calculada (${strategyLabel})</strong>
           <span class="badge badge-flat" style="font-size:11px;">${suggestions.length} ${suggestions.length === 1 ? 'ativo encontrado' : 'ativos recomendados'}</span>
         </div>
         <span style="font-size: 11.5px; color: var(--text-sub); display: block; margin-top:2px;">Exibindo todas as oportunidades elegíveis ordenadas pela maior margem de segurança e valuation</span>
@@ -6601,18 +6603,18 @@ function runPortfolioAiDiagnosis() {
 
   container.innerHTML = `
     <!-- HEADER SUMMARY CARD -->
-    <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+    <div style="background: rgba(0,0,0,0.04); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
       <div>
         <span style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 4px;">Score Geral de Saúde Patrimonial</span>
         <div style="display: flex; align-items: center; gap: 10px;">
-          <strong style="font-size: 26px; font-family: 'JetBrains Mono', monospace; color: #fff;">${score}<span style="font-size: 15px; color: var(--text-sub);">/100</span></strong>
+          <strong style="font-size: 26px; font-family: 'JetBrains Mono', monospace; color: var(--text);">${score}<span style="font-size: 15px; color: var(--text-sub);">/100</span></strong>
           <span class="status-pill good" style="font-size: 12px; font-weight: 700;">${scoreBadge}</span>
         </div>
       </div>
       <div style="display: flex; gap: 16px; flex-wrap: wrap;">
         <div>
           <span style="font-size: 11px; color: var(--text-sub); display: block;">Patrimônio Atual</span>
-          <strong style="font-size: 16px; font-family: 'JetBrains Mono', monospace; color: #fff;">${NumFmt.money(totalValue)}</strong>
+          <strong style="font-size: 16px; font-family: 'JetBrains Mono', monospace; color: var(--text);">${NumFmt.money(totalValue)}</strong>
         </div>
         <div>
           <span style="font-size: 11px; color: var(--text-sub); display: block;">Renda Anual Prevista</span>
@@ -6633,7 +6635,7 @@ function runPortfolioAiDiagnosis() {
     <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;">
       
       <!-- SEÇÃO 1: FORTALEZAS -->
-      <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-md); padding: 16px;">
+      <div style="background: rgba(21, 128, 61, 0.05); border: 1px solid rgba(21, 128, 61, 0.25); border-radius: var(--radius-md); padding: 16px;">
         <div style="font-size: 13.5px; font-weight: 800; color: var(--green); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.3px;">
           🌟 1. Principais Fortalezas da Sua Carteira
         </div>
@@ -6643,7 +6645,7 @@ function runPortfolioAiDiagnosis() {
       </div>
 
       <!-- SEÇÃO 2: VULNERABILIDADES -->
-      <div style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: var(--radius-md); padding: 16px;">
+      <div style="background: rgba(146, 97, 13, 0.05); border: 1px solid rgba(146, 97, 13, 0.25); border-radius: var(--radius-md); padding: 16px;">
         <div style="font-size: 13.5px; font-weight: 800; color: var(--yellow); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.3px;">
           ⚠️ 2. Vulnerabilidades & Riscos de Concentração
         </div>
@@ -6653,7 +6655,7 @@ function runPortfolioAiDiagnosis() {
       </div>
 
       <!-- SEÇÃO 3: RECOMENDAÇÕES PRÁTICAS -->
-      <div style="background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: var(--radius-md); padding: 16px;">
+      <div style="background: rgba(15, 107, 76, 0.05); border: 1px solid rgba(15, 107, 76, 0.25); border-radius: var(--radius-md); padding: 16px;">
         <div style="font-size: 13.5px; font-weight: 800; color: var(--accent); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.3px;">
           🎯 3. Recomendações Práticas para os Próximos Aportes
         </div>
@@ -6665,11 +6667,11 @@ function runPortfolioAiDiagnosis() {
     </div>
 
     <!-- ACTION BUTTONS -->
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.06);">
       <button class="btn btn-secondary" onclick="closePortfolioAiModal()">Fechar Diagnóstico</button>
       <div style="display: flex; gap: 8px;">
         <button class="btn btn-secondary" onclick="generateExecutiveReport()" title="Imprimir relatório completo em A4">🖨️ Exportar PDF / Imprimir</button>
-        <button class="btn btn-primary" onclick="deepDivePortfolioInChat()" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); border-color: #8b5cf6;">💬 Continuar Análise no Chat IA</button>
+        <button class="btn btn-primary" onclick="deepDivePortfolioInChat()" style="background: linear-gradient(135deg, #6d4a8f, #453163); border-color: #6d4a8f;">💬 Continuar Análise no Chat IA</button>
       </div>
     </div>
   `;
@@ -7217,7 +7219,7 @@ function renderCalendarView() {
     
     let typePill = '';
     if (ev.type === 'RENDIMENTO') {
-      typePill = `<span class="badge badge-flat" style="color: #10b981; border-color: rgba(16,185,129,0.3);" title="Rendimento Mensal de FII (Isento de IR)">Rendimento FII</span>`;
+      typePill = `<span class="badge badge-flat" style="color: #15803d; border-color: rgba(21,128,61,0.3);" title="Rendimento Mensal de FII (Isento de IR)">Rendimento FII</span>`;
     } else if (ev.type === 'JCP') {
       typePill = `<span class="badge badge-flat" style="color: var(--yellow);" title="Juros sobre Capital Próprio (15% IR)">JCP (15% IR)</span>`;
     } else {
@@ -7225,8 +7227,8 @@ function renderCalendarView() {
     }
 
     const sectorBadge = isFiiAsset
-      ? `<span style="font-size: 11px; color: #a855f7; background: rgba(168, 85, 247, 0.1); padding: 1px 5px; border-radius: 4px;">🏢 FII • ${fundFii?.segment || 'Imobiliário'}</span>`
-      : `<span style="font-size: 11px; color: var(--accent); background: rgba(56, 189, 248, 0.08); padding: 1px 5px; border-radius: 4px;">📈 Ação • ${fundStock?.sector || 'B3'}</span>`;
+      ? `<span style="font-size: 11px; color: #6d4a8f; background: rgba(109, 74, 143, 0.1); padding: 1px 5px; border-radius: 4px;">🏢 FII • ${fundFii?.segment || 'Imobiliário'}</span>`
+      : `<span style="font-size: 11px; color: var(--accent); background: rgba(15, 107, 76, 0.08); padding: 1px 5px; border-radius: 4px;">📈 Ação • ${fundStock?.sector || 'B3'}</span>`;
 
     const myQty = holdingsMap[sym] || 0;
     const tax = ev.type === 'JCP' ? 0.85 : 1.0;
@@ -7564,7 +7566,7 @@ async function renderBarsiView() {
         <td class="text-center">
           <div style="display: flex; gap: 4px; justify-content: center;">
             <button class="btn btn-icon btn-sm" onclick="openAddTradeModal('${item.symbol}', ${item.price})" title="Lançar Compra" style="color: var(--green);">➕</button>
-            <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${item.symbol}')" title="Parecer IA" style="color: #c084fc;">🤖</button>
+            <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${item.symbol}')" title="Parecer IA" style="color: #6d4a8f;">🤖</button>
             <button class="btn btn-icon btn-sm" onclick="quickAnalyzeBarsi('${item.symbol}')" title="Raio-X Detalhado dos 2 Tetos">🔍</button>
             <button class="btn btn-icon btn-sm" onclick="openTickerDirect('${item.symbol}')" title="Gráfico">📈</button>
           </div>
@@ -7699,28 +7701,28 @@ async function analyzeBarsiTicker() {
 
         <div class="teto-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
           <!-- CARD 1: PREÇO TETO (5 ANOS) -->
-          <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: var(--radius-md); border-left: 3px solid var(--yellow);">
+          <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: var(--radius-md); border-left: 3px solid var(--yellow);">
             <div class="teto-stat-val" style="color: ${isBelowTeto ? 'var(--green)' : 'var(--red)'};">${NumFmt.money(precoTeto)}</div>
             <div class="teto-stat-lbl">1. 🏛️ Preço Teto (5 Anos)</div>
             <span style="font-size: 11px; color: var(--text-sub); display: block; margin-top: 2px;">DPA Médio: ${NumFmt.money(dpa5y)} ÷ 0,06</span>
           </div>
 
           <!-- CARD 2: PREÇO TETO PROJETIVO -->
-          <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: var(--radius-md); border-left: 3px solid var(--green);">
+          <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: var(--radius-md); border-left: 3px solid var(--green);">
             <div class="teto-stat-val" style="color: ${isBelowProj ? 'var(--green)' : 'var(--red)'};">${NumFmt.money(precoTetoProj)}</div>
             <div class="teto-stat-lbl">2. 🚀 Preço Teto Projetivo</div>
             <span style="font-size: 11px; color: var(--text-sub); display: block; margin-top: 2px;">DPA Projetado: ${NumFmt.money(dpaProj)} ÷ 0,06</span>
           </div>
 
           <!-- CARD 3: COTAÇÃO ATUAL -->
-          <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: var(--radius-md);">
+          <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: var(--radius-md);">
             <div class="teto-stat-val">${NumFmt.money(price)}</div>
             <div class="teto-stat-lbl">Cotação Atual B3</div>
             <span style="font-size: 11px; color: var(--text-sub); display: block; margin-top: 2px;">Preço de Mercado</span>
           </div>
 
           <!-- CARD 4: PROVENTOS REALIZADOS 12M -->
-          <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: var(--radius-md);">
+          <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: var(--radius-md);">
             <div class="teto-stat-val" style="color: var(--yellow);">${NumFmt.money(dpa12m)}</div>
             <div class="teto-stat-lbl">DPA Realizado (12M)</div>
             <span style="font-size: 11px; color: var(--text-sub); display: block; margin-top: 2px;">DY Realizado: ${NumFmt.num((dpa12m/price)*100, 2)}%</span>
@@ -7728,14 +7730,14 @@ async function analyzeBarsiTicker() {
         </div>
 
         <!-- EXTERNAL AUDITING PANEL -->
-        <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+        <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(0, 0, 0, 0.08);">
           <span style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 8px;">
             🔗 Validar Balanço, DRE & Histórico nos Portais Oficiais:
           </span>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <a href="${links.riUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center;">🌐 RI Oficial da Empresa</a>
-            <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">📊 Status Invest</a>
-            <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: #10b981; border-color: rgba(16, 185, 129, 0.4);">🔟 Investidor10</a>
+            <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: #0f6b4c; border-color: rgba(15, 107, 76, 0.4);">📊 Status Invest</a>
+            <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: #15803d; border-color: rgba(21, 128, 61, 0.4);">🔟 Investidor10</a>
             <button class="btn btn-primary btn-sm" style="flex: 1;" onclick="openAuditModal('${ticker}')">🔍 Ver Balanço & Auditoria</button>
             <button class="btn btn-secondary btn-sm" style="flex: 1;" onclick="openAllAuditLinks('${ticker}')">⚡ Abrir Todos os Links</button>
           </div>
@@ -7876,7 +7878,7 @@ async function executeMagicFormula() {
           <td class="text-center">
             <div style="display: flex; gap: 4px; justify-content: center;">
               <button class="btn btn-icon btn-sm" onclick="openAddTradeModal('${item.symbol}', ${item.price})" title="Lançar Compra" style="color: var(--green);">➕</button>
-              <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${item.symbol}')" title="Parecer IA" style="color: #c084fc;">🤖</button>
+              <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${item.symbol}')" title="Parecer IA" style="color: #6d4a8f;">🤖</button>
               <button class="btn btn-icon btn-sm" onclick="openTickerDirect('${item.symbol}')" title="Gráfico">📈</button>
             </div>
           </td>
@@ -8850,7 +8852,7 @@ const AiFolderWatcher = {
 
     if (files.length === 0) {
       container.innerHTML = `
-        <div style="text-align: center; padding: 24px 16px; color: var(--text-dim); font-size: 12.5px; border: 1px dashed rgba(255,255,255,0.12); border-radius: var(--radius-md); background: rgba(0,0,0,0.15);">
+        <div style="text-align: center; padding: 24px 16px; color: var(--text-dim); font-size: 12.5px; border: 1px dashed rgba(0,0,0,0.12); border-radius: var(--radius-md); background: rgba(0,0,0,0.15);">
           <div style="font-size: 24px; margin-bottom: 8px;">📂</div>
           <strong style="color: var(--text); font-size: 13px; display: block; margin-bottom: 4px;">Sua base de documentos está vazia</strong>
           <span>Coloque seus relatórios, releases ou anotações na pasta <strong><code>Conteudo para IA</code></strong> do computador, clique em <strong>"Selecionar Pasta Local"</strong>, <strong>"+ Adicionar Arquivos"</strong> ou <strong>"Colar Texto"</strong>.</span>
@@ -9015,7 +9017,7 @@ function appendChatMessage(sender, text) {
     .replace(/`([^`]+)`/gim, '<code>$1</code>')
     .replace(/• (.*$)/gim, '<li>$1</li>')
     .replace(/\n\n/gim, '<br><br>')
-    .replace(/---/gim, '<hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:10px 0;">');
+    .replace(/---/gim, '<hr style="border:none;border-top:1px solid rgba(0,0,0,0.08);margin:10px 0;">');
 
   bubble.innerHTML = html;
   row.appendChild(avatar);
@@ -9205,8 +9207,8 @@ async function renderStockChart(ticker, range = '1y', interval = '1d') {
               ${favBtnHtml}
               <button class="btn btn-secondary btn-sm" onclick="openAuditModal('${ticker}')">🔍 Validar Dados</button>
               <a href="${links.riUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">🌐 RI Oficial</a>
-              <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">📊 Status Invest</a>
-              <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="color: #10b981; border-color: rgba(16, 185, 129, 0.4);">🔟 Investidor10</a>
+              <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="color: #0f6b4c; border-color: rgba(15, 107, 76, 0.4);">📊 Status Invest</a>
+              <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="color: #15803d; border-color: rgba(21, 128, 61, 0.4);">🔟 Investidor10</a>
             </div>
           </div>
         </div>
@@ -9243,14 +9245,14 @@ async function renderStockChart(ticker, range = '1y', interval = '1d') {
       const chart = LightweightCharts.createChart(chartBox, {
         width: chartBox.clientWidth || 800,
         height: 440,
-        layout: { background: { color: 'transparent' }, textColor: '#94a3b8', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' },
-        grid: { vertLines: { color: 'rgba(255, 255, 255, 0.04)' }, horzLines: { color: 'rgba(255, 255, 255, 0.04)' } },
-        crosshair: { mode: LightweightCharts.CrosshairMode.Normal, vertLine: { color: '#38bdf8' }, horzLine: { color: '#38bdf8' } },
-        rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.08)' },
-        timeScale: { borderColor: 'rgba(255, 255, 255, 0.08)' }
+        layout: { background: { color: 'transparent' }, textColor: '#57503f', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' },
+        grid: { vertLines: { color: 'rgba(0, 0, 0, 0.04)' }, horzLines: { color: 'rgba(0, 0, 0, 0.04)' } },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal, vertLine: { color: '#0f6b4c' }, horzLine: { color: '#0f6b4c' } },
+        rightPriceScale: { borderColor: 'rgba(0, 0, 0, 0.08)' },
+        timeScale: { borderColor: 'rgba(0, 0, 0, 0.08)' }
       });
 
-      const candleSeries = chart.addCandlestickSeries({ upColor: '#10b981', downColor: '#f43f5e', borderUpColor: '#10b981', borderDownColor: '#f43f5e', wickUpColor: '#10b981', wickDownColor: '#f43f5e' });
+      const candleSeries = chart.addCandlestickSeries({ upColor: '#15803d', downColor: '#a3271f', borderUpColor: '#15803d', borderDownColor: '#a3271f', wickUpColor: '#15803d', wickDownColor: '#a3271f' });
       const prices = histData?.historicalDataPrice || [];
       if (prices.length > 0) {
         const getTimestamp = (p) => typeof p.date === 'number' ? p.date : Math.floor(new Date(p.date).getTime() / 1000);
@@ -9487,7 +9489,7 @@ async function renderComparator() {
       <td style="font-weight:600;">📅 Histórico de Proventos</td>
       ${quotes.map(q => `<td class="text-center text-mono">${q.fund?.divYears || 5} anos</td>`).join('')}
     </tr>
-    <tr style="background: rgba(56, 189, 248, 0.03);">
+    <tr style="background: rgba(15, 107, 76, 0.03);">
       <td style="font-weight:700; color: var(--accent);">📊 P/L (Preço / Lucro)</td>
       ${quotes.map(q => `<td class="text-center text-mono" style="font-weight:700; color: var(--accent);">${q.plStr}</td>`).join('')}
     </tr>
@@ -9499,11 +9501,11 @@ async function renderComparator() {
       <td style="font-weight:600;">📈 ROE (Rentabilidade do PL)</td>
       ${quotes.map(q => `<td class="text-center text-mono" style="font-weight:600;">${q.fund?.roe ? NumFmt.num(q.fund.roe,1)+'%' : '—'}</td>`).join('')}
     </tr>
-    <tr style="background: rgba(16, 185, 129, 0.03);">
+    <tr style="background: rgba(21, 128, 61, 0.03);">
       <td style="font-weight:700; color: var(--green);">⚡ ROIC (Retorno Capital Investido)</td>
       ${quotes.map(q => `<td class="text-center text-mono" style="font-weight:700; color: var(--green);">${q.roicStr}</td>`).join('')}
     </tr>
-    <tr style="background: rgba(245, 158, 11, 0.03);">
+    <tr style="background: rgba(146, 97, 13, 0.03);">
       <td style="font-weight:700; color: var(--yellow);">🛡️ Dív. Líq. / EBITDA (Alavancagem Financeira)</td>
       ${quotes.map(q => `<td class="text-center text-mono" style="font-weight:700;">${q.divLiqEbitdaStr}</td>`).join('')}
     </tr>
@@ -9711,18 +9713,18 @@ function saveAiDiagnosisToHistory(entry) {
 
 function renderDiagnosisSnapshotHtml(d) {
   return `
-    <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+    <div style="background: rgba(0,0,0,0.04); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
       <div>
         <span style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 4px;">Score Geral de Saúde Patrimonial</span>
         <div style="display: flex; align-items: center; gap: 10px;">
-          <strong style="font-size: 26px; font-family: 'JetBrains Mono', monospace; color: #fff;">${d.score}<span style="font-size: 15px; color: var(--text-sub);">/100</span></strong>
+          <strong style="font-size: 26px; font-family: 'JetBrains Mono', monospace; color: var(--text);">${d.score}<span style="font-size: 15px; color: var(--text-sub);">/100</span></strong>
           <span class="status-pill good" style="font-size: 12px; font-weight: 700;">${d.scoreBadge}</span>
         </div>
       </div>
       <div style="display: flex; gap: 16px; flex-wrap: wrap;">
         <div>
           <span style="font-size: 11px; color: var(--text-sub); display: block;">Patrimônio na Data</span>
-          <strong style="font-size: 16px; font-family: 'JetBrains Mono', monospace; color: #fff;">${NumFmt.money(d.totalValue)}</strong>
+          <strong style="font-size: 16px; font-family: 'JetBrains Mono', monospace; color: var(--text);">${NumFmt.money(d.totalValue)}</strong>
         </div>
         <div>
           <span style="font-size: 11px; color: var(--text-sub); display: block;">Renda Anual Prevista</span>
@@ -9739,15 +9741,15 @@ function renderDiagnosisSnapshotHtml(d) {
       </div>
     </div>
     <div style="display: flex; flex-direction: column; gap: 16px;">
-      <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-md); padding: 16px;">
+      <div style="background: rgba(21, 128, 61, 0.05); border: 1px solid rgba(21, 128, 61, 0.25); border-radius: var(--radius-md); padding: 16px;">
         <div style="font-size: 13.5px; font-weight: 800; color: var(--green); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.3px;">🌟 Fortalezas</div>
         <ul style="margin: 0; padding-left: 20px; font-size: 12.5px; line-height: 1.6; color: var(--text);">${(d.strengths || []).map(s => `<li style="margin-bottom: 6px;">${s}</li>`).join('')}</ul>
       </div>
-      <div style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: var(--radius-md); padding: 16px;">
+      <div style="background: rgba(146, 97, 13, 0.05); border: 1px solid rgba(146, 97, 13, 0.25); border-radius: var(--radius-md); padding: 16px;">
         <div style="font-size: 13.5px; font-weight: 800; color: var(--yellow); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.3px;">⚠️ Vulnerabilidades</div>
         <ul style="margin: 0; padding-left: 20px; font-size: 12.5px; line-height: 1.6; color: var(--text);">${(d.vulnerabilities || []).map(v => `<li style="margin-bottom: 6px;">${v}</li>`).join('')}</ul>
       </div>
-      <div style="background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: var(--radius-md); padding: 16px;">
+      <div style="background: rgba(15, 107, 76, 0.05); border: 1px solid rgba(15, 107, 76, 0.25); border-radius: var(--radius-md); padding: 16px;">
         <div style="font-size: 13.5px; font-weight: 800; color: var(--accent); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.3px;">🎯 Recomendações</div>
         <ul style="margin: 0; padding-left: 20px; font-size: 12.5px; line-height: 1.6; color: var(--text);">${(d.recommendations || []).map(r => `<li style="margin-bottom: 6px;">${r}</li>`).join('')}</ul>
       </div>
