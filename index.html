@@ -745,7 +745,7 @@
         <div class="grid grid-2" style="margin-bottom: 20px;" id="port-charts-container">
           <div class="card">
             <div class="card-header">
-              <div class="card-title">🍕 Diversificação por Ativo (% Carteira)</div>
+              <div class="card-title">Diversificação por Ativo (% Carteira)</div>
             </div>
             <div style="height: 240px; position: relative;">
               <canvas id="port-asset-chart"></canvas>
@@ -873,6 +873,7 @@
             </div>
             <div style="display: flex; gap: 8px;">
               <button class="btn btn-ai btn-sm" onclick="askAIToAnalyzeStock(AppState.activeChartTicker)">🤖 Diagnóstico por IA</button>
+              <button class="btn btn-secondary btn-sm" onclick="goToCompanyCalendar(AppState.activeChartTicker)">📅 Ver Calendário da Empresa</button>
               <button class="btn btn-secondary btn-sm" id="chart-fav-btn" onclick="toggleFavoriteCurrent()">⭐ Salvar nos Favoritos</button>
             </div>
           </div>
@@ -3293,6 +3294,15 @@ const NumFmt = {
     if (num >= 1e6)  return 'R$ ' + (val / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' Mi';
     if (num >= 1e3)  return 'R$ ' + (val / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' Mil';
     return 'R$ ' + val.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  },
+  // Converte 'YYYY-MM-DD' para 'DD/MM/AAAA' (formato brasileiro) sem risco de
+  // deslocar o dia por fuso horário (evita usar new Date() para isso).
+  date(val) {
+    if (!val) return '—';
+    const parts = String(val).split('-');
+    if (parts.length !== 3) return val;
+    const [y, m, d] = parts;
+    return `${d}/${m}/${y}`;
   }
 };
 
@@ -3497,7 +3507,7 @@ function openAuditModal(ticker) {
         </div>
         <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">Dividend Yield (12M)</span>
-          <strong style="font-size: 14px; font-family: monospace; color: var(--green);">${fund.ey ? fund.ey.toFixed(2) + '%' : (fund.dpa && price > 0 ? ((fund.dpa / price) * 100).toFixed(2) + '%' : '—')}</strong>
+          <strong style="font-size: 14px; font-family: monospace; color: var(--green);">${(fund.dpa && price > 0) ? ((fund.dpa / price) * 100).toFixed(2) + '%' : (fund.ey ? fund.ey.toFixed(2) + '%' : '—')}</strong>
         </div>
       </div>
     </div>
@@ -3511,7 +3521,6 @@ function openAuditModal(ticker) {
         <a href="${links.riUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center;">🌐 RI Oficial da Empresa</a>
         <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;">📊 Status Invest</a>
         <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(16, 185, 129, 0.4); color: #10b981;">🔟 Investidor10</a>
-        <button class="btn btn-primary btn-sm" style="flex: 1;" onclick="openAllAuditLinks('${t}')">⚡ Abrir Todos os Links</button>
       </div>
     </div>
   `;
@@ -5770,7 +5779,7 @@ async function renderPortfolioView() {
       const trCost = tr.quantity * tr.price;
       return `
         <tr>
-          <td class="text-mono" style="font-weight: 600;">${tr.date || '—'}</td>
+          <td class="text-mono" style="font-weight: 600;">${NumFmt.date(tr.date)}</td>
           <td class="text-right text-mono">${Number(tr.quantity).toLocaleString('pt-BR')}</td>
           <td class="text-right text-mono">${NumFmt.money(tr.price)}</td>
           <td class="text-right text-mono" style="font-weight: 700; color: var(--green);">${NumFmt.money(trCost)}</td>
@@ -5788,7 +5797,7 @@ async function renderPortfolioView() {
       <tr style="cursor: pointer;" onclick="if (!event.target.closest('button') && !event.target.closest('a')) togglePositionAccordion('${p.symbol}')">
         <td>
           <div class="asset-cell">
-            ${getAssetLogoHtml(p.symbol, 34)}
+            <span onclick="event.stopPropagation(); openTickerDirect('${p.symbol}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${p.symbol}">${getAssetLogoHtml(p.symbol, 34)}</span>
             <div class="asset-info">
               <div style="display: flex; align-items: center; gap: 6px;">
                 <strong>${p.symbol}</strong>
@@ -5824,7 +5833,6 @@ async function renderPortfolioView() {
             <button class="btn btn-icon btn-sm" onclick="openAddTradeModal('${p.symbol}', ${p.currentPrice})" title="Adicionar novo aporte em ${p.symbol}" style="color: var(--green);">➕</button>
             <button class="btn btn-icon btn-sm" onclick="openAddDividendModal('${p.symbol}')" title="Lançar Provento em ${p.symbol}" style="color: var(--yellow);">💰</button>
             <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${p.symbol}')" title="Diagnóstico IA" style="color: #c084fc;">🤖</button>
-            <button class="btn btn-icon btn-sm" onclick="openTickerDirect('${p.symbol}')" title="Gráfico">📈</button>
             <button class="btn btn-icon btn-sm" onclick="removePortfolioPosition('${p.symbol}')" title="Excluir todos os aportes deste ativo" style="color: var(--red);">✕</button>
           </div>
         </td>
@@ -5946,8 +5954,8 @@ function renderPortfolioDividendsTable() {
             </div>
           </td>
           <td>${typePill}</td>
-          <td class="text-center text-mono" style="font-size: 12px;">${d.dateCom || '—'}</td>
-          <td class="text-center text-mono" style="font-size: 12px; font-weight: 700; color: ${isPaid ? 'var(--text)' : 'var(--yellow)'};">${d.datePay || '—'}</td>
+          <td class="text-center text-mono" style="font-size: 12px;">${NumFmt.date(d.dateCom)}</td>
+          <td class="text-center text-mono" style="font-size: 12px; font-weight: 700; color: ${isPaid ? 'var(--text)' : 'var(--yellow)'};">${NumFmt.date(d.datePay)}</td>
           <td class="text-right text-mono">${NumFmt.money(d.valUnit)}</td>
           <td class="text-right text-mono">${(Number(d.qty) || 0).toLocaleString('pt-BR')}</td>
           <td class="text-right text-mono" style="font-weight: 800; color: var(--green);">${NumFmt.money(d.valNet)}</td>
@@ -6859,8 +6867,8 @@ function generateExecutiveReport() {
     <tr>
       <td><strong>${d.symbol}</strong></td>
       <td>${d.type || 'DIVIDENDO'}</td>
-      <td class="print-mono">${d.dateCom || '—'}</td>
-      <td class="print-mono">${d.datePay || '—'}</td>
+      <td class="print-mono">${NumFmt.date(d.dateCom)}</td>
+      <td class="print-mono">${NumFmt.date(d.datePay)}</td>
       <td style="text-align:right;" class="print-mono">${NumFmt.money(d.valUnit)}</td>
       <td style="text-align:right;" class="print-mono">${d.qty || 0}</td>
       <td style="text-align:right; font-weight:700; color:#059669;" class="print-mono">${NumFmt.money(d.valNet)}</td>
@@ -6874,8 +6882,8 @@ function generateExecutiveReport() {
     <tr>
       <td><strong>${d.symbol}</strong></td>
       <td>${d.type || 'DIVIDENDO'}</td>
-      <td class="print-mono">${d.dateCom || '—'}</td>
-      <td class="print-mono">${d.datePay || '—'}</td>
+      <td class="print-mono">${NumFmt.date(d.dateCom)}</td>
+      <td class="print-mono">${NumFmt.date(d.datePay)}</td>
       <td style="text-align:right;" class="print-mono">${NumFmt.money(d.valUnit)}</td>
       <td style="text-align:right;" class="print-mono">${d.qty || 0}</td>
       <td style="text-align:right; font-weight:700; color:#059669;" class="print-mono">${NumFmt.money(d.valNet)}</td>
@@ -7243,8 +7251,8 @@ function renderCalendarView() {
           </div>
         </td>
         <td>${typePill}</td>
-        <td class="text-center text-mono" style="font-size: 12.5px; font-weight: 600;">${ev.dateCom || '—'}</td>
-        <td class="text-center text-mono" style="font-size: 12.5px; font-weight: 700; color: ${isPending ? 'var(--yellow)' : 'var(--text)'};">${ev.datePay || '—'}</td>
+        <td class="text-center text-mono" style="font-size: 12.5px; font-weight: 600;">${NumFmt.date(ev.dateCom)}</td>
+        <td class="text-center text-mono" style="font-size: 12.5px; font-weight: 700; color: ${isPending ? 'var(--yellow)' : 'var(--text)'};">${NumFmt.date(ev.datePay)}</td>
         <td class="text-right text-mono" style="font-weight: 700;">${NumFmt.money(ev.valUnit)}</td>
         <td class="text-center">${statusBadge}</td>
         <td class="text-right">${walletForecastHtml}</td>
@@ -7384,7 +7392,7 @@ function handleDeleteCurrentTrade() {
 function deleteTrade(tradeId) {
   const trade = (AppState.trades || []).find(t => t.id === tradeId);
   if (!trade) return;
-  if (confirm(`Deseja realmente excluir este aporte de ${trade.quantity} ${trade.symbol} de ${trade.date}?`)) {
+  if (confirm(`Deseja realmente excluir este aporte de ${trade.quantity} ${trade.symbol} de ${NumFmt.date(trade.date)}?`)) {
     AppState.trades = AppState.trades.filter(t => t.id !== tradeId);
     localStorage.setItem('b3_user_trades', JSON.stringify(AppState.trades));
     // Remove automated dividends tied to this trade
@@ -9115,6 +9123,16 @@ function filterMetricsCards() {
 async function openTickerDirect(ticker) {
   AppState.activeChartTicker = ticker.toUpperCase();
   setTab('grafico');
+}
+
+function goToCompanyCalendar(ticker) {
+  const sym = (ticker || '').toUpperCase();
+  setTab('calendario');
+  const input = document.getElementById('cal-filter-input');
+  if (input) {
+    input.value = sym;
+    filterCalendarView();
+  }
 }
 
 async function changeChartRange(range, interval, btnEl) {
