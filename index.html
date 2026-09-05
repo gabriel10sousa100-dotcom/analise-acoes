@@ -2207,11 +2207,9 @@ const B3_DIVIDEND_CALENDAR = [
   // CRONOGRAMA OFICIAL DE PROVENTOS DA B3 - FONTE: INVESTIDOR10.COM.BR
   // 100% Auditado - Datas-COM, Datas de Pagamento, Tipos e Valores Oficiais
   // =====================================================================
-  { id: 'b3__2028_08_16_dividendo_412832', symbol: 'WEGE3', type: 'DIVIDENDO', dateCom: '2025-12-19', datePay: '2028-08-16', valUnit: 0.412832, label: 'Dividendos 19/12/2025' },
   { id: 'b3__2027_12_31_jcp_542318', symbol: 'PSSA3', type: 'JCP', dateCom: '2026-03-30', datePay: '2027-12-31', valUnit: 0.542318, label: 'JSCP 30/03/2026' },
   { id: 'b3__2027_12_30_jcp_110203', symbol: 'CMIG3', type: 'JCP', dateCom: '2026-06-23', datePay: '2027-12-30', valUnit: 0.110203, label: 'JSCP 23/06/2026' },
   { id: 'b3__2027_12_30_jcp_115000', symbol: 'CMIG3', type: 'JCP', dateCom: '2026-03-24', datePay: '2027-12-30', valUnit: 0.115, label: 'JSCP 24/03/2026' },
-  { id: 'b3__2027_08_11_dividendo_412832', symbol: 'WEGE3', type: 'DIVIDENDO', dateCom: '2025-12-19', datePay: '2027-08-11', valUnit: 0.412832, label: 'Dividendos 19/12/2025' },
   { id: 'b3__2027_06_30_jcp_115000', symbol: 'CMIG4', type: 'JCP', dateCom: '2026-03-24', datePay: '2027-06-30', valUnit: 0.115, label: 'JSCP 24/03/2026' },
   { id: 'b3__2027_06_30_jcp_110203', symbol: 'CMIG4', type: 'JCP', dateCom: '2026-06-23', datePay: '2027-06-30', valUnit: 0.110203, label: 'JSCP 23/06/2026' },
   { id: 'b3__2027_04_30_jcp_71974', symbol: 'VIVT3', type: 'JCP', dateCom: '2026-06-26', datePay: '2027-04-30', valUnit: 0.071974, label: 'JSCP 26/06/2026' },
@@ -3397,11 +3395,11 @@ function openAuditModal(ticker) {
       <div class="grid grid-4" style="margin-top: 10px; gap: 10px;">
         <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">P/L</span>
-          <strong style="font-size: 14px; font-family: monospace; color: #fff;">${fund.pl ? fund.pl.toFixed(2) : (lpa > 0 ? (price / lpa).toFixed(2) : '—')}</strong>
+          <strong style="font-size: 14px; font-family: monospace; color: #fff;">${(lpa > 0 && price > 0) ? (price / lpa).toFixed(2) : (fund.pl ? fund.pl.toFixed(2) : '—')}</strong>
         </div>
         <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">P/VP</span>
-          <strong style="font-size: 14px; font-family: monospace; color: #fff;">${fund.pvp ? fund.pvp.toFixed(2) : '—'}</strong>
+          <strong style="font-size: 14px; font-family: monospace; color: #fff;">${(fund.vpa > 0 && price > 0) ? (price / fund.vpa).toFixed(2) : (fund.pvp ? fund.pvp.toFixed(2) : '—')}</strong>
         </div>
         <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">ROE</span>
@@ -3820,9 +3818,12 @@ async function fetchLiveBenchmarkUpdates(silent = false) {
   const matrix = getBenchmarkMatrix();
 
   try {
-    // 1. OFICIAL BANCO CENTRAL DO BRASIL (SGS - SERIE 4389: CDI MENSAL ACUMULADO)
+    // 1. OFICIAL BANCO CENTRAL DO BRASIL (SGS - SERIE 4391: CDI ACUMULADO NO MES)
+    // NOTA: a serie 4389 (usada anteriormente aqui) e a taxa DIARIA anualizada do CDI
+    // (ex: ~13,90% a.a. por dia util) - usa-la aqui sobrescrevia o retorno MENSAL
+    // (~1% a.m.) com um valor ~10x maior. A serie 4391 e o acumulado mensal correto.
     try {
-      const bcbRes = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/12?formato=json', { cache: 'no-cache' });
+      const bcbRes = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4391/dados/ultimos/12?formato=json', { cache: 'no-cache' });
       if (bcbRes.ok) {
         const bcbData = await bcbRes.json();
         if (Array.isArray(bcbData)) {
@@ -4424,7 +4425,7 @@ async function renderFavoritesView() {
 
     let valuationHtml = '—';
     if (fund && fund.dpa && fund.payout && price > 0) {
-      const lpa = (fund.dpa / (fund.payout / 100));
+      const lpa = fund.lpa || (fund.dpa / (fund.payout / 100));
       if (lpa > 0) valuationHtml = `<span class="text-mono" style="font-weight:600;">P/L: ${NumFmt.num(price / lpa, 1)}x</span>`;
     } else {
       valuationHtml = `<span class="text-mono" style="font-weight:600;">P/VP: ${fund?.pvp ? NumFmt.num(fund.pvp, 1) + 'x' : '—'}</span>`;
