@@ -1734,9 +1734,10 @@
           <!-- DATA & CACHE -->
           <div class="card" style="grid-column: span 2;">
             <div class="card-title" style="margin-bottom: 12px;">💾 Armazenamento & Backup da Carteira</div>
-            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5;">
               Exporte todos os seus lançamentos da Minha Carteira, ações favoritas e preferências para um arquivo seguro no seu computador.
             </p>
+            <div id="data-freshness-status" style="font-size: 11.5px; color: var(--text-sub); background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 14px;"></div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <button class="btn btn-primary btn-sm" onclick="exportAppData()">📥 Exportar Backup Completo (JSON)</button>
               <button class="btn btn-secondary btn-sm" onclick="triggerImportData()">📤 Restaurar Backup</button>
@@ -2054,11 +2055,11 @@
     <div style="padding: 10px 0;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
         <div style="font-size: 12.5px; color: var(--text-sub);">
-          Consulte ou edite a matriz mês a mês (Mais Retorno / BCB / Status Invest) ou acione a busca automática via internet.
+          CDI (Banco Central) e Ibovespa (mês corrente) são buscados automaticamente 1x/dia. <strong>IFIX não tem fonte gratuita disponível</strong> — continue editando manualmente contra o Status Invest/Mais Retorno.
         </div>
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-primary btn-sm" onclick="fetchLiveBenchmarkUpdates(false)" id="btn-fetch-benchmarks-live" style="background: linear-gradient(135deg, #0284c7, #2563eb); font-weight: 700;">
-            <span>🌐 Atualizar via Internet (Scraper)</span>
+          <button class="btn btn-primary btn-sm" onclick="fetchLiveBenchmarkUpdates(false)" id="btn-fetch-benchmarks-live" style="background: linear-gradient(135deg, #0284c7, #2563eb); font-weight: 700;" title="Busca CDI real (Banco Central) e o retorno do Ibovespa no mês corrente. IFIX precisa ser editado manualmente.">
+            <span>🌐 Atualizar CDI + Ibovespa Agora</span>
           </button>
         </div>
       </div>
@@ -3012,6 +3013,65 @@ const B3_DIVIDEND_CALENDAR = [
   { id: 'fii_knca11_2026_12', symbol: 'KNCA11', type: 'RENDIMENTO', dateCom: '2026-11-30', datePay: '2026-12-15', valUnit: 1, label: 'Rendimento Mensal 11/26' },
 ];
 
+// ==========================================
+// DATA AUDIT FIX: RECOMPUTE REAL DIVIDENDS FROM THE AUDITED CALENDAR
+// ==========================================
+// The static `dpa` (dividendo 12m) and `dpa5y` (media 5 anos) fields in
+// B3_FUNDAMENTAL_DB were found to diverge sharply from B3_DIVIDEND_CALENDAR
+// itself (ex: ABCB4 tinha dpa=0.70 estatico vs 2.70 real nos ultimos 12
+// meses de eventos auditados - quase 4x de diferenca) and dpa5y era, em
+// 57 dos 58 tickers, apenas uma copia do dpa do ultimo ano (nao uma media
+// historica real). Como o calendario de proventos e a unica fonte cujos
+// valores sao auditaveis eventos a evento, recalculamos aqui os dois
+// campos a partir dele, preservando o valor estatico original apenas como
+// fallback para tickers sem cobertura suficiente no calendario.
+(function enrichRealDividendsFromCalendar() {
+  const today = new Date();
+  const todayNum = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  const oneYearAgo = new Date(today);
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  const oneYearAgoNum = oneYearAgo.getFullYear() * 10000 + (oneYearAgo.getMonth() + 1) * 100 + oneYearAgo.getDate();
+
+  const ttmSum = {};
+  const yearSum = {};
+
+  B3_DIVIDEND_CALENDAR.forEach(ev => {
+    const parts = (ev.dateCom || '').split('-').map(Number);
+    if (parts.length !== 3 || !ev.symbol) return;
+    const [y, m, d] = parts;
+    const num = y * 10000 + m * 100 + d;
+    if (num > oneYearAgoNum && num <= todayNum) {
+      ttmSum[ev.symbol] = (ttmSum[ev.symbol] || 0) + ev.valUnit;
+    }
+    if (y < today.getFullYear()) {
+      if (!yearSum[ev.symbol]) yearSum[ev.symbol] = {};
+      yearSum[ev.symbol][y] = (yearSum[ev.symbol][y] || 0) + ev.valUnit;
+    }
+  });
+
+  Object.keys(B3_FUNDAMENTAL_DB).forEach(sym => {
+    const fund = B3_FUNDAMENTAL_DB[sym];
+    if (ttmSum[sym] > 0) {
+      fund.dpaStaticOriginal = fund.dpa;
+      fund.dpa = Math.round(ttmSum[sym] * 10000) / 10000;
+    }
+    const years = yearSum[sym] ? Object.keys(yearSum[sym]).map(Number).sort((a, b) => b - a).slice(0, 5) : [];
+    if (years.length >= 2) {
+      const avg = years.reduce((s, y) => s + yearSum[sym][y], 0) / years.length;
+      fund.dpa5y = Math.round(avg * 10000) / 10000;
+      fund.dpa5yYearsUsed = years.length;
+    }
+  });
+
+  // TRPL3/TRPL4: 'ey' (earnings yield) estava zerado por erro de preenchimento
+  // (a unit TRPL11 da mesma empresa tem ey correto). Sem uma formula
+  // recuperavel a partir dos demais campos (EY real = EBIT/EV, dado nao
+  // disponivel nesta base), marcamos como null (desconhecido) em vez de 0
+  // (zero yield), evitando exibir um numero especificamente errado.
+  if (B3_FUNDAMENTAL_DB.TRPL3) B3_FUNDAMENTAL_DB.TRPL3.ey = null;
+  if (B3_FUNDAMENTAL_DB.TRPL4) B3_FUNDAMENTAL_DB.TRPL4.ey = null;
+})();
+
 // ASSET CLASSIFICATION & DISPATCHER HELPERS
 function getAssetType(ticker) {
   const sym = (ticker || '').trim().toUpperCase();
@@ -3072,6 +3132,16 @@ function getAssetLogoHtml(symbol, size = 34) {
 }
 
 // CURATED FUNDAMENTAL DATABASE FOR REAL ESTATE FUNDS (FIIS & FIAGROS)
+// AVISO DE AUDITORIA: ao contrario de B3_FUNDAMENTAL_DB e B3_DIVIDEND_CALENDAR
+// (ambos com selo "100% Auditado - Fonte: Investidor10.com.br"), esta base de
+// FIIs nunca teve uma fonte declarada nem uma data de revisao registrada -
+// trate P/VP, DY e vacancia abaixo como curadoria manual nao auditada
+// automaticamente ate serem conferidos individualmente contra o Investidor10.
+const B3_FII_DB_META = {
+  source: 'Curadoria manual (sem confirmação automática externa)',
+  lastReview: '2026-08-25',
+  auditedLikeStocks: false
+};
 const B3_FII_DB = {
   'HGLG11': { name: 'CSHG Logística', segment: 'Logística / Galpões', category: 'TIJOLO', pvp: 0.98, dy12m: 8.85, lastDividend: 1.10, netWorth: 5.3, vacancyPhysical: 3.2, vacancyFinancial: 1.5, manager: 'Credit Suisse / Pátria', cnpj: '11.728.688/0001-47', cvmCode: '013919', riUrl: 'https://www.cshg.com.br' },
   'BTLG11': { name: 'BTG Pactual Logística', segment: 'Logística / Galpões', category: 'TIJOLO', pvp: 0.99, dy12m: 9.20, lastDividend: 0.78, netWorth: 4.5, vacancyPhysical: 2.8, vacancyFinancial: 1.2, manager: 'BTG Pactual Asset', cnpj: '13.111.770/0001-30', cvmCode: '019186', riUrl: 'https://www.btgpactual.com' },
@@ -3191,7 +3261,10 @@ const AppState = {
   dividendAlertDays: parseInt(localStorage.getItem('b3_dividend_alert_days') || '3'),
   triggeredDividendAlerts: JSON.parse(localStorage.getItem('b3_triggered_div_alerts') || '[]'),
   firebaseConfig: JSON.parse(localStorage.getItem('b3_firebase_config') || 'null'),
-  cloudUser: null
+  cloudUser: null,
+  lastDailyRefresh: localStorage.getItem('b3_last_daily_refresh') || null,
+  liveFundamentals: JSON.parse(localStorage.getItem('b3_live_fundamentals') || '{}'),
+  currentSelic: JSON.parse(localStorage.getItem('b3_current_selic') || 'null')
 };
 
 // ==========================================
@@ -3254,7 +3327,8 @@ function openAuditModal(ticker) {
   const precoTetoProj = fund.dpaProj > 0 ? (fund.dpaProj / 0.06) : price;
   const margin5y = precoTeto5y > 0 ? ((precoTeto5y - price) / precoTeto5y) * 100 : 0;
   const marginProj = precoTetoProj > 0 ? ((precoTetoProj - price) / precoTetoProj) * 100 : 0;
-  const lpa = fund.lpa || (fund.netIncome && fund.shares ? (fund.netIncome / fund.shares) : 0);
+  const effFund = getEffectiveFundamentals(t, fund);
+  const lpa = effFund.lpa || (fund.netIncome && fund.shares ? (fund.netIncome / fund.shares) : 0);
   const dyProj = price > 0 && fund.dpaProj ? (fund.dpaProj / price) * 100 : 6.0;
   const dy5y = price > 0 && fund.dpa5y ? (fund.dpa5y / price) * 100 : 6.0;
 
@@ -3338,7 +3412,7 @@ function openAuditModal(ticker) {
             </tr>
             <tr>
               <td class="audit-lbl">Payout Médio (% Lucro):</td>
-              <td class="audit-val">${fund.payout || 50}%</td>
+              <td class="audit-val">${fund.payout || 50}%${fund.payout > 100 ? ' <span class="status-pill warn" style="font-size:10px;" title="Empresa distribuiu mais do que o lucro do período (comum em holdings com equivalência patrimonial ou anos atípicos) — confirme na fonte antes de projetar.">acima de 100%</span>' : ''}</td>
             </tr>
             <tr>
               <td class="audit-lbl">DPA Projetado (LPA × Payout):</td>
@@ -3394,7 +3468,7 @@ function openAuditModal(ticker) {
       </div>
       <div class="grid grid-4" style="margin-top: 10px; gap: 10px;">
         <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
-          <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">P/L</span>
+          <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">P/L ${effFund.isLive ? '<span class="status-pill good" style="font-size:9px;padding:1px 6px;" title="LPA obtido ao vivo hoje via brapi.dev">AO VIVO</span>' : ''}</span>
           <strong style="font-size: 14px; font-family: monospace; color: #fff;">${(lpa > 0 && price > 0) ? (price / lpa).toFixed(2) : (fund.pl ? fund.pl.toFixed(2) : '—')}</strong>
         </div>
         <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
@@ -3411,7 +3485,7 @@ function openAuditModal(ticker) {
         </div>
         <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">Margem Líquida</span>
-          <strong style="font-size: 14px; font-family: monospace; color: #fff;">${fund.margemLiq ? fund.margemLiq.toFixed(2) + '%' : '—'}</strong>
+          <strong style="font-size: 14px; font-family: monospace; color: #fff;" title="${fund.margemLiq > 100 ? 'Margem acima de 100% é comum em holdings com forte equivalência patrimonial (ex: participação em outras empresas) — não é um erro de cadastro.' : ''}">${fund.margemLiq ? fund.margemLiq.toFixed(2) + '%' : '—'}${fund.margemLiq > 100 ? ' ⓘ' : ''}</strong>
         </div>
         <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">Dív. Líq. / EBITDA</span>
@@ -3848,26 +3922,58 @@ async function fetchLiveBenchmarkUpdates(silent = false) {
       console.log('BCB fetch fallback:', e);
     }
 
-    // 2. MAIS RETORNO & STATUS INVEST CORS PROXY / PARSER
+    // 2. IBOVESPA - RETORNO DO MES CORRENTE (brapi.dev, nivel do indice ao vivo)
+    // Nao existe fonte gratuita que devolva o retorno percentual mensal do
+    // Ibovespa pronto (como a serie do BCB faz para o CDI). Em vez disso,
+    // comparamos o nivel de hoje com o nivel do indice no primeiro dia em
+    // que esta funcao rodou no mes corrente (guardado localmente como
+    // "abertura do mes"). Meses ja fechados (conferidos manualmente contra
+    // o Mais Retorno) NUNCA sao sobrescritos - so o mes em andamento muda.
     try {
-      const mrUrls = [
-        { key: 'ibov', url: 'https://statusinvest.com.br/indices/ibovespa' },
-        { key: 'ifix', url: 'https://statusinvest.com.br/indices/ifix' }
-      ];
-      for (const target of mrUrls) {
-        try {
-          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(target.url)}`;
-          const proxyRes = await fetch(proxyUrl);
-          if (proxyRes.ok) {
-            const data = await proxyRes.json();
-            if (data.contents) {
-              // Parse simple percentage matches for month
-              // The matrix will safely keep user/verified numbers if parsing structure differs
-            }
+      const ibovRes = await fetch(`https://brapi.dev/api/quote/%5EBVSP?token=${AppState.token}`, { cache: 'no-cache' });
+      if (ibovRes.ok) {
+        const ibovData = await ibovRes.json();
+        const level = ibovData?.results?.[0]?.regularMarketPrice;
+        if (level > 0) {
+          const now = new Date();
+          const y = now.getFullYear();
+          const mIdx = now.getMonth();
+          let baseline = null;
+          try { baseline = JSON.parse(localStorage.getItem('b3_ibov_month_open') || 'null'); } catch (_) {}
+          if (!baseline || baseline.year !== y || baseline.month !== mIdx) {
+            baseline = { year: y, month: mIdx, level };
+            localStorage.setItem('b3_ibov_month_open', JSON.stringify(baseline));
           }
-        } catch (_) {}
+          const mtdReturn = ((level / baseline.level) - 1) * 100;
+          if (matrix.ibov[y]) {
+            matrix.ibov[y][mIdx] = Math.round(mtdReturn * 100) / 100;
+            updatedCount++;
+          }
+        }
       }
-    } catch (_) {}
+    } catch (e) {
+      console.log('IBOV live fetch fallback:', e);
+    }
+
+    // 3. SELIC META (BCB SGS 432) - valor de referencia exibido na UI,
+    // nao faz parte da matriz mensal de benchmarks.
+    try {
+      const selicRes = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', { cache: 'no-cache' });
+      if (selicRes.ok) {
+        const selicData = await selicRes.json();
+        if (Array.isArray(selicData) && selicData[0]) {
+          AppState.currentSelic = { value: parseFloat(selicData[0].valor), date: selicData[0].data };
+          localStorage.setItem('b3_current_selic', JSON.stringify(AppState.currentSelic));
+        }
+      }
+    } catch (e) {
+      console.log('Selic fetch fallback:', e);
+    }
+
+    // NOTA IFIX: nenhuma fonte gratuita e confiavel foi encontrada (o
+    // scraper anterior via proxy CORS + StatusInvest nunca teve o parser
+    // implementado e foi removido). IFIX continua exigindo atualizacao
+    // manual pelo Editor de Benchmarks.
 
     saveBenchmarkMatrix(matrix);
     setBenchmarkTimeframe(AppState.activeBenchmarkTf || '12m');
@@ -3877,17 +3983,80 @@ async function fetchLiveBenchmarkUpdates(silent = false) {
     }
 
     if (!silent) {
-      showToast(updatedCount > 0 ? `🎉 Tabela atualizada com dados do Banco Central e Mais Retorno!` : `✅ Tabela já está com os dados mais recentes auditados.`, 'success');
+      showToast(updatedCount > 0 ? `🎉 CDI e Ibovespa atualizados com dados do Banco Central e da B3!` : `✅ CDI e Ibovespa já estão com os dados mais recentes.`, 'success');
     }
   } catch (err) {
     console.error('Error fetching live benchmarks:', err);
-    if (!silent) showToast('Não foi possível conectar ao Mais Retorno. Verifique sua conexão.', 'warn');
+    if (!silent) showToast('Não foi possível conectar ao Banco Central/brapi.dev. Verifique sua conexão.', 'warn');
   } finally {
     if (btn && !silent) {
       btn.disabled = false;
-      btn.innerHTML = `<span>🌐 Atualizar via Internet (Scraper)</span>`;
+      btn.innerHTML = `<span>🌐 Atualizar CDI + Ibovespa Agora</span>`;
     }
   }
+}
+
+// ================================================================
+// DAILY DATA REFRESH (ATENDE AO REQUISITO: DADOS ATUALIZADOS 1X/DIA)
+// ================================================================
+// Nao ha necessidade de tempo real, mas os dados nao podem depender so de
+// um desenvolvedor reescrever o codigo-fonte manualmente. Esta rotina roda
+// uma vez por dia (comparando a data salva com a de hoje) e atualiza: CDI
+// e Ibovespa (via fetchLiveBenchmarkUpdates, ja corrigido), Selic (contexto),
+// e o P/L e LPA "ao vivo" de cada ativo favoritado (via brapi.dev) - o
+// principal motivo dos commits manuais recorrentes de "Update B3_FUNDAMENTAL_DB".
+async function checkAndRunDailyRefresh() {
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (AppState.lastDailyRefresh === todayStr) return; // ja rodou hoje
+
+  try { await fetchLiveBenchmarkUpdates(true); } catch (e) { console.warn('Daily refresh (benchmarks):', e); }
+  try { await refreshLiveFundamentalsForFavorites(); } catch (e) { console.warn('Daily refresh (fundamentals):', e); }
+
+  AppState.lastDailyRefresh = todayStr;
+  localStorage.setItem('b3_last_daily_refresh', todayStr);
+  renderDataFreshnessStatus();
+}
+
+// Busca P/L e LPA reais via brapi.dev (plano gratuito ja devolve
+// priceEarnings/earningsPerShare) para cada ticker favoritado, guardando
+// em AppState.liveFundamentals - usado como fonte preferencial nas telas
+// de auditoria/favoritos, com fallback para os campos estaticos do
+// B3_FUNDAMENTAL_DB quando a API nao retorna dado para o ticker.
+async function refreshLiveFundamentalsForFavorites() {
+  const tickers = [...new Set([...(AppState.favorites || []), ...(AppState.trades || []).map(t => t.symbol)])]
+    .filter(sym => !isFII(sym));
+  const nowIso = new Date().toISOString();
+  for (const sym of tickers) {
+    try {
+      const q = await StockAPI.getSingleQuote(sym);
+      if (q && q.priceEarnings > 0 && q.earningsPerShare > 0) {
+        AppState.liveFundamentals[sym] = { pl: q.priceEarnings, lpa: q.earningsPerShare, updatedAt: nowIso };
+      }
+    } catch (e) { /* mantem o dado estatico para este ticker */ }
+  }
+  localStorage.setItem('b3_live_fundamentals', JSON.stringify(AppState.liveFundamentals));
+}
+
+// Retorna { lpa, pl, isLive } preferindo o dado ao vivo do dia (brapi.dev)
+// sobre o campo estatico auditado manualmente.
+function getEffectiveFundamentals(ticker, fund) {
+  const live = AppState.liveFundamentals[ticker];
+  if (live && live.lpa > 0) return { lpa: live.lpa, pl: live.pl, isLive: true, updatedAt: live.updatedAt };
+  return { lpa: fund?.lpa || 0, pl: fund?.pl || 0, isLive: false };
+}
+
+function renderDataFreshnessStatus() {
+  const el = document.getElementById('data-freshness-status');
+  if (!el) return;
+  const refreshDate = AppState.lastDailyRefresh ? new Date(AppState.lastDailyRefresh + 'T00:00:00').toLocaleDateString('pt-BR') : 'nunca';
+  const selicTxt = AppState.currentSelic ? `Selic: <strong>${NumFmt.num(AppState.currentSelic.value, 2)}%</strong> (${AppState.currentSelic.date})` : 'Selic: —';
+  const liveCount = Object.keys(AppState.liveFundamentals || {}).length;
+  el.innerHTML = `
+    📅 CDI/Ibovespa/P&L de favoritos atualizados em: <strong>${refreshDate}</strong>
+    &nbsp;|&nbsp; ${selicTxt}
+    &nbsp;|&nbsp; ${liveCount} ativo(s) com P/L ao vivo
+    &nbsp;|&nbsp; <button class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px;" onclick="AppState.lastDailyRefresh=null; checkAndRunDailyRefresh().then(()=>showToast('Dados do dia atualizados!','success'));">🔄 Forçar Atualização</button>
+  `;
 }
 
 // ================================================================
@@ -4425,7 +4594,7 @@ async function renderFavoritesView() {
 
     let valuationHtml = '—';
     if (fund && fund.dpa && fund.payout && price > 0) {
-      const lpa = fund.lpa || (fund.dpa / (fund.payout / 100));
+      const lpa = getEffectiveFundamentals(sym, fund).lpa || (fund.dpa / (fund.payout / 100));
       if (lpa > 0) valuationHtml = `<span class="text-mono" style="font-weight:600;">P/L: ${NumFmt.num(price / lpa, 1)}x</span>`;
     } else {
       valuationHtml = `<span class="text-mono" style="font-weight:600;">P/VP: ${fund?.pvp ? NumFmt.num(fund.pvp, 1) + 'x' : '—'}</span>`;
@@ -5201,6 +5370,11 @@ function openFiiAuditModal(ticker) {
         </button>
       </div>
     </div>
+
+    ${!B3_FII_DB[t] ? '' : `
+    <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 16px; font-size: 12px; color: var(--yellow);">
+      ⚠️ P/VP, DY e vacância desta base são <strong>curadoria manual</strong> (${B3_FII_DB_META.source}), última revisão em ${new Date(B3_FII_DB_META.lastReview + 'T00:00:00').toLocaleDateString('pt-BR')} — diferente das ações, não passam por auditoria automática. Confirme no Investidor10 antes de decisões importantes.
+    </div>`}
 
     <!-- 4 KEY KPI CARDS -->
     <div class="audit-kpi-grid">
@@ -9355,6 +9529,7 @@ function loadConfigValues() {
   renderNotificationStatus();
   renderPriceAlertsList();
   renderCloudSyncStatus();
+  renderDataFreshnessStatus();
 }
 
 function toggleAiModeFields() {
@@ -10180,6 +10355,9 @@ async function initApp() {
   // Reconnect to previously configured cloud sync (if any) and re-check alerts periodically
   try { initFirebaseIfConfigured(); } catch (e) {}
   setInterval(() => { checkAlerts().catch(() => {}); }, 5 * 60 * 1000);
+
+  // Atualizacao diaria de CDI/Ibovespa/Selic/P-L dos favoritos (nao-bloqueante)
+  try { checkAndRunDailyRefresh().catch(err => console.warn('Daily refresh:', err)); } catch (e) {}
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
