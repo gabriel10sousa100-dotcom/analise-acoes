@@ -588,7 +588,7 @@
       <div class="view-panel active" id="panel-favoritos">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
           <div>
-            <h1 class="page-title" style="margin-bottom: 0;">⭐ Meus Ativos Favoritos</h1>
+            <h1 class="page-title" style="margin-bottom: 0;">Favoritos</h1>
           </div>
           <div style="display: flex; gap: 8px; align-items: stretch;">
             <input type="text" class="input-field input-mono" id="add-favorite-input" placeholder="Ticker (ex: WEGE3 ou HGLG11)" oninput="updateAddFavoriteBtnState()" style="width: 170px; height: 38px; font-size: 13px; padding: 0 12px;">
@@ -798,8 +798,7 @@
       <div class="view-panel" id="panel-calendario">
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
           <div>
-            <h1 class="page-title">📅 Calendário de Proventos (Próximos 12 Meses)</h1>
-            <p class="page-desc" style="margin-bottom:0">Acompanhe as datas de corte (Data Com) e pagamentos previstos para os próximos 12 meses das ações e fundos favoritos e da sua carteira.</p>
+            <h1 class="page-title" style="margin-bottom:0">Calendário de Proventos</h1>
           </div>
           <div style="display: flex; gap: 8px;">
             <input type="text" class="input-field input-mono" id="cal-filter-input" placeholder="🔍 Filtrar ativo (ex: TAEE4, BBAS3, HGLG11)..." oninput="filterCalendarView()" style="width: 280px;">
@@ -854,8 +853,7 @@
       <!-- TAB 4: GRÁFICO & ANÁLISE TÉCNICA          -->
       <!-- ========================================== -->
       <div class="view-panel" id="panel-grafico">
-        <h1 class="page-title">Gráfico & Análise Detalhada</h1>
-        <p class="page-desc">Histórico de preços em candlestick com volume, múltiplos e links de validação externa.</p>
+        <h1 class="page-title" style="margin-bottom:0">Análise Detalhada</h1>
 
         <!-- STOCK HEADER -->
         <div id="chart-stock-header"></div>
