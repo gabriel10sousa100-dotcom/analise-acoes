@@ -3117,9 +3117,19 @@ const B3_DIVIDEND_CALENDAR = [
   if (B3_FUNDAMENTAL_DB.TRPL4) B3_FUNDAMENTAL_DB.TRPL4.ey = null;
 })();
 
+// ETFs negociados como "11" na B3 - nao sao FIIs (sem cotas/vacancia/gestora
+// imobiliaria) e tem paginas proprias no Status Invest e no Investidor10
+// (/etfs/, nao /acoes/ ou /fundos-imobiliarios/). Tratados como STOCK abaixo.
+const B3_ETF_LIST = ['HASH11', 'XFIX11', 'IVVB11', 'BOVA11'];
+
+function isETF(ticker) {
+  return B3_ETF_LIST.includes((ticker || '').trim().toUpperCase());
+}
+
 // ASSET CLASSIFICATION & DISPATCHER HELPERS
 function getAssetType(ticker) {
   const sym = (ticker || '').trim().toUpperCase();
+  if (isETF(sym)) return 'STOCK';
   if (B3_FII_DB[sym]) return 'FII';
   if (sym.endsWith('11') && !['TAEE11', 'TRPL11', 'SAPR11', 'KLBN11', 'ALUP11', 'SANB11', 'TIET11', 'ISAE11'].includes(sym)) {
     return 'FII';
@@ -3150,10 +3160,10 @@ const LOGO_ALIASES = {
 // a devolver o MESMO svg placeholder da gestora "iShares", sem distincao entre
 // os dois fundos). Icones proprios, no estilo visual do app, para esses casos.
 const CUSTOM_ETF_ICONS = {
-  'HASH11': './icon-etf-hash11.png',
-  'XFIX11': './icon-etf-xfix11.png',
-  'IVVB11': './icon-etf-ivvb11.png',
-  'BOVA11': './icon-etf-bova11.png'
+  'HASH11': './icon-etf-generic.png',
+  'XFIX11': './icon-etf-generic.png',
+  'IVVB11': './icon-etf-generic.png',
+  'BOVA11': './icon-etf-generic.png'
 };
 
 function getAssetLogoHtml(symbol, size = 34) {
@@ -3365,6 +3375,14 @@ function getExternalLinks(ticker) {
   const t = ticker.toUpperCase();
   const lower = ticker.toLowerCase();
   const fund = B3_FUNDAMENTAL_DB[t];
+  if (isETF(t)) {
+    return {
+      statusInvest: `https://statusinvest.com.br/etfs/${lower}`,
+      investidor10: `https://investidor10.com.br/etfs/${lower}/`,
+      riUrl: '',
+      tradingView: `https://www.tradingview.com/chart/?symbol=BMFBOVESPA%3A${t}`
+    };
+  }
   return {
     statusInvest: `https://statusinvest.com.br/acoes/${lower}`,
     investidor10: `https://investidor10.com.br/acoes/${lower}/`,
@@ -3572,9 +3590,14 @@ function openAuditModal(ticker) {
         🌐 Portais Oficiais para Validação e Auditoria da Ação:
       </span>
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <a href="${links.riUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center;">🌐 RI Oficial da Empresa</a>
+        ${links.riUrl ? `<a href="${links.riUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center;">🌐 RI Oficial da Empresa</a>` : ''}
+        ${isETF(t) ? `
+        <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(21, 128, 61, 0.4); color: #15803d;">🔟 Investidor10 (prioritário p/ ETFs)</a>
+        <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(15, 107, 76, 0.4); color: #0f6b4c;">📊 Status Invest</a>
+        ` : `
         <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(15, 107, 76, 0.4); color: #0f6b4c;">📊 Status Invest</a>
         <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; border-color: rgba(21, 128, 61, 0.4); color: #15803d;">🔟 Investidor10</a>
+        `}
       </div>
     </div>
   `;
@@ -7787,9 +7810,14 @@ async function analyzeBarsiTicker() {
             🔗 Validar Balanço, DRE & Histórico nos Portais Oficiais:
           </span>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <a href="${links.riUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center;">🌐 RI Oficial da Empresa</a>
+            ${links.riUrl ? `<a href="${links.riUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center;">🌐 RI Oficial da Empresa</a>` : ''}
+            ${isETF(ticker) ? `
+            <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: #15803d; border-color: rgba(21, 128, 61, 0.4);">🔟 Investidor10</a>
+            <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: #0f6b4c; border-color: rgba(15, 107, 76, 0.4);">📊 Status Invest</a>
+            ` : `
             <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: #0f6b4c; border-color: rgba(15, 107, 76, 0.4);">📊 Status Invest</a>
             <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: #15803d; border-color: rgba(21, 128, 61, 0.4);">🔟 Investidor10</a>
+            `}
             <button class="btn btn-primary btn-sm" style="flex: 1;" onclick="openAuditModal('${ticker}')">🔍 Ver Balanço & Auditoria</button>
             <button class="btn btn-secondary btn-sm" style="flex: 1;" onclick="openAllAuditLinks('${ticker}')">⚡ Abrir Todos os Links</button>
           </div>
@@ -9258,9 +9286,14 @@ async function renderStockChart(ticker, range = '1y', interval = '1d') {
             <div style="margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap;">
               ${favBtnHtml}
               <button class="btn btn-secondary btn-sm" onclick="openAuditModal('${ticker}')">🔍 Validar Dados</button>
-              <a href="${links.riUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">🌐 RI Oficial</a>
+              ${links.riUrl ? `<a href="${links.riUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">🌐 RI Oficial</a>` : ''}
+              ${isETF(ticker) ? `
+              <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="color: #15803d; border-color: rgba(21, 128, 61, 0.4);">🔟 Investidor10</a>
+              <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="color: #0f6b4c; border-color: rgba(15, 107, 76, 0.4);">📊 Status Invest</a>
+              ` : `
               <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="color: #0f6b4c; border-color: rgba(15, 107, 76, 0.4);">📊 Status Invest</a>
               <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="color: #15803d; border-color: rgba(21, 128, 61, 0.4);">🔟 Investidor10</a>
+              `}
             </div>
           </div>
         </div>
