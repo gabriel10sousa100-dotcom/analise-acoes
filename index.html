@@ -893,12 +893,6 @@
           </div>
         </div>
 
-        <!-- FUNDAMENTAL METRICS GRID -->
-        <div class="card" style="margin-bottom: 20px;" id="chart-fundamentals-box">
-          <div class="card-title" style="margin-bottom: 16px;">📊 Raio-X Fundamentalista</div>
-          <div class="grid grid-4" id="chart-metrics-grid"></div>
-        </div>
-
         <!-- COMPANY PROFILE & DESCRIPTION -->
         <div class="card" id="chart-profile-box" style="display: none;">
           <div class="card-title" style="margin-bottom: 12px;">🏢 Sobre a Companhia</div>
@@ -9458,7 +9452,6 @@ async function renderStockChart(ticker, range = '1y', interval = '1d') {
   AppState.activeChartTicker = ticker;
   const headerBox = document.getElementById('chart-stock-header');
   const chartBox = document.getElementById('tradingview-chart-box');
-  const metricsGrid = document.getElementById('chart-metrics-grid');
 
   chartBox.innerHTML = `<div class="state-box" style="height:440px"><div class="spinner-ring"></div><div class="state-title">Carregando gráfico de ${ticker}...</div></div>`;
 
@@ -9559,42 +9552,6 @@ async function renderStockChart(ticker, range = '1y', interval = '1d') {
       }
       AppState.tvChart = chart;
     }
-
-    let metrics;
-    if (isETF(ticker)) {
-      const etf = B3_ETF_DB[ticker.toUpperCase()];
-      const liq = getDailyLiquidityBRL(ticker);
-      metrics = [
-        { l: 'Índice Seguido', v: etf?.benchmarkIndex || '—', sub: etf ? `Provedor: ${etf.indexProvider}` : 'Sem ficha curada' },
-        { l: 'Taxa de Administração', v: etf ? NumFmt.num(etf.expenseRatio, 2) + '% a.a.' : '—', sub: 'Custo recorrente do fundo' },
-        { l: 'Patrimônio Líquido', v: etf ? NumFmt.compact(etf.aum * 1e6) : '—', sub: 'PL total do ETF' },
-        { l: 'Liquidez (dia)', v: liq != null ? NumFmt.compact(liq) : '—', sub: liq != null && liq >= LIQUIDITY_ADEQUATE_THRESHOLD_BRL ? 'Adequada (> R$ 500 mil)' : 'Abaixo da referência de R$ 500 mil' },
-        { l: 'Gestor', v: etf?.manager || '—', sub: etf ? `Administrador: ${etf.administrator}` : '—' },
-        { l: 'Método de Réplica', v: '—', sub: 'Não encontrado em nenhuma fonte checada' }
-      ];
-    } else {
-      const plVal = fund?.dpa && fund?.payout && price > 0 ? NumFmt.num(price / (fund.dpa / (fund.payout / 100))) + 'x' : '—';
-      const pvpVal = fund?.pvp ? NumFmt.num(fund.pvp) + 'x' : '—';
-      const roeVal = fund?.roe ? NumFmt.num(fund.roe) + '%' : '—';
-      const dyVal = fund?.dpa && price > 0 ? NumFmt.num((fund.dpa / price) * 100) + '%' : '—';
-
-      metrics = [
-        { l: 'P/L (Preço / Lucro)', v: plVal, sub: 'Tempo de retorno pelo lucro' },
-        { l: 'P/VP (Preço / Patrimônio)', v: pvpVal, sub: 'Preço em relação aos bens' },
-        { l: 'ROE (Rentabilidade)', v: roeVal, sub: 'Retorno sobre patrimônio' },
-        { l: 'Dividend Yield (12m)', v: dyVal, sub: 'Rendimento em proventos' },
-        { l: 'DPA Médio (5 Anos)', v: fund?.dpa5y ? NumFmt.money(fund.dpa5y) : '—', sub: 'Média de proventos 5 anos' },
-        { l: 'Preço Teto Barsi (5 Anos)', v: fund?.dpa5y ? NumFmt.money(fund.dpa5y / 0.06) : '—', sub: 'Teto para 6% de DY (5A)' }
-      ];
-    }
-
-    metricsGrid.innerHTML = metrics.map(m => `
-      <div class="stat-card">
-        <span class="stat-label">${m.l}</span>
-        <div class="stat-val" style="font-size: 19px;">${m.v}</div>
-        <div class="stat-meta">${m.sub}</div>
-      </div>
-    `).join('');
 
   } catch (e) {
     chartBox.innerHTML = `<div class="state-box"><div class="state-icon">⚠️</div><div class="state-title">Erro ao carregar ativo</div><div class="state-desc">${e.message}</div></div>`;
