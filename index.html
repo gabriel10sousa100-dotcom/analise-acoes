@@ -2214,6 +2214,37 @@ const B3_FUNDAMENTAL_DB = {
   'VIVT3': { netIncome: 6.61, shares: 3.2265, totalShares: 3226546000, lpa: 2.05, vpa: 20.34, pl: 14.67, pvp: 1.47, roe: 10.05, roic: 10.98, margemLiq: 10.68, divLiqEbitda: 0.43, payout: 121.75, dpa: 1.447, dpa5y: 1.447, dpaProj: 2.4959, divYears: 20, ey: 4.83, sector: 'Telecom', name: 'Vivo Telefônica ON', cnpj: '02.558.157/0001-62', cvmCode: '017671', riUrl: 'https://ri.telefonica.com.br' },
   'WEGE3': { netIncome: 6.67, shares: 4.1973, totalShares: 4197317000, lpa: 1.49, vpa: 4.49, pl: 33.27, pvp: 11.03, roe: 33.16, roic: 27.19, margemLiq: 15.58, divLiqEbitda: -0.42, payout: 65.51, dpa: 2.0263, dpa5y: 2.0263, dpaProj: 0.9761, divYears: 20, ey: 4.09, sector: 'Bens Industriais', name: 'WEG ON', cnpj: '84.429.695/0001-11', cvmCode: '014753', riUrl: 'https://ri.weg.net' },
   'WIZC3': { netIncome: 0.3464, shares: 0.1599, totalShares: 159907000, lpa: 1.24, vpa: 4.63, pl: 6.25, pvp: 1.67, roe: 26.78, roic: 34.87, margemLiq: 15.57, divLiqEbitda: -0.03, payout: 45.65, dpa: 0.7695, dpa5y: 0.7695, dpaProj: 0.5661, divYears: 9, ey: 8.22, sector: 'Seguros', name: 'Wiz Co ON', cnpj: '42.278.473/0001-03', cvmCode: '023663', riUrl: 'https://ri.wiz.co' },
+
+  // =====================================================================
+  // ADICIONADOS EM 2026-09-07: tickers presentes em DEFAULT_FAVORITES que
+  // não tinham ficha cadastrada e caíam no fallback genérico (números de
+  // placeholder exibidos como se fossem reais). Fonte: investidor10.com.br
+  // (fetch direto) + CNPJ/Código CVM via CVM/B3 (rad.cvm.gov.br, bvmf).
+  // netIncome/shares/totalShares e divYears não localizados com confiança
+  // ficam como null (renderiza "—"), exceto BAZA3/BRST3 onde foram
+  // derivados de LPA × nº de ações (fonte de nº de ações confirmada).
+  // AMBP3 (Ambipar) está em recuperação judicial — dados refletem esse
+  // cenário de estresse (ROE, margem e P/L negativos); mantenha em mente
+  // ao decidir se este ativo deve continuar como favorito padrão do app.
+  // NEMO3 (Suzano Holding) apresenta DY/payout fortemente distorcidos por
+  // um evento pontual e a própria investidor10 sinaliza o ativo como não
+  // disponível para investimento — payout/dpa/dpaProj ficam null (em vez
+  // de propagar o número distorcido) até confirmação manual.
+  // =====================================================================
+  'AMBP3': { netIncome: null, shares: null, totalShares: null, lpa: -0.15, vpa: 0.65, pl: -0.91, pvp: 0.21, roe: -23.47, roic: 9.70, margemLiq: -3.54, divLiqEbitda: 3, payout: 0, dpa: 0, dpa5y: null, dpaProj: 0, divYears: null, ey: -107.14, sector: 'Serviços Ambientais', name: 'Ambipar Participações e Empreendimentos ON (em recuperação judicial)', cnpj: '12.648.266/0001-24', cvmCode: '002496' },
+  'AURE3': { netIncome: null, shares: null, totalShares: null, lpa: -1.04, vpa: 10.96, pl: -11.57, pvp: 1.10, roe: -9.47, roic: 3.84, margemLiq: -8.09, divLiqEbitda: 6.34, payout: 0, dpa: 0, dpa5y: null, dpaProj: 0, divYears: null, ey: -8.67, sector: 'Energia', name: 'Auren Energia ON', cnpj: '28.594.234/0001-23', cvmCode: '002662', riUrl: 'https://ri.aurenenergia.com.br' },
+  'AXIA3': { netIncome: null, shares: null, totalShares: null, lpa: 4.10, vpa: 41.53, pl: 13.49, pvp: 1.33, roe: 9.86, roic: -0.30, margemLiq: 27.06, divLiqEbitda: 2.74, payout: 29.13, dpa: 1.89, dpa5y: null, dpaProj: 1.89, divYears: null, ey: 7.42, sector: 'Energia', name: 'Axia Energia ON (ex-Eletrobras)', cnpj: '00.001.180/0001-26', cvmCode: '002437' },
+  'BAZA3': { netIncome: 0.88, shares: 0.0561, totalShares: 56060000, lpa: 15.76, vpa: 129.76, pl: 4.33, pvp: 0.53, roe: 12.14, roic: -9.21, margemLiq: 12.85, divLiqEbitda: null, payout: 76.04, dpa: 11.98, dpa5y: null, dpaProj: 11.98, divYears: null, ey: 23.13, sector: 'Bancos', name: 'Banco da Amazônia ON', cnpj: '04.902.979/0001-44', cvmCode: '000922', riUrl: 'https://ri.bancoamazonia.com.br' },
+  'BRST3': { netIncome: 0.0594, shares: 0.4243, totalShares: 424300000, lpa: 0.14, vpa: 3.6, pl: 20.77, pvp: 0.78, roe: 3.77, roic: 6.37, margemLiq: 3.29, divLiqEbitda: 2.16, payout: 30.26, dpa: 0.04, dpa5y: null, dpaProj: 0.04, divYears: null, ey: 4.96, sector: 'Telecom', name: 'Brisanet Serviços de Telecomunicações ON', cnpj: '04.601.397/0001-28', cvmCode: '026085' },
+  'BSLI4': { netIncome: null, shares: null, totalShares: null, lpa: 1.51, vpa: 8.2, pl: 1.72, pvp: 0.32, roe: 18.40, roic: 24.27, margemLiq: 6.74, divLiqEbitda: null, payout: 19.96, dpa: 0.30, dpa5y: null, dpaProj: 0.30, divYears: null, ey: 58.08, sector: 'Bancos', name: 'BRB Banco de Brasília PN', cnpj: '00.000.208/0001-00', cvmCode: '014206' },
+  'CEEB3': { netIncome: null, shares: null, totalShares: null, lpa: 5.69, vpa: 33.17, pl: 8.29, pvp: 1.42, roe: 17.16, roic: 13.16, margemLiq: 7.70, divLiqEbitda: 3.61, payout: 99.91, dpa: 5.83, dpa5y: null, dpaProj: 5.83, divYears: null, ey: 12.06, sector: 'Energia', name: 'Coelba ON', cnpj: '15.139.629/0001-94', cvmCode: '014524' },
+  'CLSC4': { netIncome: null, shares: null, totalShares: null, lpa: 22.69, vpa: 109.62, pl: 6.92, pvp: 1.43, roe: 20.70, roic: 12.52, margemLiq: 6.99, divLiqEbitda: 2.75, payout: 48.19, dpa: 13.25, dpa5y: null, dpaProj: 13.25, divYears: null, ey: 14.45, sector: 'Energia', name: 'Celesc PNB', cnpj: '83.878.892/0001-55', cvmCode: '002461', riUrl: 'https://ri.celesc.com.br' },
+  'DESK3': { netIncome: null, shares: null, totalShares: null, lpa: 0.48, vpa: 12.30, pl: 39.22, pvp: 1.53, roe: 3.91, roic: 11.19, margemLiq: 4.40, divLiqEbitda: 1.97, payout: 21.30, dpa: 0.10, dpa5y: null, dpaProj: 0.10, divYears: null, ey: 2.55, sector: 'Telecom', name: 'Desktop ON', cnpj: '08.170.849/0001-15', cvmCode: '026026', riUrl: 'https://www.ri.desktop.com.br' },
+  'EALT4': { netIncome: null, shares: null, totalShares: null, lpa: 2.55, vpa: 16.27, pl: 4.39, pvp: 0.69, roe: 15.66, roic: 3.00, margemLiq: 10.93, divLiqEbitda: 1.78, payout: 36, dpa: 1.01, dpa5y: null, dpaProj: 1.01, divYears: null, ey: 22.79, sector: 'Bens Industriais', name: 'Electro Aço Altona PN', cnpj: '82.643.537/0001-34', cvmCode: '005380' },
+  'EMBJ3': { netIncome: null, shares: null, totalShares: null, lpa: 3.15, vpa: 24.18, pl: 30.20, pvp: 3.93, roe: 13.01, roic: 11.09, margemLiq: 5.28, divLiqEbitda: 0.3, payout: 23.09, dpa: 0.73, dpa5y: null, dpaProj: 0.73, divYears: null, ey: 3.32, sector: 'Bens Industriais', name: 'Embraer ON', cnpj: '07.689.002/0001-89', cvmCode: '020087', riUrl: 'https://ri.embraer.com.br' },
+  'FIQE3': { netIncome: null, shares: null, totalShares: null, lpa: 0.56, vpa: 3.05, pl: 8.78, pvp: 1.62, roe: 18.40, roic: 12.24, margemLiq: 17.16, divLiqEbitda: 0.60, payout: 34.51, dpa: 0.19, dpa5y: null, dpaProj: 0.19, divYears: null, ey: 11.38, sector: 'Telecom', name: 'Unifique Telecomunicações ON', cnpj: '02.255.187/0001-08', cvmCode: '002605' },
+  'MBRF3': { netIncome: null, shares: null, totalShares: null, lpa: 0.26, vpa: 8.25, pl: 66.93, pvp: 2.15, roe: 3.20, roic: 5.92, margemLiq: 0.22, divLiqEbitda: 3.96, payout: 0, dpa: 0, dpa5y: null, dpaProj: 0, divYears: null, ey: 1.47, sector: 'Alimentos', name: 'Marfrig Global Foods ON (pós-fusão com BRF)', cnpj: '03.853.896/0001-40', cvmCode: '020788', riUrl: 'https://ri.marfrig.com.br' },
+  'NEMO3': { netIncome: null, shares: null, totalShares: null, lpa: -0.52, vpa: 20.34, pl: -2.74, pvp: 0.07, roe: -2.55, roic: 13.31, margemLiq: -0.59, divLiqEbitda: 2.72, payout: null, dpa: null, dpa5y: null, dpaProj: null, divYears: null, ey: -36.62, sector: 'Papel e Celulose', name: 'Suzano Holding ON', cnpj: '60.651.809/0001-05', cvmCode: '009067', riUrl: 'https://ri.suzano.com.br' },
 };
 
 
@@ -3481,8 +3512,8 @@ function openAuditModal(ticker) {
   const marginProj = precoTetoProj > 0 ? ((precoTetoProj - price) / precoTetoProj) * 100 : 0;
   const effFund = getEffectiveFundamentals(t, fund);
   const lpa = effFund.lpa || (fund.netIncome && fund.shares ? (fund.netIncome / fund.shares) : 0);
-  const dyProj = price > 0 && fund.dpaProj ? (fund.dpaProj / price) * 100 : 6.0;
-  const dy5y = price > 0 && fund.dpa5y ? (fund.dpa5y / price) * 100 : 6.0;
+  const dyProj = (price > 0 && fund.dpaProj != null) ? (fund.dpaProj / price) * 100 : null;
+  const dy5y = (price > 0 && fund.dpa5y != null) ? (fund.dpa5y / price) * 100 : null;
 
   const container = document.getElementById('audit-modal-content');
   if (!container) return;
@@ -3531,14 +3562,14 @@ function openAuditModal(ticker) {
         <div class="audit-kpi-lbl">📊 LPA & Payout Estimado</div>
         <div class="audit-kpi-val">${NumFmt.money(lpa)}</div>
         <div class="audit-kpi-sub">
-          Distribuição: <strong>${fund.payout || 50}%</strong> do Lucro
+          Distribuição: <strong>${fund.payout != null ? fund.payout : 50}%</strong> do Lucro
         </div>
       </div>
       <div class="audit-kpi-card">
         <div class="audit-kpi-lbl">💰 DPA Médio (5 Anos)</div>
         <div class="audit-kpi-val" style="color: var(--yellow);">${NumFmt.money(fund.dpa5y)}</div>
         <div class="audit-kpi-sub">
-          Histórico: <strong>${fund.divYears || 5} anos</strong> ininterruptos
+          Histórico: <strong>${fund.divYears != null ? fund.divYears + ' anos' : 'não disponível'}</strong>${fund.divYears != null ? ' ininterruptos' : ''}
         </div>
       </div>
     </div>
@@ -3564,7 +3595,7 @@ function openAuditModal(ticker) {
             </tr>
             <tr>
               <td class="audit-lbl">Payout Médio (% Lucro):</td>
-              <td class="audit-val">${fund.payout || 50}%${fund.payout > 100 ? ' <span class="status-pill warn" style="font-size:10px;" title="Empresa distribuiu mais do que o lucro do período (comum em holdings com equivalência patrimonial ou anos atípicos) — confirme na fonte antes de projetar.">acima de 100%</span>' : ''}</td>
+              <td class="audit-val">${fund.payout != null ? fund.payout : 50}%${fund.payout > 100 ? ' <span class="status-pill warn" style="font-size:10px;" title="Empresa distribuiu mais do que o lucro do período (comum em holdings com equivalência patrimonial ou anos atípicos) — confirme na fonte antes de projetar.">acima de 100%</span>' : ''}</td>
             </tr>
             <tr>
               <td class="audit-lbl">DPA Projetado (LPA × Payout):</td>
@@ -3605,7 +3636,7 @@ function openAuditModal(ticker) {
             </tr>
             <tr>
               <td class="audit-lbl">Histórico de Pagamentos:</td>
-              <td class="audit-val">${fund.divYears || 5} anos contínuos</td>
+              <td class="audit-val">${fund.divYears != null ? fund.divYears + ' anos contínuos' : 'não disponível'}</td>
             </tr>
           </tbody>
         </table>
@@ -3649,7 +3680,7 @@ function openAuditModal(ticker) {
         </div>
         <div style="background: rgba(0,0,0,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.05);">
           <span style="font-size: 10px; color: var(--text-sub); display: block; text-transform: uppercase; font-weight: 700;">Dividend Yield (12M)</span>
-          <strong style="font-size: 14px; font-family: monospace; color: var(--green);">${(fund.dpa && price > 0) ? ((fund.dpa / price) * 100).toFixed(2) + '%' : (fund.ey ? fund.ey.toFixed(2) + '%' : '—')}</strong>
+          <strong style="font-size: 14px; font-family: monospace; color: var(--green);">${(fund.dpa != null && price > 0) ? ((fund.dpa / price) * 100).toFixed(2) + '%' : (fund.ey != null && fund.ey >= 0 ? fund.ey.toFixed(2) + '%' : '—')}</strong>
         </div>
       </div>
     </div>
@@ -9751,11 +9782,11 @@ async function renderComparator() {
     </tr>
     <tr>
       <td style="font-weight:600;">💰 Dividend Yield (12M)</td>
-      ${quotes.map(q => `<td class="text-center text-mono" style="color:var(--yellow);font-weight:700;">${q.fund?.dpa && q.price ? NumFmt.num((q.fund.dpa / q.price)*100,2)+'%' : '—'}</td>`).join('')}
+      ${quotes.map(q => `<td class="text-center text-mono" style="color:var(--yellow);font-weight:700;">${q.fund?.dpa != null && q.price ? NumFmt.num((q.fund.dpa / q.price)*100,2)+'%' : '—'}</td>`).join('')}
     </tr>
     <tr>
       <td style="font-weight:600;">📅 Histórico de Proventos</td>
-      ${quotes.map(q => `<td class="text-center text-mono">${q.fund?.divYears || 5} anos</td>`).join('')}
+      ${quotes.map(q => `<td class="text-center text-mono">${q.fund?.divYears != null ? q.fund.divYears + ' anos' : '—'}</td>`).join('')}
     </tr>
     <tr style="background: rgba(15, 107, 76, 0.03);">
       <td style="font-weight:700; color: var(--accent);">📊 P/L (Preço / Lucro)</td>
