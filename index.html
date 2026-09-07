@@ -538,9 +538,8 @@
           <span class="nav-icon">📊</span>
           <span>Comparador</span>
         </button>
-        <button class="nav-btn" id="nav-cfg" onclick="setTab('cfg')">
+        <button class="nav-btn" id="nav-cfg" onclick="setTab('cfg')" title="Configurações">
           <span class="nav-icon">⚙️</span>
-          <span>Configurações</span>
         </button>
       </div>
     </div>
@@ -876,7 +875,7 @@
             <div style="display: flex; gap: 8px;">
               <button class="btn btn-ai btn-sm" onclick="askAIToAnalyzeStock(AppState.activeChartTicker)">🤖 Diagnóstico por IA</button>
               <button class="btn btn-secondary btn-sm" onclick="goToCompanyCalendar(AppState.activeChartTicker)">📅 Ver Calendário da Empresa</button>
-              <button class="btn btn-secondary btn-sm" id="chart-fav-btn" onclick="toggleFavoriteCurrent()">⭐ Salvar nos Favoritos</button>
+              <button class="btn btn-success btn-sm" onclick="openAddTradeModal(AppState.activeChartTicker, AppState.stockMap[AppState.activeChartTicker]?.close || '')">+ Lançar Compra</button>
             </div>
           </div>
 
@@ -3147,14 +3146,24 @@ const LOGO_ALIASES = {
   'BRST3': 'BRSR3'
 };
 
+// ETFs cujo icone da brapi.dev e generico/incorreto (IVVB11 e BOVA11 chegaram
+// a devolver o MESMO svg placeholder da gestora "iShares", sem distincao entre
+// os dois fundos). Icones proprios, no estilo visual do app, para esses casos.
+const CUSTOM_ETF_ICONS = {
+  'HASH11': './icon-etf-hash11.png',
+  'XFIX11': './icon-etf-xfix11.png',
+  'IVVB11': './icon-etf-ivvb11.png',
+  'BOVA11': './icon-etf-bova11.png'
+};
+
 function getAssetLogoHtml(symbol, size = 34) {
   const sym = (symbol || '').trim().toUpperCase();
   const rootSym = sym.replace(/[0-9]+$/, '');
   const isFiiAsset = isFII(sym);
   const effectiveSym = LOGO_ALIASES[sym] || sym;
-  
+
   // Primary Brapi Icon URL (resolving aliases when applicable)
-  const primaryUrl = `https://icons.brapi.dev/icons/${effectiveSym}.svg`;
+  const primaryUrl = CUSTOM_ETF_ICONS[sym] || `https://icons.brapi.dev/icons/${effectiveSym}.svg`;
   // Fallback Brapi Icon URL
   const altUrl = sym.endsWith('4') 
     ? `https://icons.brapi.dev/icons/${rootSym}3.svg` 
