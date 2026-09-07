@@ -56,6 +56,10 @@
       --purple-glow: rgba(109, 74, 143, 0.16);
       --purple-soft: rgba(109, 74, 143, 0.07);
 
+      --etf: #0e7490;
+      --etf-glow: rgba(14, 116, 144, 0.16);
+      --etf-soft: rgba(14, 116, 144, 0.07);
+
       --text: #201d18;
       --text-muted: #57503f;
       --text-sub: #78715f;
@@ -216,6 +220,7 @@
     .status-pill.bad { background: var(--red-glow); color: var(--red); border: 1px solid rgba(163, 39, 31, 0.3); }
     .status-pill.info { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(15, 107, 76, 0.3); }
     .status-pill.purple { background: var(--purple-glow); color: #6d4a8f; border: 1px solid rgba(109, 74, 143, 0.3); }
+    .status-pill.etf { background: var(--etf-glow); color: var(--etf); border: 1px solid rgba(14, 116, 144, 0.3); }
 
     /* TICKER TAPE / STRIP */
     .ticker-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 16px; scrollbar-width: none; }
@@ -1951,6 +1956,23 @@
 </div>
 
 <!-- ================================================================ -->
+<!-- MODAL: AUDITORIA DE ETFS                                         -->
+<!-- ================================================================ -->
+<div class="modal-overlay" id="etf-audit-modal">
+  <div class="modal-box modal-lg" style="max-width: 860px;">
+    <div class="modal-header">
+      <div class="modal-title">
+        <span>🔍 Raio-X & Auditoria de ETF</span>
+      </div>
+      <button class="modal-close" onclick="closeEtfAuditModal()">✕</button>
+    </div>
+    <div id="etf-audit-modal-content">
+      <!-- Populated dynamically via JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
 <!-- MODAL: DIAGNÓSTICO EXECUTIVO DA CARTEIRA COM IA                 -->
 <!-- ================================================================ -->
 <div class="modal-overlay" id="portfolio-ai-modal">
@@ -3126,6 +3148,43 @@ function isETF(ticker) {
   return B3_ETF_LIST.includes((ticker || '').trim().toUpperCase());
 }
 
+// Liquidez diaria em R$ (volume de cotas x preco) - o quote da brapi.dev
+// devolve o volume em NUMERO DE COTAS negociadas, nao em R$; multiplicamos
+// pelo preco para chegar no valor efetivamente negociado no dia.
+function getDailyLiquidityBRL(ticker) {
+  const sym = (ticker || '').trim().toUpperCase();
+  const item = AppState.stockMap[sym];
+  const vol = item?.volume ?? item?.regularMarketVolume;
+  const price = item?.close ?? item?.regularMarketPrice;
+  if (vol == null || price == null || !isFinite(vol) || !isFinite(price)) return null;
+  return vol * price;
+}
+// Referencia de mercado (XP) para liquidez adequada em FIIs: negociacao
+// diaria media acima de R$ 500 mil. Reaproveitado tambem para ETFs, sem
+// limiar proprio publicado nas fontes checadas.
+const LIQUIDITY_ADEQUATE_THRESHOLD_BRL = 500000;
+
+function getLiquidityBadgeHtml(ticker) {
+  const val = getDailyLiquidityBRL(ticker);
+  if (val == null) return `<span class="status-pill warn">Liquidez —</span>`;
+  const adequate = val >= LIQUIDITY_ADEQUATE_THRESHOLD_BRL;
+  return `<span class="status-pill ${adequate ? 'good' : 'warn'}" title="Referência de mercado: negociação diária > R$ 500 mil">${NumFmt.compact(val)}/dia ${adequate ? '✓' : '⚠'}</span>`;
+}
+
+// DY do FII comparado ao retorno do IFIX nos ultimos 12 meses (ambos os
+// dados ja existem no app - dy12m no B3_FII_DB e a matriz de benchmark do
+// IFIX) - evita o erro classico de olhar o DY isolado sem saber se ele so
+// esta alto porque a cota caiu.
+function getFiiDyVsIfixHtml(dy12m) {
+  if (dy12m == null || typeof calcBenchmarkPeriod !== 'function') return '';
+  try {
+    const ifix12m = calcBenchmarkPeriod('ifix', '12m');
+    const diff = dy12m - ifix12m;
+    const up = diff >= 0;
+    return `<span style="font-size:11px; color:${up ? 'var(--green)' : 'var(--red)'}; font-weight:700; display:block; margin-top:2px;">${up ? '▲' : '▼'} ${NumFmt.num(Math.abs(diff), 1)} p.p. vs. IFIX (12m)</span>`;
+  } catch (e) { return ''; }
+}
+
 // ASSET CLASSIFICATION & DISPATCHER HELPERS
 function getAssetType(ticker) {
   const sym = (ticker || '').trim().toUpperCase();
@@ -3207,33 +3266,49 @@ const B3_FII_DB_META = {
   lastReview: '2026-08-25',
   auditedLikeStocks: false
 };
+// adminFeePct: taxa de administracao extraida do texto descritivo de cada
+// fundo em fiis.com.br (07/09/2026) - alguns fundos citam taxa de gestao
+// separada ou uma faixa (ex: regressiva); guardado o valor-base/mais recente
+// citado. null = nao encontrado em nenhuma fonte checada (RBRR11, RZTR11,
+// HFOF11, BTHF11).
 const B3_FII_DB = {
-  'HGLG11': { name: 'CSHG Logística', segment: 'Logística / Galpões', category: 'TIJOLO', pvp: 0.98, dy12m: 8.85, lastDividend: 1.10, netWorth: 5.3, vacancyPhysical: 3.2, vacancyFinancial: 1.5, manager: 'Credit Suisse / Pátria', cnpj: '11.728.688/0001-47', cvmCode: '013919', riUrl: 'https://www.cshg.com.br' },
-  'BTLG11': { name: 'BTG Pactual Logística', segment: 'Logística / Galpões', category: 'TIJOLO', pvp: 0.99, dy12m: 9.20, lastDividend: 0.78, netWorth: 4.5, vacancyPhysical: 2.8, vacancyFinancial: 1.2, manager: 'BTG Pactual Asset', cnpj: '13.111.770/0001-30', cvmCode: '019186', riUrl: 'https://www.btgpactual.com' },
-  'XPLG11': { name: 'XP Log', segment: 'Logística / Galpões', category: 'TIJOLO', pvp: 0.95, dy12m: 9.05, lastDividend: 0.78, netWorth: 3.2, vacancyPhysical: 4.5, vacancyFinancial: 2.1, manager: 'XP Asset Management', cnpj: '26.502.794/0001-85', cvmCode: '022683', riUrl: 'https://www.xpasset.com.br' },
-  'ALZR11': { name: 'Alianza Trust Renda Imobiliária', segment: 'Híbrido / Renda', category: 'TIJOLO', pvp: 1.01, dy12m: 8.75, lastDividend: 0.825, netWorth: 1.1, vacancyPhysical: 0.0, vacancyFinancial: 0.0, manager: 'Alianza Gestão', cnpj: '28.737.771/0001-85', cvmCode: '023604', riUrl: 'https://alianzagestao.com.br' },
-  'XPML11': { name: 'XP Malls', segment: 'Shoppings', category: 'TIJOLO', pvp: 0.97, dy12m: 9.15, lastDividend: 0.92, netWorth: 6.2, vacancyPhysical: 3.8, vacancyFinancial: 1.9, manager: 'XP Asset Management', cnpj: '28.757.546/0001-00', cvmCode: '023779', riUrl: 'https://www.xpasset.com.br' },
-  'VISC11': { name: 'Vinci Shopping Centers', segment: 'Shoppings', category: 'TIJOLO', pvp: 0.96, dy12m: 9.30, lastDividend: 1.00, netWorth: 3.8, vacancyPhysical: 4.2, vacancyFinancial: 2.0, manager: 'Vinci Real Estate', cnpj: '17.554.274/0001-25', cvmCode: '020478', riUrl: 'https://www.vincipartners.com' },
-  'HSML11': { name: 'HSI Malls', segment: 'Shoppings', category: 'TIJOLO', pvp: 0.94, dy12m: 9.60, lastDividend: 0.78, netWorth: 2.1, vacancyPhysical: 4.0, vacancyFinancial: 1.8, manager: 'HSI Gestão', cnpj: '32.892.018/0001-31', cvmCode: '025348', riUrl: 'https://www.hsigep.com.br' },
-  'KNRI11': { name: 'Kinea Renda Imobiliária', segment: 'Híbrido / Escritórios & Galpões', category: 'TIJOLO', pvp: 0.96, dy12m: 8.65, lastDividend: 1.00, netWorth: 4.2, vacancyPhysical: 5.5, vacancyFinancial: 3.1, manager: 'Kinea Investimentos', cnpj: '12.005.956/0001-65', cvmCode: '014281', riUrl: 'https://www.kinea.com.br' },
-  'PVBI11': { name: 'VBI Prime Properties', segment: 'Lajes Corporativas', category: 'TIJOLO', pvp: 0.93, dy12m: 8.45, lastDividend: 0.70, netWorth: 1.8, vacancyPhysical: 4.8, vacancyFinancial: 2.5, manager: 'VBI Real Estate', cnpj: '35.652.147/0001-61', cvmCode: '026115', riUrl: 'https://vbirealestate.com' },
-  'JSRE11': { name: 'JS Real Estate Multigestão', segment: 'Lajes Corporativas', category: 'TIJOLO', pvp: 0.86, dy12m: 8.90, lastDividend: 0.48, netWorth: 2.3, vacancyPhysical: 8.5, vacancyFinancial: 6.2, manager: 'Safra Asset Management', cnpj: '13.910.457/0001-44', cvmCode: '019801', riUrl: 'https://www.safra.com.br' },
-  'HGRU11': { name: 'CSHG Renda Urbana', segment: 'Renda Urbana / Varejo', category: 'TIJOLO', pvp: 1.01, dy12m: 9.25, lastDividend: 0.85, netWorth: 2.5, vacancyPhysical: 0.5, vacancyFinancial: 0.2, manager: 'Credit Suisse / Pátria', cnpj: '29.641.226/0001-53', cvmCode: '024627', riUrl: 'https://www.cshg.com.br' },
-  'TRXF11': { name: 'TRX Real Estate', segment: 'Renda Urbana / Built to Suit', category: 'TIJOLO', pvp: 0.99, dy12m: 10.15, lastDividend: 0.93, netWorth: 2.2, vacancyPhysical: 0.0, vacancyFinancial: 0.0, manager: 'TRX Gestora de Recursos', cnpj: '33.916.634/0001-38', cvmCode: '025682', riUrl: 'https://www.trx.com.br' },
-  'KNCR11': { name: 'Kinea Rendimentos Imobiliários', segment: 'Recebíveis / Papel', category: 'PAPEL', pvp: 1.01, dy12m: 12.50, lastDividend: 1.05, netWorth: 5.8, benchmarkIndex: '100% CDI + 1.8%', manager: 'Kinea Investimentos', cnpj: '14.508.605/0001-00', cvmCode: '019917', riUrl: 'https://www.kinea.com.br' },
-  'KNSC11': { name: 'Kinea Securities', segment: 'Recebíveis / Papel', category: 'PAPEL', pvp: 1.00, dy12m: 11.80, lastDividend: 0.90, netWorth: 1.9, benchmarkIndex: 'IPCA + 7.2% / CDI+', manager: 'Kinea Investimentos', cnpj: '35.864.448/0001-00', cvmCode: '026190', riUrl: 'https://www.kinea.com.br' },
-  'MXRF11': { name: 'Maxi Renda', segment: 'Recebíveis / Híbrido', category: 'PAPEL', pvp: 1.02, dy12m: 12.20, lastDividend: 0.10, netWorth: 3.3, benchmarkIndex: 'IPCA+ / CDI+', manager: 'XP Asset Management', cnpj: '97.521.225/0001-25', cvmCode: '018260', riUrl: 'https://www.xpasset.com.br' },
-  'CPTS11': { name: 'Capitânia Securities II', segment: 'Recebíveis / Papel', category: 'PAPEL', pvp: 0.92, dy12m: 11.50, lastDividend: 0.08, netWorth: 2.8, benchmarkIndex: 'IPCA + 7.5%', manager: 'Capitânia Investimentos', cnpj: '18.978.121/0001-27', cvmCode: '021024', riUrl: 'https://www.capitaniainvestimentos.com.br' },
-  'RBRR11': { name: 'RBR Rendimento High Grade', segment: 'Recebíveis / Papel', category: 'PAPEL', pvp: 0.98, dy12m: 11.05, lastDividend: 0.85, netWorth: 1.5, benchmarkIndex: 'IPCA + 6.8%', manager: 'RBR Asset', cnpj: '29.358.330/0001-00', cvmCode: '024414', riUrl: 'https://rbrasset.com.br' },
-  'VGIR11': { name: 'Valora RE III', segment: 'Recebíveis / Papel', category: 'PAPEL', pvp: 1.00, dy12m: 13.05, lastDividend: 0.11, netWorth: 1.4, benchmarkIndex: 'CDI + 2.8%', manager: 'Valora Gestão', cnpj: '34.786.758/0001-40', cvmCode: '025984', riUrl: 'https://valoragestao.com.br' },
-  'HGCR11': { name: 'CSHG Recebíveis Imobiliários', segment: 'Recebíveis / Papel', category: 'PAPEL', pvp: 0.99, dy12m: 11.60, lastDividend: 1.00, netWorth: 1.6, benchmarkIndex: 'CDI / IPCA', manager: 'Credit Suisse / Pátria', cnpj: '11.160.647/0001-38', cvmCode: '013773', riUrl: 'https://www.cshg.com.br' },
-  'KNCA11': { name: 'Kinea Crédito Agro Fiagro', segment: 'Fiagro / Agronegócio', category: 'FIAGRO', pvp: 0.99, dy12m: 13.20, lastDividend: 1.12, netWorth: 2.1, benchmarkIndex: 'CDI + 2.5%', manager: 'Kinea Investimentos', cnpj: '43.207.240/0001-44', cvmCode: '026573', riUrl: 'https://www.kinea.com.br' },
-  'VGIA11': { name: 'Valora CRA Fiagro', segment: 'Fiagro / Agronegócio', category: 'FIAGRO', pvp: 0.97, dy12m: 14.10, lastDividend: 0.11, netWorth: 0.9, benchmarkIndex: 'CDI + 3.2%', manager: 'Valora Gestão', cnpj: '43.324.975/0001-00', cvmCode: '026590', riUrl: 'https://valoragestao.com.br' },
-  'RURA11': { name: 'Itaú Asset Rural Fiagro', segment: 'Fiagro / Agronegócio', category: 'FIAGRO', pvp: 0.98, dy12m: 13.50, lastDividend: 0.11, netWorth: 1.2, benchmarkIndex: 'CDI + 2.8%', manager: 'Itaú Asset Management', cnpj: '44.382.490/0001-50', cvmCode: '026620', riUrl: 'https://www.itauasset.com.br' },
-  'RZTR11': { name: 'Riza Terrax', segment: 'Terras Agrícolas / Arrendamento', category: 'FIAGRO', pvp: 0.96, dy12m: 12.00, lastDividend: 0.90, netWorth: 1.7, manager: 'Riza Asset', cnpj: '37.893.593/0001-00', cvmCode: '026417', riUrl: 'https://rizaasset.com.br' },
-  'HFOF11': { name: 'CSHG Hedge Top FOF', segment: 'Fundo de Fundos / FoF', category: 'FOF', pvp: 0.88, dy12m: 9.50, lastDividend: 0.65, netWorth: 1.8, manager: 'Credit Suisse / Pátria', cnpj: '30.126.790/0001-00', cvmCode: '024848', riUrl: 'https://www.cshg.com.br' },
-  'KFOF11': { name: 'Kinea FOF', segment: 'Fundo de Fundos / FoF', category: 'FOF', pvp: 0.90, dy12m: 9.80, lastDividend: 0.85, netWorth: 0.9, manager: 'Kinea Investimentos', cnpj: '34.825.867/0001-00', cvmCode: '025992', riUrl: 'https://www.kinea.com.br' },
-  'BTHF11': { name: 'BTG Pactual Hedge FOF', segment: 'Fundo de Fundos / FoF', category: 'FOF', pvp: 0.89, dy12m: 9.60, lastDividend: 0.58, netWorth: 1.1, manager: 'BTG Pactual Asset', cnpj: '35.652.204/0001-00', cvmCode: '026123', riUrl: 'https://www.btgpactual.com' }
+  'HGLG11': { name: 'CSHG Logística', segment: 'Logística / Galpões', category: 'TIJOLO', pvp: 0.98, dy12m: 8.85, lastDividend: 1.10, netWorth: 5.3, vacancyPhysical: 3.2, vacancyFinancial: 1.5, manager: 'Credit Suisse / Pátria', adminFeePct: 0.60, cnpj: '11.728.688/0001-47', cvmCode: '013919', riUrl: 'https://www.cshg.com.br' },
+  'BTLG11': { name: 'BTG Pactual Logística', segment: 'Logística / Galpões', category: 'TIJOLO', pvp: 0.99, dy12m: 9.20, lastDividend: 0.78, netWorth: 4.5, vacancyPhysical: 2.8, vacancyFinancial: 1.2, manager: 'BTG Pactual Asset', adminFeePct: 0.90, cnpj: '13.111.770/0001-30', cvmCode: '019186', riUrl: 'https://www.btgpactual.com' },
+  'XPLG11': { name: 'XP Log', segment: 'Logística / Galpões', category: 'TIJOLO', pvp: 0.95, dy12m: 9.05, lastDividend: 0.78, netWorth: 3.2, vacancyPhysical: 4.5, vacancyFinancial: 2.1, manager: 'XP Asset Management', adminFeePct: 0.75, cnpj: '26.502.794/0001-85', cvmCode: '022683', riUrl: 'https://www.xpasset.com.br' },
+  'ALZR11': { name: 'Alianza Trust Renda Imobiliária', segment: 'Híbrido / Renda', category: 'TIJOLO', pvp: 1.01, dy12m: 8.75, lastDividend: 0.825, netWorth: 1.1, vacancyPhysical: 0.0, vacancyFinancial: 0.0, manager: 'Alianza Gestão', adminFeePct: 0.20, cnpj: '28.737.771/0001-85', cvmCode: '023604', riUrl: 'https://alianzagestao.com.br' },
+  'XPML11': { name: 'XP Malls', segment: 'Shoppings', category: 'TIJOLO', pvp: 0.97, dy12m: 9.15, lastDividend: 0.92, netWorth: 6.2, vacancyPhysical: 3.8, vacancyFinancial: 1.9, manager: 'XP Asset Management', adminFeePct: 0.75, cnpj: '28.757.546/0001-00', cvmCode: '023779', riUrl: 'https://www.xpasset.com.br' },
+  'VISC11': { name: 'Vinci Shopping Centers', segment: 'Shoppings', category: 'TIJOLO', pvp: 0.96, dy12m: 9.30, lastDividend: 1.00, netWorth: 3.8, vacancyPhysical: 4.2, vacancyFinancial: 2.0, manager: 'Vinci Real Estate', adminFeePct: 1.05, cnpj: '17.554.274/0001-25', cvmCode: '020478', riUrl: 'https://www.vincipartners.com' },
+  'HSML11': { name: 'HSI Malls', segment: 'Shoppings', category: 'TIJOLO', pvp: 0.94, dy12m: 9.60, lastDividend: 0.78, netWorth: 2.1, vacancyPhysical: 4.0, vacancyFinancial: 1.8, manager: 'HSI Gestão', adminFeePct: 1.05, cnpj: '32.892.018/0001-31', cvmCode: '025348', riUrl: 'https://www.hsigep.com.br' },
+  'KNRI11': { name: 'Kinea Renda Imobiliária', segment: 'Híbrido / Escritórios & Galpões', category: 'TIJOLO', pvp: 0.96, dy12m: 8.65, lastDividend: 1.00, netWorth: 4.2, vacancyPhysical: 5.5, vacancyFinancial: 3.1, manager: 'Kinea Investimentos', adminFeePct: 1.25, cnpj: '12.005.956/0001-65', cvmCode: '014281', riUrl: 'https://www.kinea.com.br' },
+  'PVBI11': { name: 'VBI Prime Properties', segment: 'Lajes Corporativas', category: 'TIJOLO', pvp: 0.93, dy12m: 8.45, lastDividend: 0.70, netWorth: 1.8, vacancyPhysical: 4.8, vacancyFinancial: 2.5, manager: 'VBI Real Estate', adminFeePct: 1.00, cnpj: '35.652.147/0001-61', cvmCode: '026115', riUrl: 'https://vbirealestate.com' },
+  'JSRE11': { name: 'JS Real Estate Multigestão', segment: 'Lajes Corporativas', category: 'TIJOLO', pvp: 0.86, dy12m: 8.90, lastDividend: 0.48, netWorth: 2.3, vacancyPhysical: 8.5, vacancyFinancial: 6.2, manager: 'Safra Asset Management', adminFeePct: 1.00, cnpj: '13.910.457/0001-44', cvmCode: '019801', riUrl: 'https://www.safra.com.br' },
+  'HGRU11': { name: 'CSHG Renda Urbana', segment: 'Renda Urbana / Varejo', category: 'TIJOLO', pvp: 1.01, dy12m: 9.25, lastDividend: 0.85, netWorth: 2.5, vacancyPhysical: 0.5, vacancyFinancial: 0.2, manager: 'Credit Suisse / Pátria', adminFeePct: 0.70, cnpj: '29.641.226/0001-53', cvmCode: '024627', riUrl: 'https://www.cshg.com.br' },
+  'TRXF11': { name: 'TRX Real Estate', segment: 'Renda Urbana / Built to Suit', category: 'TIJOLO', pvp: 0.99, dy12m: 10.15, lastDividend: 0.93, netWorth: 2.2, vacancyPhysical: 0.0, vacancyFinancial: 0.0, manager: 'TRX Gestora de Recursos', adminFeePct: 1.00, cnpj: '33.916.634/0001-38', cvmCode: '025682', riUrl: 'https://www.trx.com.br' },
+  'KNCR11': { name: 'Kinea Rendimentos Imobiliários', segment: 'Recebíveis / Papel', category: 'PAPEL', pvp: 1.01, dy12m: 12.50, lastDividend: 1.05, netWorth: 5.8, benchmarkIndex: '100% CDI + 1.8%', manager: 'Kinea Investimentos', adminFeePct: 1.08, cnpj: '14.508.605/0001-00', cvmCode: '019917', riUrl: 'https://www.kinea.com.br' },
+  'KNSC11': { name: 'Kinea Securities', segment: 'Recebíveis / Papel', category: 'PAPEL', pvp: 1.00, dy12m: 11.80, lastDividend: 0.90, netWorth: 1.9, benchmarkIndex: 'IPCA + 7.2% / CDI+', manager: 'Kinea Investimentos', adminFeePct: 1.20, cnpj: '35.864.448/0001-00', cvmCode: '026190', riUrl: 'https://www.kinea.com.br' },
+  'MXRF11': { name: 'Maxi Renda', segment: 'Recebíveis / Híbrido', category: 'PAPEL', pvp: 1.02, dy12m: 12.20, lastDividend: 0.10, netWorth: 3.3, benchmarkIndex: 'IPCA+ / CDI+', manager: 'XP Asset Management', adminFeePct: 0.90, cnpj: '97.521.225/0001-25', cvmCode: '018260', riUrl: 'https://www.xpasset.com.br' },
+  'CPTS11': { name: 'Capitânia Securities II', segment: 'Recebíveis / Papel', category: 'PAPEL', pvp: 0.92, dy12m: 11.50, lastDividend: 0.08, netWorth: 2.8, benchmarkIndex: 'IPCA + 7.5%', manager: 'Capitânia Investimentos', adminFeePct: 0.10, cnpj: '18.978.121/0001-27', cvmCode: '021024', riUrl: 'https://www.capitaniainvestimentos.com.br' },
+  'RBRR11': { name: 'RBR Rendimento High Grade', segment: 'Recebíveis / Papel', category: 'PAPEL', pvp: 0.98, dy12m: 11.05, lastDividend: 0.85, netWorth: 1.5, benchmarkIndex: 'IPCA + 6.8%', manager: 'RBR Asset', adminFeePct: null, cnpj: '29.358.330/0001-00', cvmCode: '024414', riUrl: 'https://rbrasset.com.br' },
+  'VGIR11': { name: 'Valora RE III', segment: 'Recebíveis / Papel', category: 'PAPEL', pvp: 1.00, dy12m: 13.05, lastDividend: 0.11, netWorth: 1.4, benchmarkIndex: 'CDI + 2.8%', manager: 'Valora Gestão', adminFeePct: 0.20, cnpj: '34.786.758/0001-40', cvmCode: '025984', riUrl: 'https://valoragestao.com.br' },
+  'HGCR11': { name: 'CSHG Recebíveis Imobiliários', segment: 'Recebíveis / Papel', category: 'PAPEL', pvp: 0.99, dy12m: 11.60, lastDividend: 1.00, netWorth: 1.6, benchmarkIndex: 'CDI / IPCA', manager: 'Credit Suisse / Pátria', adminFeePct: 0.80, cnpj: '11.160.647/0001-38', cvmCode: '013773', riUrl: 'https://www.cshg.com.br' },
+  'KNCA11': { name: 'Kinea Crédito Agro Fiagro', segment: 'Fiagro / Agronegócio', category: 'FIAGRO', pvp: 0.99, dy12m: 13.20, lastDividend: 1.12, netWorth: 2.1, benchmarkIndex: 'CDI + 2.5%', manager: 'Kinea Investimentos', adminFeePct: 1.20, cnpj: '43.207.240/0001-44', cvmCode: '026573', riUrl: 'https://www.kinea.com.br' },
+  'VGIA11': { name: 'Valora CRA Fiagro', segment: 'Fiagro / Agronegócio', category: 'FIAGRO', pvp: 0.97, dy12m: 14.10, lastDividend: 0.11, netWorth: 0.9, benchmarkIndex: 'CDI + 3.2%', manager: 'Valora Gestão', adminFeePct: 1.15, cnpj: '43.324.975/0001-00', cvmCode: '026590', riUrl: 'https://valoragestao.com.br' },
+  'RURA11': { name: 'Itaú Asset Rural Fiagro', segment: 'Fiagro / Agronegócio', category: 'FIAGRO', pvp: 0.98, dy12m: 13.50, lastDividend: 0.11, netWorth: 1.2, benchmarkIndex: 'CDI + 2.8%', manager: 'Itaú Asset Management', adminFeePct: 1.00, cnpj: '44.382.490/0001-50', cvmCode: '026620', riUrl: 'https://www.itauasset.com.br' },
+  'RZTR11': { name: 'Riza Terrax', segment: 'Terras Agrícolas / Arrendamento', category: 'FIAGRO', pvp: 0.96, dy12m: 12.00, lastDividend: 0.90, netWorth: 1.7, manager: 'Riza Asset', adminFeePct: null, cnpj: '37.893.593/0001-00', cvmCode: '026417', riUrl: 'https://rizaasset.com.br' },
+  'HFOF11': { name: 'CSHG Hedge Top FOF', segment: 'Fundo de Fundos / FoF', category: 'FOF', pvp: 0.88, dy12m: 9.50, lastDividend: 0.65, netWorth: 1.8, manager: 'Credit Suisse / Pátria', adminFeePct: null, cnpj: '30.126.790/0001-00', cvmCode: '024848', riUrl: 'https://www.cshg.com.br' },
+  'KFOF11': { name: 'Kinea FOF', segment: 'Fundo de Fundos / FoF', category: 'FOF', pvp: 0.90, dy12m: 9.80, lastDividend: 0.85, netWorth: 0.9, manager: 'Kinea Investimentos', adminFeePct: 0.92, cnpj: '34.825.867/0001-00', cvmCode: '025992', riUrl: 'https://www.kinea.com.br' },
+  'BTHF11': { name: 'BTG Pactual Hedge FOF', segment: 'Fundo de Fundos / FoF', category: 'FOF', pvp: 0.89, dy12m: 9.60, lastDividend: 0.58, netWorth: 1.1, manager: 'BTG Pactual Asset', adminFeePct: null, cnpj: '35.652.204/0001-00', cvmCode: '026123', riUrl: 'https://www.btgpactual.com' }
+};
+
+// BASE DE DADOS DE ETFS - FONTE: ETFSBRASIL.COM.BR (auditado em 07/09/2026)
+// Ao contrario de acao/FII, um ETF nao tem P/L, ROE ou payout - o que importa
+// e o indice que ele segue, o custo (taxa de administracao) e o patrimonio.
+const B3_ETF_DB_META = { source: 'etfsbrasil.com.br', lastAudit: '2026-09-07' };
+const B3_ETF_DB = {
+  'BOVA11': { name: 'iShares Ibovespa Fundo de Índice', benchmarkIndex: 'Ibovespa', indexProvider: 'B3', region: 'Brasil', expenseRatio: 0.10, aum: 13760.64, manager: 'BlackRock Brasil Gestora de Investimentos', administrator: 'Banco BNP Paribas Brasil S.A.', cnpj: '10.406.511/0001-61', isin: 'BRBOVACTF003', inceptionDate: '2008-11-19' },
+  'HASH11': { name: 'Hashdex Nasdaq Crypto Index Fundo de Índice', benchmarkIndex: 'Nasdaq Crypto Index', indexProvider: 'Nasdaq', region: 'Global', expenseRatio: 1.30, aum: 2730.90, manager: 'Hashdex Gestora de Recursos', administrator: 'Banco Genial S.A.', cnpj: '38.314.708/0001-90', isin: 'BRHASHCTF018', inceptionDate: '2021-04-22' },
+  'XFIX11': { name: 'Trend ETF IFIX Fundo de Índice', benchmarkIndex: 'IFIX-L', indexProvider: 'B3', region: 'Brasil', expenseRatio: 0.29, aum: 52.64, manager: 'XP Allocation Asset Management', administrator: 'Banco BNP Paribas Brasil S.A.', cnpj: '36.046.508/0001-78', isin: 'BRXFIXCTF004', inceptionDate: '2020-11-30' },
+  'IVVB11': { name: 'iShares S&P 500 Fundo de Investimento em Cotas', benchmarkIndex: 'S&P 500', indexProvider: 'S&P', region: 'EUA', expenseRatio: 0.23, aum: 7647.98, manager: 'BlackRock Brasil Gestora de Investimentos', administrator: 'Banco BNP Paribas Brasil S.A.', cnpj: '19.909.560/0001-91', isin: 'BRIVVBCTF001', inceptionDate: '2014-04-29' }
 };
 
 const DEFAULT_FII_FAVORITES = [
@@ -3398,7 +3473,8 @@ function getExternalLinksHtml(ticker, isCompact = true) {
 // OPEN AUDIT MODAL (FORENSIC AUDIT SHEET DIRECTLY FROM FINANCIAL STATEMENTS)
 function openAuditModal(ticker) {
   const t = ticker.toUpperCase();
-  const fund = B3_FUNDAMENTAL_DB[t] || { 
+  if (isETF(t)) { openEtfAuditModal(t); return; }
+  const fund = B3_FUNDAMENTAL_DB[t] || {
     name: t, sector: 'B3', netIncome: 1.0, shares: 1.0, payout: 50, lpa: 1.0, dpa: 0.60, dpa5y: 0.54, dpaProj: 0.60, divYears: 5, roe: 15.0, pvp: 1.0, cnpj: '—', cvmCode: '—' 
   };
   const links = getExternalLinks(t);
@@ -5140,6 +5216,15 @@ function getExternalFiiLinks(ticker) {
   };
 }
 
+function getExternalEtfLinks(ticker) {
+  const lower = ticker.trim().toLowerCase();
+  return {
+    etfsBrasil: `https://www.etfsbrasil.com.br/etfs/${lower}`,
+    investidor10: `https://investidor10.com.br/etfs/${lower}/`,
+    statusInvest: `https://statusinvest.com.br/etfs/${lower}`
+  };
+}
+
 function getExternalFiiLinksHtml(ticker) {
   return `<button class="btn btn-secondary btn-sm" onclick="openFiiAuditModal('${ticker}')" title="Validar e auditar dados do FII na fonte"><span style="font-size:11px;">🔍</span> Validar Dados</button>`;
 }
@@ -5483,6 +5568,7 @@ function openFiiAuditModal(ticker) {
         <div class="audit-kpi-val" style="color: var(--yellow);">${NumFmt.num(fund.dy12m, 2)}% a.a.</div>
         <div class="audit-kpi-sub">
           Isento de IR (Pessoa Física)
+          ${getFiiDyVsIfixHtml(fund.dy12m)}
         </div>
       </div>
       <div class="audit-kpi-card">
@@ -5491,6 +5577,15 @@ function openFiiAuditModal(ticker) {
         <div class="audit-kpi-sub">
           Projetado 12M: <strong>${NumFmt.money(annualRend)}</strong>
         </div>
+      </div>
+      <div class="audit-kpi-card">
+        <div class="audit-kpi-lbl">💧 Liquidez (dia)</div>
+        <div class="audit-kpi-val" style="font-size: 13px;">${getLiquidityBadgeHtml(t)}</div>
+      </div>
+      <div class="audit-kpi-card">
+        <div class="audit-kpi-lbl">🧾 Taxa de Administração</div>
+        <div class="audit-kpi-val">${fund.adminFeePct != null ? NumFmt.num(fund.adminFeePct, 2) + '% a.a.' : '—'}</div>
+        <div class="audit-kpi-sub">${fund.adminFeePct != null ? 'Curadoria manual · fiis.com.br' : 'Não encontrado nas fontes checadas'}</div>
       </div>
     </div>
 
@@ -5584,6 +5679,123 @@ function openFiiAuditModal(ticker) {
 
 function closeFiiAuditModal() {
   const modal = document.getElementById('fii-audit-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+// AUDITORIA DE ETF - metricas proprias (indice seguido, taxa, patrimonio),
+// sem P/L, ROE ou payout, que nao fazem sentido para um fundo indexado.
+function openEtfAuditModal(ticker) {
+  const t = (ticker || '').trim().toUpperCase();
+  const modal = document.getElementById('etf-audit-modal');
+  const content = document.getElementById('etf-audit-modal-content');
+  if (!modal || !content) return;
+
+  const etf = B3_ETF_DB[t];
+  const mapItem = AppState.stockMap[t];
+  const price = mapItem?.close || mapItem?.regularMarketPrice || 0;
+  const links = getExternalEtfLinks(t);
+  const liquidityHtml = getLiquidityBadgeHtml(t);
+
+  if (!etf) {
+    content.innerHTML = `
+      <div style="background: rgba(0,0,0,0.035); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px;">
+        <strong style="font-size: 18px; font-family: 'JetBrains Mono', monospace;">${t}</strong>
+        <span class="status-pill etf" style="margin-left: 8px;">ETF</span>
+      </div>
+      <div class="state-box" style="padding: 24px;">
+        <div class="state-icon">📄</div>
+        <div class="state-title">Sem ficha curada para ${t}</div>
+        <div class="state-desc">Este ETF ainda não foi auditado manualmente no app. Confira direto na fonte.</div>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px;">
+        <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: #15803d; border-color: rgba(21, 128, 61, 0.4);">🔟 Investidor10</a>
+        <a href="${links.etfsBrasil}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: var(--etf); border-color: rgba(14, 116, 144, 0.4);">📊 ETFs Brasil</a>
+        <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: #0f6b4c; border-color: rgba(15, 107, 76, 0.4);">📊 Status Invest</a>
+      </div>
+    `;
+    modal.classList.add('active');
+    return;
+  }
+
+  content.innerHTML = `
+    <div style="background: rgba(0,0,0,0.035); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        ${getAssetLogoHtml(t, 46)}
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <strong style="font-size: 20px; font-family: 'JetBrains Mono', monospace; color: var(--text);">${t}</strong>
+            <span class="status-pill etf">ETF</span>
+          </div>
+          <span style="font-size: 12px; color: var(--text-muted);">${etf.name} | CNPJ: <code>${etf.cnpj || '—'}</code></span>
+        </div>
+      </div>
+      <div style="text-align: right;">
+        <span style="font-size: 11px; color: var(--text-sub); text-transform: uppercase; display: block;">Cotação Atual</span>
+        <strong style="font-size: 20px; font-family: 'JetBrains Mono', monospace; color: var(--etf);">${NumFmt.money(price)}</strong>
+      </div>
+    </div>
+
+    <div class="audit-kpi-grid">
+      <div class="audit-kpi-card">
+        <span class="audit-kpi-lbl">Índice Seguido</span>
+        <span class="audit-kpi-val" style="font-size: 15px;">${etf.benchmarkIndex}</span>
+        <span class="audit-kpi-sub">Provedor: ${etf.indexProvider || '—'}</span>
+      </div>
+      <div class="audit-kpi-card">
+        <span class="audit-kpi-lbl">Taxa de Administração</span>
+        <span class="audit-kpi-val">${NumFmt.num(etf.expenseRatio, 2)}% a.a.</span>
+      </div>
+      <div class="audit-kpi-card">
+        <span class="audit-kpi-lbl">Patrimônio Líquido</span>
+        <span class="audit-kpi-val">${NumFmt.compact(etf.aum * 1e6)}</span>
+      </div>
+      <div class="audit-kpi-card">
+        <span class="audit-kpi-lbl">Liquidez (dia)</span>
+        <span class="audit-kpi-val" style="font-size: 13px;">${liquidityHtml}</span>
+      </div>
+      <div class="audit-kpi-card">
+        <span class="audit-kpi-lbl">Gestor</span>
+        <span class="audit-kpi-val" style="font-size: 13px;">${etf.manager}</span>
+      </div>
+      <div class="audit-kpi-card">
+        <span class="audit-kpi-lbl">Administrador</span>
+        <span class="audit-kpi-val" style="font-size: 13px;">${etf.administrator}</span>
+      </div>
+      <div class="audit-kpi-card">
+        <span class="audit-kpi-lbl">Região</span>
+        <span class="audit-kpi-val" style="font-size: 15px;">${etf.region}</span>
+      </div>
+      <div class="audit-kpi-card">
+        <span class="audit-kpi-lbl">Lançamento do Fundo</span>
+        <span class="audit-kpi-val" style="font-size: 15px;">${NumFmt.date(etf.inceptionDate)}</span>
+      </div>
+      <div class="audit-kpi-card">
+        <span class="audit-kpi-lbl">ISIN</span>
+        <span class="audit-kpi-val" style="font-size: 13px;">${etf.isin}</span>
+      </div>
+    </div>
+
+    <div style="font-size: 11px; color: var(--text-dim); margin: 14px 0 16px;">
+      Fonte: ${B3_ETF_DB_META.source} · auditado em ${NumFmt.date(B3_ETF_DB_META.lastAudit)} · método de réplica (física/sintética) não encontrado em nenhuma fonte pública checada.
+    </div>
+
+    <div style="background: rgba(0,0,0,0.035); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px;">
+      <span style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 10px;">
+        🌐 Portais Oficiais para Validação:
+      </span>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <a href="${links.investidor10}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: #15803d; border-color: rgba(21, 128, 61, 0.4);">🔟 Investidor10</a>
+        <a href="${links.etfsBrasil}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: var(--etf); border-color: rgba(14, 116, 144, 0.4);">📊 ETFs Brasil</a>
+        <a href="${links.statusInvest}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; color: #0f6b4c; border-color: rgba(15, 107, 76, 0.4);">📊 Status Invest</a>
+      </div>
+    </div>
+  `;
+
+  modal.classList.add('active');
+}
+
+function closeEtfAuditModal() {
+  const modal = document.getElementById('etf-audit-modal');
   if (modal) modal.classList.remove('active');
 }
 
@@ -9348,19 +9560,33 @@ async function renderStockChart(ticker, range = '1y', interval = '1d') {
       AppState.tvChart = chart;
     }
 
-    const plVal = fund?.dpa && fund?.payout && price > 0 ? NumFmt.num(price / (fund.dpa / (fund.payout / 100))) + 'x' : '—';
-    const pvpVal = fund?.pvp ? NumFmt.num(fund.pvp) + 'x' : '—';
-    const roeVal = fund?.roe ? NumFmt.num(fund.roe) + '%' : '—';
-    const dyVal = fund?.dpa && price > 0 ? NumFmt.num((fund.dpa / price) * 100) + '%' : '—';
+    let metrics;
+    if (isETF(ticker)) {
+      const etf = B3_ETF_DB[ticker.toUpperCase()];
+      const liq = getDailyLiquidityBRL(ticker);
+      metrics = [
+        { l: 'Índice Seguido', v: etf?.benchmarkIndex || '—', sub: etf ? `Provedor: ${etf.indexProvider}` : 'Sem ficha curada' },
+        { l: 'Taxa de Administração', v: etf ? NumFmt.num(etf.expenseRatio, 2) + '% a.a.' : '—', sub: 'Custo recorrente do fundo' },
+        { l: 'Patrimônio Líquido', v: etf ? NumFmt.compact(etf.aum * 1e6) : '—', sub: 'PL total do ETF' },
+        { l: 'Liquidez (dia)', v: liq != null ? NumFmt.compact(liq) : '—', sub: liq != null && liq >= LIQUIDITY_ADEQUATE_THRESHOLD_BRL ? 'Adequada (> R$ 500 mil)' : 'Abaixo da referência de R$ 500 mil' },
+        { l: 'Gestor', v: etf?.manager || '—', sub: etf ? `Administrador: ${etf.administrator}` : '—' },
+        { l: 'Método de Réplica', v: '—', sub: 'Não encontrado em nenhuma fonte checada' }
+      ];
+    } else {
+      const plVal = fund?.dpa && fund?.payout && price > 0 ? NumFmt.num(price / (fund.dpa / (fund.payout / 100))) + 'x' : '—';
+      const pvpVal = fund?.pvp ? NumFmt.num(fund.pvp) + 'x' : '—';
+      const roeVal = fund?.roe ? NumFmt.num(fund.roe) + '%' : '—';
+      const dyVal = fund?.dpa && price > 0 ? NumFmt.num((fund.dpa / price) * 100) + '%' : '—';
 
-    const metrics = [
-      { l: 'P/L (Preço / Lucro)', v: plVal, sub: 'Tempo de retorno pelo lucro' },
-      { l: 'P/VP (Preço / Patrimônio)', v: pvpVal, sub: 'Preço em relação aos bens' },
-      { l: 'ROE (Rentabilidade)', v: roeVal, sub: 'Retorno sobre patrimônio' },
-      { l: 'Dividend Yield (12m)', v: dyVal, sub: 'Rendimento em proventos' },
-      { l: 'DPA Médio (5 Anos)', v: fund?.dpa5y ? NumFmt.money(fund.dpa5y) : '—', sub: 'Média de proventos 5 anos' },
-      { l: 'Preço Teto Barsi (5 Anos)', v: fund?.dpa5y ? NumFmt.money(fund.dpa5y / 0.06) : '—', sub: 'Teto para 6% de DY (5A)' }
-    ];
+      metrics = [
+        { l: 'P/L (Preço / Lucro)', v: plVal, sub: 'Tempo de retorno pelo lucro' },
+        { l: 'P/VP (Preço / Patrimônio)', v: pvpVal, sub: 'Preço em relação aos bens' },
+        { l: 'ROE (Rentabilidade)', v: roeVal, sub: 'Retorno sobre patrimônio' },
+        { l: 'Dividend Yield (12m)', v: dyVal, sub: 'Rendimento em proventos' },
+        { l: 'DPA Médio (5 Anos)', v: fund?.dpa5y ? NumFmt.money(fund.dpa5y) : '—', sub: 'Média de proventos 5 anos' },
+        { l: 'Preço Teto Barsi (5 Anos)', v: fund?.dpa5y ? NumFmt.money(fund.dpa5y / 0.06) : '—', sub: 'Teto para 6% de DY (5A)' }
+      ];
+    }
 
     metricsGrid.innerHTML = metrics.map(m => `
       <div class="stat-card">
@@ -10384,6 +10610,8 @@ async function initApp() {
       closeSmartRebalanceModal();
       closeBenchmarkEditorModal();
       closeAiHistoryModal();
+      closeFiiAuditModal();
+      closeEtfAuditModal();
     }
   });
 
