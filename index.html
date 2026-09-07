@@ -2073,11 +2073,11 @@
     <div style="padding: 10px 0;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
         <div style="font-size: 12.5px; color: var(--text-sub);">
-          CDI (Banco Central) e Ibovespa (mês corrente) são buscados automaticamente 1x/dia. <strong>IFIX não tem fonte gratuita disponível</strong> — continue editando manualmente contra o Status Invest/Mais Retorno.
+          CDI, IFIX e Ibovespa são buscados automaticamente 1x/dia direto da tabela histórica do Mais Retorno.
         </div>
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-primary btn-sm" onclick="fetchLiveBenchmarkUpdates(false)" id="btn-fetch-benchmarks-live" style="background: linear-gradient(135deg, #0f6b4c, #0a4a34); font-weight: 700;" title="Busca CDI real (Banco Central) e o retorno do Ibovespa no mês corrente. IFIX precisa ser editado manualmente.">
-            <span>🌐 Atualizar CDI + Ibovespa Agora</span>
+          <button class="btn btn-primary btn-sm" onclick="fetchLiveBenchmarkUpdates(false)" id="btn-fetch-benchmarks-live" style="background: linear-gradient(135deg, #0f6b4c, #0a4a34); font-weight: 700;" title="Busca CDI, IFIX e Ibovespa direto da tabela de rentabilidade histórica do Mais Retorno (maisretorno.com/indice/cdi|ifix|ibov).">
+            <span>🌐 Atualizar CDI + Ibovespa + IFIX Agora</span>
           </button>
         </div>
       </div>
@@ -4066,8 +4066,68 @@ function setBenchmarkTimeframe(tf, btnEl) {
 }
 
 // ================================================================
-// WEB SCRAPER & BCB SGS AUTOMATIC UPDATER
+// TABELA DE RENTABILIDADE (CDI, IFIX, IBOV) - FONTE UNICA: MAIS RETORNO
 // ================================================================
+// As 3 paginas (maisretorno.com/indice/cdi|ifix|ibov) tem uma tabela
+// historica completa de retornos mensais, atualizada pelo proprio site
+// ao fim do dia (campo "last_update"). E a mesma fonte que a UI ja
+// rotula como "Tabela Oficial Mais Retorno" nos cards de benchmark.
+//
+// Como este app roda 100% no navegador (sem servidor proprio, hospedado
+// como site estatico) e o maisretorno.com nao libera CORS para fetch()
+// direto do navegador, o request passa por um proxy leitor publico
+// (r.jina.ai) que busca a pagina no servidor dele e devolve o conteudo
+// em Markdown com CORS liberado. Se esse proxy cair (e um servico
+// gratuito de terceiros, pode ficar indisponivel), a atualizacao
+// daquele indice simplesmente nao acontece nesse ciclo - sem quebrar o
+// app - e e tentada de novo na proxima vez (abertura do app no dia
+// seguinte ou clique manual em "Atualizar Agora").
+const MAISRETORNO_READER_PROXY = 'https://r.jina.ai/';
+const MAISRETORNO_INDEX_SLUGS = { cdi: 'cdi', ifix: 'ifix', ibov: 'ibov' };
+
+// Converte uma celula da tabela ("1,16%-11,40" = valor do mes seguido,
+// sem separador, do "p.p. acima/abaixo do Ibov") no numero do mes.
+// "--" (mes futuro, ainda sem fechamento) vira null.
+function parseMaisRetornoCell(cell) {
+  const trimmed = (cell || '').trim();
+  if (!trimmed || trimmed === '--' || trimmed === '-') return null;
+  const pctIdx = trimmed.indexOf('%');
+  if (pctIdx === -1) return null;
+  const valueStr = trimmed.substring(0, pctIdx).replace(/\./g, '').replace(',', '.');
+  const val = parseFloat(valueStr);
+  return isNaN(val) ? null : val;
+}
+
+// Extrai a tabela "Rentabilidade histórica" do Markdown devolvido pelo
+// proxy: uma linha por ano, no formato
+// "| 2026 | <rótulo> | <Jan> | <Fev> | ... | <Dez> | <No ano> | <Acumulado> |"
+function parseMaisRetornoTable(markdown) {
+  const result = {};
+  const lines = (markdown || '').split('\n');
+  for (const line of lines) {
+    const m = line.match(/^\|\s*(\d{4})\s*\|(.*)\|\s*$/);
+    if (!m) continue;
+    const year = parseInt(m[1], 10);
+    if (year < 1990 || year > 2100) continue;
+    const cells = m[2].split('|').map(c => c.trim());
+    if (cells.length < 13) continue; // rotulo + 12 meses no minimo
+    const months = [];
+    for (let i = 1; i <= 12; i++) months.push(parseMaisRetornoCell(cells[i]));
+    result[year] = months;
+  }
+  return result;
+}
+
+async function fetchMaisRetornoIndexTable(slug) {
+  const targetUrl = `https://maisretorno.com/indice/${slug}`;
+  const res = await fetch(MAISRETORNO_READER_PROXY + targetUrl, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`Proxy HTTP ${res.status}`);
+  const text = await res.text();
+  const table = parseMaisRetornoTable(text);
+  if (Object.keys(table).length === 0) throw new Error('Tabela não encontrada na resposta do proxy');
+  return table;
+}
+
 async function fetchLiveBenchmarkUpdates(silent = false) {
   const btn = document.getElementById('btn-fetch-benchmarks-live');
   if (btn && !silent) {
@@ -4075,75 +4135,38 @@ async function fetchLiveBenchmarkUpdates(silent = false) {
     btn.innerHTML = `<span>⏳ Buscando dados na web...</span>`;
   }
 
-  let updatedCount = 0;
-  const matrix = getBenchmarkMatrix();
-
   try {
-    // 1. OFICIAL BANCO CENTRAL DO BRASIL (SGS - SERIE 4391: CDI ACUMULADO NO MES)
-    // NOTA: a serie 4389 (usada anteriormente aqui) e a taxa DIARIA anualizada do CDI
-    // (ex: ~13,90% a.a. por dia util) - usa-la aqui sobrescrevia o retorno MENSAL
-    // (~1% a.m.) com um valor ~10x maior. A serie 4391 e o acumulado mensal correto.
-    try {
-      const bcbRes = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4391/dados/ultimos/12?formato=json', { cache: 'no-cache' });
-      if (bcbRes.ok) {
-        const bcbData = await bcbRes.json();
-        if (Array.isArray(bcbData)) {
-          bcbData.forEach(item => {
-            // item.data is "dd/mm/yyyy"
-            const parts = item.data.split('/');
-            if (parts.length === 3) {
-              const mIdx = parseInt(parts[1], 10) - 1;
-              const y = parseInt(parts[2], 10);
-              const val = parseFloat(item.valor);
-              if (!isNaN(val) && matrix.cdi[y] && mIdx >= 0 && mIdx < 12) {
-                if (matrix.cdi[y][mIdx] !== val) {
-                  matrix.cdi[y][mIdx] = val;
-                  updatedCount++;
-                }
-              }
-            }
-          });
-        }
-      }
-    } catch (e) {
-      console.log('BCB fetch fallback:', e);
-    }
+    let updatedCount = 0;
+    const matrix = getBenchmarkMatrix();
+    const keys = Object.keys(MAISRETORNO_INDEX_SLUGS);
+    const results = await Promise.allSettled(keys.map(k => fetchMaisRetornoIndexTable(MAISRETORNO_INDEX_SLUGS[k])));
 
-    // 2. IBOVESPA - RETORNO DO MES CORRENTE (brapi.dev, nivel do indice ao vivo)
-    // Nao existe fonte gratuita que devolva o retorno percentual mensal do
-    // Ibovespa pronto (como a serie do BCB faz para o CDI). Em vez disso,
-    // comparamos o nivel de hoje com o nivel do indice no primeiro dia em
-    // que esta funcao rodou no mes corrente (guardado localmente como
-    // "abertura do mes"). Meses ja fechados (conferidos manualmente contra
-    // o Mais Retorno) NUNCA sao sobrescritos - so o mes em andamento muda.
-    try {
-      const ibovRes = await fetch(`https://brapi.dev/api/quote/%5EBVSP?token=${AppState.token}`, { cache: 'no-cache' });
-      if (ibovRes.ok) {
-        const ibovData = await ibovRes.json();
-        const level = ibovData?.results?.[0]?.regularMarketPrice;
-        if (level > 0) {
-          const now = new Date();
-          const y = now.getFullYear();
-          const mIdx = now.getMonth();
-          let baseline = null;
-          try { baseline = JSON.parse(localStorage.getItem('b3_ibov_month_open') || 'null'); } catch (_) {}
-          if (!baseline || baseline.year !== y || baseline.month !== mIdx) {
-            baseline = { year: y, month: mIdx, level };
-            localStorage.setItem('b3_ibov_month_open', JSON.stringify(baseline));
-          }
-          const mtdReturn = ((level / baseline.level) - 1) * 100;
-          if (matrix.ibov[y]) {
-            matrix.ibov[y][mIdx] = Math.round(mtdReturn * 100) / 100;
+    const failedIndexes = [];
+    results.forEach((result, i) => {
+      const key = keys[i];
+      if (result.status !== 'fulfilled') {
+        console.log(`Mais Retorno fetch fallback (${key}):`, result.reason);
+        failedIndexes.push(key.toUpperCase());
+        return;
+      }
+      const table = result.value;
+      Object.keys(table).forEach(yearStr => {
+        const year = Number(yearStr);
+        if (year < 2024) return; // a matriz so usa 2025/2026 nos calculos hoje
+        const months = table[yearStr];
+        if (!matrix[key][year]) matrix[key][year] = new Array(12).fill(null);
+        months.forEach((val, idx) => {
+          if (val !== null && matrix[key][year][idx] !== val) {
+            matrix[key][year][idx] = val;
             updatedCount++;
           }
-        }
-      }
-    } catch (e) {
-      console.log('IBOV live fetch fallback:', e);
-    }
+        });
+      });
+    });
 
-    // 3. SELIC META (BCB SGS 432) - valor de referencia exibido na UI,
-    // nao faz parte da matriz mensal de benchmarks.
+    // SELIC META (BCB SGS 432) - valor de referencia exibido na UI, nao faz
+    // parte da matriz mensal de benchmarks. Fonte oficial do Banco Central,
+    // ja libera CORS, sem precisar de proxy.
     try {
       const selicRes = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', { cache: 'no-cache' });
       if (selicRes.ok) {
@@ -4157,11 +4180,6 @@ async function fetchLiveBenchmarkUpdates(silent = false) {
       console.log('Selic fetch fallback:', e);
     }
 
-    // NOTA IFIX: nenhuma fonte gratuita e confiavel foi encontrada (o
-    // scraper anterior via proxy CORS + StatusInvest nunca teve o parser
-    // implementado e foi removido). IFIX continua exigindo atualizacao
-    // manual pelo Editor de Benchmarks.
-
     saveBenchmarkMatrix(matrix);
     setBenchmarkTimeframe(AppState.activeBenchmarkTf || '12m');
 
@@ -4170,15 +4188,21 @@ async function fetchLiveBenchmarkUpdates(silent = false) {
     }
 
     if (!silent) {
-      showToast(updatedCount > 0 ? `🎉 CDI e Ibovespa atualizados com dados do Banco Central e da B3!` : `✅ CDI e Ibovespa já estão com os dados mais recentes.`, 'success');
+      if (failedIndexes.length === keys.length) {
+        showToast('Não foi possível buscar os índices agora (proxy indisponível). Tente novamente em instantes.', 'warn');
+      } else if (failedIndexes.length > 0) {
+        showToast(`⚠️ Atualização parcial: falhou ${failedIndexes.join(', ')}. Os demais foram atualizados com dados do Mais Retorno.`, 'warn');
+      } else {
+        showToast(updatedCount > 0 ? '🎉 CDI, IFIX e Ibovespa atualizados com dados do Mais Retorno!' : '✅ CDI, IFIX e Ibovespa já estão com os dados mais recentes.', 'success');
+      }
     }
   } catch (err) {
     console.error('Error fetching live benchmarks:', err);
-    if (!silent) showToast('Não foi possível conectar ao Banco Central/brapi.dev. Verifique sua conexão.', 'warn');
+    if (!silent) showToast('Não foi possível atualizar os índices agora. Verifique sua conexão.', 'warn');
   } finally {
     if (btn && !silent) {
       btn.disabled = false;
-      btn.innerHTML = `<span>🌐 Atualizar CDI + Ibovespa Agora</span>`;
+      btn.innerHTML = `<span>🌐 Atualizar CDI + Ibovespa + IFIX Agora</span>`;
     }
   }
 }
@@ -4188,10 +4212,14 @@ async function fetchLiveBenchmarkUpdates(silent = false) {
 // ================================================================
 // Nao ha necessidade de tempo real, mas os dados nao podem depender so de
 // um desenvolvedor reescrever o codigo-fonte manualmente. Esta rotina roda
-// uma vez por dia (comparando a data salva com a de hoje) e atualiza: CDI
-// e Ibovespa (via fetchLiveBenchmarkUpdates, ja corrigido), Selic (contexto),
-// e o P/L e LPA "ao vivo" de cada ativo favoritado (via brapi.dev) - o
-// principal motivo dos commits manuais recorrentes de "Update B3_FUNDAMENTAL_DB".
+// uma vez por dia (comparando a data salva com a de hoje) e atualiza: CDI,
+// IFIX e Ibovespa (via fetchLiveBenchmarkUpdates, fonte Mais Retorno), Selic
+// (contexto), e o P/L e LPA "ao vivo" de cada ativo favoritado (via
+// brapi.dev) - o principal motivo dos commits manuais recorrentes de
+// "Update B3_FUNDAMENTAL_DB". Como nao ha backend/cron proprio, o gatilho e
+// a primeira abertura do app no dia - o Mais Retorno so fecha o dado do dia
+// apos o pregao encerrar, entao mesmo abrindo o app de manha o valor puxado
+// e o ultimo fechamento disponivel (nunca um numero "no meio do pregao").
 async function checkAndRunDailyRefresh() {
   const todayStr = new Date().toISOString().split('T')[0];
   if (AppState.lastDailyRefresh === todayStr) return; // ja rodou hoje
