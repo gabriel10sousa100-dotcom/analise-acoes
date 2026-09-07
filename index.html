@@ -3394,7 +3394,7 @@ function openAuditModal(ticker) {
     <!-- HEADER BAR -->
     <div style="background: rgba(0,0,0,0.035); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
       <div style="display: flex; align-items: center; gap: 14px;">
-        ${getAssetLogoHtml(t, 46)}
+        <span onclick="closeAuditModal(); openTickerDirect('${t}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${t}">${getAssetLogoHtml(t, 46)}</span>
         <div>
           <div style="display: flex; align-items: center; gap: 8px;">
             <strong style="font-size: 20px; font-family: 'JetBrains Mono', monospace; color: var(--text);">${t}</strong>
@@ -4671,7 +4671,7 @@ async function renderFavoritesView() {
       <tr class="fav-table-row" data-type="STOCK" data-besst="${isBesst}" data-search="${sym} ${name} ${sectorStr}">
         <td>
           <div class="asset-cell">
-            ${getAssetLogoHtml(sym, 34)}
+            <span onclick="openTickerDirect('${sym}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${sym}">${getAssetLogoHtml(sym, 34)}</span>
             <div class="asset-info">
               <div style="display:flex; align-items:center; gap:6px;">
                 <strong>${sym}</strong>
@@ -4752,7 +4752,7 @@ async function renderFavoritesView() {
       <tr class="fav-table-row" data-type="FII" data-besst="false" data-search="${sym} ${name} ${fund.segment || ''} ${fund.category || ''}">
         <td>
           <div class="asset-cell">
-            ${getAssetLogoHtml(sym, 34)}
+            <span onclick="openTickerDirect('${sym}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${sym}">${getAssetLogoHtml(sym, 34)}</span>
             <div class="asset-info">
               <div style="display:flex; align-items:center; gap:6px;">
                 <strong>${sym}</strong>
@@ -5245,7 +5245,7 @@ async function renderFiisView() {
       <tr class="fii-table-row" data-category="${q.category}" data-discount="${q.pvp < 1.0}" data-search="${sym} ${q.name} ${q.segment}">
         <td>
           <div class="asset-cell">
-            ${getAssetLogoHtml(sym, 34)}
+            <span onclick="openTickerDirect('${sym}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${sym}">${getAssetLogoHtml(sym, 34)}</span>
             <div class="asset-info">
               <strong>${sym}</strong>
               <span>${q.name}</span>
@@ -5405,7 +5405,7 @@ function openFiiAuditModal(ticker) {
     <!-- HEADER BAR -->
     <div style="background: rgba(0,0,0,0.035); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
       <div style="display: flex; align-items: center; gap: 14px;">
-        ${getAssetLogoHtml(t, 46)}
+        <span onclick="closeFiiAuditModal(); openTickerDirect('${t}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${t}">${getAssetLogoHtml(t, 46)}</span>
         <div>
           <div style="display: flex; align-items: center; gap: 8px;">
             <strong style="font-size: 20px; font-family: 'JetBrains Mono', monospace; color: var(--text);">${t}</strong>
@@ -5994,7 +5994,7 @@ function renderPortfolioDividendsTable() {
         <tr>
           <td>
             <div class="asset-cell">
-              ${getAssetLogoHtml(d.symbol, 28)}
+              <span onclick="openTickerDirect('${d.symbol}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${d.symbol}">${getAssetLogoHtml(d.symbol, 28)}</span>
               <strong style="font-family: 'JetBrains Mono', monospace;">${d.symbol}</strong>
             </div>
           </td>
@@ -6403,7 +6403,7 @@ function runSmartRebalance() {
       <tr>
         <td>
           <div class="asset-cell">
-            ${getAssetLogoHtml(s.symbol, 32)}
+            <span onclick="openTickerDirect('${s.symbol}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${s.symbol}">${getAssetLogoHtml(s.symbol, 32)}</span>
             <div>
               <div style="display:flex; align-items:center; gap:6px;">
                 <strong style="color:var(--accent); font-family:'JetBrains Mono', monospace; font-size:13.5px;">${s.symbol}</strong>
@@ -7285,7 +7285,7 @@ function renderCalendarView() {
       <tr>
         <td>
           <div class="asset-cell">
-            ${getAssetLogoHtml(sym, 32)}
+            <span onclick="openTickerDirect('${sym}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${sym}">${getAssetLogoHtml(sym, 32)}</span>
             <div>
               <div style="display: flex; align-items: center; gap: 6px;">
                 <strong style="font-family: 'JetBrains Mono', monospace; font-size: 13.5px;">${sym}</strong>
@@ -7573,7 +7573,7 @@ async function renderBarsiView() {
       <tr class="barsi-table-row" data-teto="${item.isBelowTeto}" data-proj="${item.isBelowProj}" data-opp="${item.isBelowTeto || item.isBelowProj}" data-besst="${item.isBESST}" data-search="${item.symbol} ${item.name} ${item.sector}">
         <td>
           <div class="asset-cell">
-            ${getAssetLogoHtml(item.symbol, 34)}
+            <span onclick="openTickerDirect('${item.symbol}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${item.symbol}">${getAssetLogoHtml(item.symbol, 34)}</span>
             <div class="asset-info">
               <strong>${item.symbol}</strong>
               <span>${item.name}</span>
@@ -7899,7 +7899,7 @@ async function executeMagicFormula() {
           </td>
           <td>
             <div class="asset-cell">
-              ${getAssetLogoHtml(item.symbol, 34)}
+              <span onclick="openTickerDirect('${item.symbol}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${item.symbol}">${getAssetLogoHtml(item.symbol, 34)}</span>
               <div class="asset-info">
                 <strong>${item.symbol}</strong>
                 <span>${item.name}</span>
@@ -9500,7 +9500,7 @@ async function renderComparator() {
   const headers = `<th style="width: 220px;">Métrica Fundamentalista</th>` + quotes.map(q => `
     <th class="text-center" style="font-family:'JetBrains Mono', monospace;">
       <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
-        ${getAssetLogoHtml(q.symbol, 32)}
+        <span onclick="openTickerDirect('${q.symbol}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${q.symbol}">${getAssetLogoHtml(q.symbol, 32)}</span>
         <strong style="color:var(--accent); font-size:14px;">${q.symbol}</strong>
         <span style="font-size: 11px; color: var(--text-dim); display: block; font-weight: normal; font-family: 'Inter', sans-serif;">${q.name}</span>
       </div>
