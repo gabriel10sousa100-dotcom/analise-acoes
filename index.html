@@ -643,6 +643,14 @@
           </select>
         </div>
 
+        <!-- FAVORITES BESST MANUAL OVERRIDE -->
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+          <label for="besst-add-input" style="font-size: 12px; font-weight: 700; color: var(--text-sub); text-transform: uppercase;">🛡️ Adicionar ação ao BESST:</label>
+          <input type="text" class="input-field input-mono" id="besst-add-input" placeholder="Ticker (ex: PETR4)" style="width: 140px;" onkeydown="if(event.key==='Enter') addBesstOverride();">
+          <button class="btn btn-secondary btn-sm" onclick="addBesstOverride()">+ Adicionar</button>
+          <div id="besst-overrides-list" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
+        </div>
+
         <!-- FAVORITES TABLE -->
         <div class="card">
           <div class="card-header">
@@ -3438,7 +3446,8 @@ const AppState = {
   liveFundamentals: JSON.parse(localStorage.getItem('b3_live_fundamentals') || '{}'),
   currentSelic: JSON.parse(localStorage.getItem('b3_current_selic') || 'null'),
   precoTetoSheet: JSON.parse(localStorage.getItem('b3_preco_teto_sheet') || '{}'),
-  precoTetoSheetUpdatedAt: localStorage.getItem('b3_preco_teto_sheet_updated') || null
+  precoTetoSheetUpdatedAt: localStorage.getItem('b3_preco_teto_sheet_updated') || null,
+  besstOverrides: JSON.parse(localStorage.getItem('b3_besst_overrides') || '[]')
 };
 
 // ==========================================
@@ -5149,24 +5158,73 @@ async function renderFavoritesView() {
   }
 
   container.innerHTML = outputHtml;
-  renderFavSectorOptions();
+  renderBesstOverridesList();
   filterFavoriteCategory(AppState.activeFavCategory || 'all');
 }
 
 // Popula o <select> de Setor com os valores distintos (setor de acao ou
-// segmento de FII) presentes nas linhas atualmente renderizadas na tabela.
+// segmento de FII) presentes nas linhas da categoria ATUALMENTE ativa (nao
+// a lista global) - assim um setor sem nenhum ativo na categoria escolhida
+// (ex.: "Petróleo" com a categoria BESST ativa) nao aparece como opcao.
 function renderFavSectorOptions() {
   const sel = document.getElementById('fav-sector-filter');
   if (!sel) return;
   const prevValue = sel.value;
+  const cat = AppState.activeFavCategory || 'all';
   const sectors = new Set();
   document.querySelectorAll('.fav-table-row').forEach(r => {
+    const type = r.getAttribute('data-type');
+    const isBesst = r.getAttribute('data-besst') === 'true';
+    const matchesCat = cat === 'all' || (cat === 'STOCK' && type === 'STOCK') || (cat === 'FII' && type === 'FII') || (cat === 'BESST' && isBesst);
+    if (!matchesCat) return;
     const s = r.getAttribute('data-sector');
     if (s) sectors.add(s);
   });
   const sorted = [...sectors].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   sel.innerHTML = `<option value="">Todos os Setores</option>` + sorted.map(s => `<option value="${s}">${s}</option>`).join('');
-  if (prevValue && sectors.has(prevValue)) sel.value = prevValue;
+  // Se o setor selecionado antes nao existe mais nessa categoria, volta pra "Todos".
+  sel.value = (prevValue && sectors.has(prevValue)) ? prevValue : '';
+}
+
+// Lista de tickers marcados manualmente como BESST (AppState.besstOverrides),
+// usada quando a deteccao automatica por setor/prefixo nao cobre um ativo.
+function renderBesstOverridesList() {
+  const el = document.getElementById('besst-overrides-list');
+  if (!el) return;
+  const list = AppState.besstOverrides || [];
+  el.innerHTML = list.map(t => `<span class="ticker-tag">${t} <span class="tag-del" onclick="removeBesstOverride('${t}')" title="Remover ${t} do BESST manual">✕</span></span>`).join('');
+}
+
+function addBesstOverride() {
+  const input = document.getElementById('besst-add-input');
+  if (!input) return;
+  const ticker = input.value.trim().toUpperCase();
+  if (!ticker) return;
+
+  if (!AppState.besstOverrides) AppState.besstOverrides = [];
+  if (!AppState.besstOverrides.includes(ticker)) {
+    AppState.besstOverrides.push(ticker);
+    localStorage.setItem('b3_besst_overrides', JSON.stringify(AppState.besstOverrides));
+  }
+
+  // Sem favoritar o ticker ele nao tem linha na tabela pra aparecer no filtro.
+  if (!AppState.favorites) AppState.favorites = [];
+  if (!AppState.favorites.includes(ticker)) {
+    AppState.favorites.unshift(ticker);
+    localStorage.setItem('b3_favorites', JSON.stringify(AppState.favorites));
+  }
+
+  input.value = '';
+  showToast(`${ticker} adicionado ao filtro BESST.`, 'success');
+  renderFavoritesView();
+}
+
+function removeBesstOverride(ticker) {
+  const sym = (ticker || '').trim().toUpperCase();
+  AppState.besstOverrides = (AppState.besstOverrides || []).filter(t => t !== sym);
+  localStorage.setItem('b3_besst_overrides', JSON.stringify(AppState.besstOverrides));
+  showToast(`${sym} removido do filtro BESST manual.`, 'info');
+  renderFavoritesView();
 }
 
 // Filtro unico que combina categoria (botoes), setor (select) e busca por
@@ -5213,6 +5271,7 @@ function filterFavoriteCategory(cat, btnEl) {
     document.querySelectorAll('#fav-category-bar .cat-btn').forEach(b => b.classList.remove('active'));
     btnEl.classList.add('active');
   }
+  renderFavSectorOptions();
   applyFavoritesFilters();
 }
 
@@ -8253,6 +8312,13 @@ async function analyzeBarsiTicker() {
 function evaluateBESSTSector(sector, ticker) {
   const s = (sector || '').toLowerCase();
   const t = ticker.toUpperCase();
+
+  // Overrides manuais (adicionados pelo usuario via "Adicionar ao BESST" na
+  // aba Favoritos) tem prioridade sobre a deteccao automatica por setor/
+  // prefixo de ticker, que pode nao cobrir todo caso real.
+  if ((AppState.besstOverrides || []).includes(t)) {
+    return { isBESST: true, label: '🛡️ BESST (Manual)' };
+  }
 
   if (s.includes('bank') || s.includes('banco') || ['ITUB', 'BBDC', 'BBAS', 'SANB', 'BRSR', 'ABCB', 'BPAC', 'BAZA', 'BMEB', 'BSLI', 'ITSA'].some(p => t.startsWith(p))) {
     return { isBESST: true, label: '🏛️ Bancos (B)' };
