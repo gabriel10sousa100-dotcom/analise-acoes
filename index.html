@@ -635,6 +635,14 @@
           <button class="cat-btn" onclick="filterFavoriteCategory('BESST', this)">🛡️ Ações BESST (Barsi)</button>
         </div>
 
+        <!-- FAVORITES SECTOR FILTER -->
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+          <label for="fav-sector-filter" style="font-size: 12px; font-weight: 700; color: var(--text-sub); text-transform: uppercase;">🏷️ Setor:</label>
+          <select class="select-field" id="fav-sector-filter" onchange="filterFavoritesBySector()" style="width: 260px;">
+            <option value="">Todos os Setores</option>
+          </select>
+        </div>
+
         <!-- FAVORITES TABLE -->
         <div class="card">
           <div class="card-header">
@@ -4955,7 +4963,7 @@ async function renderFavoritesView() {
       : `<span class="badge badge-flat" style="color:var(--accent); border-color:rgba(15,107,76,0.3); font-size:10px;">AÇÃO</span>`;
 
     return `
-      <tr class="fav-table-row" data-type="STOCK" data-besst="${isBesst}" data-search="${sym} ${name} ${sectorStr}">
+      <tr class="fav-table-row" data-type="STOCK" data-besst="${isBesst}" data-sector="${sectorStr}" data-search="${sym} ${name} ${sectorStr}">
         <td>
           <div class="asset-cell">
             <span onclick="openTickerDirect('${sym}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${sym}">${getAssetLogoHtml(sym, 34)}</span>
@@ -5036,7 +5044,7 @@ async function renderFavoritesView() {
     }
 
     return `
-      <tr class="fav-table-row" data-type="FII" data-besst="false" data-search="${sym} ${name} ${fund.segment || ''} ${fund.category || ''}">
+      <tr class="fav-table-row" data-type="FII" data-besst="false" data-sector="${fund.segment || 'FII'}" data-search="${sym} ${name} ${fund.segment || ''} ${fund.category || ''}">
         <td>
           <div class="asset-cell">
             <span onclick="openTickerDirect('${sym}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${sym}">${getAssetLogoHtml(sym, 34)}</span>
@@ -5141,37 +5149,51 @@ async function renderFavoritesView() {
   }
 
   container.innerHTML = outputHtml;
+  renderFavSectorOptions();
   filterFavoriteCategory(AppState.activeFavCategory || 'all');
 }
 
-function filterFavoriteCategory(cat, btnEl) {
-  AppState.activeFavCategory = cat;
-  if (btnEl) {
-    document.querySelectorAll('#fav-category-bar .cat-btn').forEach(b => b.classList.remove('active'));
-    btnEl.classList.add('active');
-  }
+// Popula o <select> de Setor com os valores distintos (setor de acao ou
+// segmento de FII) presentes nas linhas atualmente renderizadas na tabela.
+function renderFavSectorOptions() {
+  const sel = document.getElementById('fav-sector-filter');
+  if (!sel) return;
+  const prevValue = sel.value;
+  const sectors = new Set();
+  document.querySelectorAll('.fav-table-row').forEach(r => {
+    const s = r.getAttribute('data-sector');
+    if (s) sectors.add(s);
+  });
+  const sorted = [...sectors].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  sel.innerHTML = `<option value="">Todos os Setores</option>` + sorted.map(s => `<option value="${s}">${s}</option>`).join('');
+  if (prevValue && sectors.has(prevValue)) sel.value = prevValue;
+}
+
+// Filtro unico que combina categoria (botoes), setor (select) e busca por
+// texto - as 3 condicoes juntas, ao inves de 3 funcoes que sobrescreviam o
+// display umas das outras (o que fazia um filtro "esquecer" o outro).
+function applyFavoritesFilters() {
+  const cat = AppState.activeFavCategory || 'all';
+  const sector = document.getElementById('fav-sector-filter')?.value || '';
+  const q = (document.getElementById('fav-filter-input')?.value || '').toLowerCase().trim();
 
   const stocksSec = document.getElementById('fav-stocks-section');
   const fiisSec = document.getElementById('fav-fiis-section');
-
-  if (stocksSec) {
-    stocksSec.style.display = (cat === 'all' || cat === 'STOCK' || cat === 'BESST') ? '' : 'none';
-  }
-  if (fiisSec) {
-    fiisSec.style.display = (cat === 'all' || cat === 'FII') ? '' : 'none';
-  }
+  if (stocksSec) stocksSec.style.display = (cat === 'all' || cat === 'STOCK' || cat === 'BESST') ? '' : 'none';
+  if (fiisSec) fiisSec.style.display = (cat === 'all' || cat === 'FII') ? '' : 'none';
 
   const rows = document.querySelectorAll('.fav-table-row');
   let visibleCount = 0;
   rows.forEach(r => {
     const type = r.getAttribute('data-type');
     const isBesst = r.getAttribute('data-besst') === 'true';
+    const rowSector = r.getAttribute('data-sector') || '';
+    const text = (r.getAttribute('data-search') || '').toLowerCase();
 
-    let show = false;
-    if (cat === 'all') show = true;
-    else if (cat === 'STOCK' && type === 'STOCK') show = true;
-    else if (cat === 'FII' && type === 'FII') show = true;
-    else if (cat === 'BESST' && isBesst) show = true;
+    const showCat = cat === 'all' || (cat === 'STOCK' && type === 'STOCK') || (cat === 'FII' && type === 'FII') || (cat === 'BESST' && isBesst);
+    const showSector = !sector || rowSector === sector;
+    const showSearch = !q || text.includes(q);
+    const show = showCat && showSector && showSearch;
 
     r.style.display = show ? '' : 'none';
     if (show) visibleCount++;
@@ -5185,13 +5207,21 @@ function filterFavoriteCategory(cat, btnEl) {
   }
 }
 
+function filterFavoriteCategory(cat, btnEl) {
+  AppState.activeFavCategory = cat;
+  if (btnEl) {
+    document.querySelectorAll('#fav-category-bar .cat-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+  }
+  applyFavoritesFilters();
+}
+
+function filterFavoritesBySector() {
+  applyFavoritesFilters();
+}
+
 function filterFavoritesTable() {
-  const q = (document.getElementById('fav-filter-input')?.value || '').toLowerCase().trim();
-  const rows = document.querySelectorAll('.fav-table-row');
-  rows.forEach(r => {
-    const text = (r.getAttribute('data-search') || '').toLowerCase();
-    r.style.display = (!q || text.includes(q)) ? '' : 'none';
-  });
+  applyFavoritesFilters();
 }
 
 // CENTRALIZED FAVORITES HELPERS & REACTIVE BUTTON DISPATCHER
