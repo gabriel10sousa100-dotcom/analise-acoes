@@ -4962,25 +4962,17 @@ async function renderFavoritesView() {
     const sectorStr = fund?.sector || 'Ação B3';
     const name = q.shortName || sym;
 
-    let valuationHtml = '—';
-    if (fund && fund.dpa && fund.payout && price > 0) {
-      const lpa = getEffectiveFundamentals(sym, fund).lpa || (fund.dpa / (fund.payout / 100));
-      if (lpa > 0) valuationHtml = `<span class="text-mono" style="font-weight:600;">P/L: ${NumFmt.num(price / lpa, 1)}x</span>`;
-    } else {
-      valuationHtml = `<span class="text-mono" style="font-weight:600;">P/VP: ${fund?.pvp ? NumFmt.num(fund.pvp, 1) + 'x' : '—'}</span>`;
-    }
+    // Margem de seguranca do preco teto da planilha pessoal (Google Sheets do
+    // usuario) vs a cotacao ao vivo - mesma formula usada no modal de auditoria
+    // e na pagina do ativo (denominador = preco atual, nao o teto).
+    const myTeto = AppState.precoTetoSheet?.[sym] || null;
+    const myTetoMargin = (myTeto && myTeto.precoTeto != null && price > 0) ? ((myTeto.precoTeto - price) / price) * 100 : null;
+    const marginHtml = myTetoMargin != null
+      ? `<span style="color:${myTetoMargin >= 0 ? 'var(--green)' : 'var(--red)'};">${myTetoMargin >= 0 ? '+' : ''}${NumFmt.num(myTetoMargin, 1)}%</span>`
+      : '—';
 
-    let dyStr = '—';
-    if (fund && fund.dpa && price > 0) {
-      const dy = (fund.dpa / price) * 100;
-      dyStr = `${NumFmt.num(dy, 2)}%`;
-    }
-
-    const teto5y = fund?.dpa5y ? (fund.dpa5y / 0.06) : 0;
-    const margin5y = teto5y > 0 && price > 0 ? ((teto5y - price) / teto5y) * 100 : 0;
-
-    const besstBadge = isBesst 
-      ? `<span class="status-pill good" style="font-size:10px; padding: 2px 6px;">BESST</span>` 
+    const besstBadge = isBesst
+      ? `<span class="status-pill good" style="font-size:10px; padding: 2px 6px;">BESST</span>`
       : `<span class="badge badge-flat" style="color:var(--accent); border-color:rgba(15,107,76,0.3); font-size:10px;">AÇÃO</span>`;
 
     return `
@@ -5000,20 +4992,7 @@ async function renderFavoritesView() {
         <td style="color: var(--text-sub); font-size: 12px;">${sectorStr}</td>
         <td class="text-right text-mono" style="font-weight: 700;">${NumFmt.money(price)}</td>
         <td class="text-right"><span class="badge ${badgeCls}">${NumFmt.pct(chg)}</span></td>
-        <td class="text-right">${valuationHtml}</td>
-        <td class="text-right text-mono" style="color: var(--yellow); font-weight: 600;">${dyStr}</td>
-        <td class="text-right text-mono" style="color: var(--yellow); font-weight: 700;">${teto5y > 0 ? NumFmt.money(teto5y) : '—'}</td>
-        <td class="text-right text-mono" style="font-weight: 700; color:${margin5y >= 0 ? 'var(--green)' : 'var(--red)'};">${teto5y > 0 ? (margin5y >= 0 ? '+' : '') + NumFmt.num(margin5y, 1) + '%' : '—'}</td>
-        <td class="text-center">${getExternalLinksHtml(sym, true)}</td>
-        <td class="text-center">
-          <div style="display: flex; gap: 4px; justify-content: center;">
-            <button class="btn btn-icon btn-sm" onclick="openAddTradeModal('${sym}', ${price})" title="Lançar Compra deste Ativo na Minha Carteira" style="color: var(--green);">➕</button>
-            <button class="btn btn-icon btn-sm" onclick="openAuditModal('${sym}')" title="Auditoria de Balanço">🔍</button>
-            <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${sym}')" title="Diagnóstico IA" style="color: #6d4a8f;">🤖</button>
-            <button class="btn btn-icon btn-sm" onclick="openTickerDirect('${sym}')" title="Ver Gráfico">📈</button>
-            <button class="btn btn-icon btn-sm" onclick="removeFromFavorites('${sym}')" title="Remover dos Favoritos" style="color: var(--red);">✕</button>
-          </div>
-        </td>
+        <td class="text-right text-mono" style="font-weight: 700;">${marginHtml}</td>
       </tr>
     `;
   }).join('');
@@ -5115,15 +5094,10 @@ async function renderFavoritesView() {
             <thead>
               <tr>
                 <th>Ação / Empresa</th>
-                <th>Setor B3</th>
+                <th>Setor</th>
                 <th class="text-right">Cotação Atual</th>
                 <th class="text-right">Var. Dia</th>
-                <th class="text-right" title="Múltiplos de Valuation (P/L ou P/VP)">Valuation</th>
-                <th class="text-right" title="Dividend Yield anual">DY (12m)</th>
-                <th class="text-right" title="Preço Teto 5 Anos Barsi">Preço Teto 5A</th>
-                <th class="text-right" title="Margem de Segurança em relação ao Preço Teto Barsi">Margem 5A</th>
-                <th class="text-center">Validar (Auditoria)</th>
-                <th class="text-center">Ações</th>
+                <th class="text-right" title="Margem de segurança do preço teto da sua planilha pessoal em relação à cotação atual">Margem de Segurança</th>
               </tr>
             </thead>
             <tbody>
