@@ -255,6 +255,7 @@
     .didactic-box.yellow { background: linear-gradient(135deg, rgba(146, 97, 13, 0.08), rgba(146, 97, 13, 0.02)); border-color: rgba(146, 97, 13, 0.25); }
     .didactic-box.green { background: linear-gradient(135deg, rgba(21, 128, 61, 0.08), rgba(21, 128, 61, 0.02)); border-color: rgba(21, 128, 61, 0.25); }
     .didactic-box.purple { background: linear-gradient(135deg, rgba(109, 74, 143, 0.10), rgba(69, 49, 99, 0.03)); border-color: rgba(109, 74, 143, 0.3); }
+    .didactic-box.blue { background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.02)); border-color: rgba(37, 99, 235, 0.25); }
     .didactic-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 15px; font-weight: 700; color: var(--text); }
     .didactic-body { font-size: 13px; color: var(--text-muted); line-height: 1.65; display: flex; flex-direction: column; gap: 8px; }
     .didactic-body strong { color: var(--text); }
@@ -530,6 +531,10 @@
         <button class="nav-btn" id="nav-formula" onclick="setTab('formula')">
           <span class="nav-icon">🟢</span>
           <span>A Fórmula Mágica</span>
+        </button>
+        <button class="nav-btn" id="nav-tetoplanilha" onclick="setTab('tetoplanilha')">
+          <span class="nav-icon">🔵</span>
+          <span>Preço Teto (Planilha)</span>
         </button>
       </div>
 
@@ -1154,6 +1159,91 @@
             <div class="state-icon">🟢</div>
             <div class="state-title">Pronto para rodar o algoritmo</div>
             <div class="state-desc">Classificando as melhores oportunidades entre suas ações favoritas...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB: PREÇO TETO (MINHA PLANILHA)           -->
+      <!-- ========================================== -->
+      <div class="view-panel" id="panel-tetoplanilha">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h1 class="page-title">🔵 Preço Teto — Minha Planilha</h1>
+            <p class="page-desc" style="margin-bottom:0">Preço teto calculado na sua planilha pessoal (Google Sheets), para <strong>todos os ativos nela cadastrados</strong> — favoritos ou não.</p>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span class="status-pill good" id="teto-planilha-count-pill">0 ativos na planilha</span>
+            <button class="btn btn-secondary btn-sm" onclick="fetchPrecoTetoSheet(false).then(() => renderTetoPlanilhaView())">🔄 Atualizar Planilha Agora</button>
+          </div>
+        </div>
+
+        <!-- DIDACTIC EXPLANATION -->
+        <div class="didactic-box blue">
+          <div class="didactic-header">
+            <span>💡 Como funciona o Preço Teto da sua planilha?</span>
+          </div>
+          <div class="didactic-body">
+            <p>Essa aba espelha <strong>a sua própria planilha</strong> (Google Sheets com Lucro Projetado, LPA, Payout, DPA e DY exigido definidos por você) — diferente do Preço Teto Barsi (fórmula fixa de 6% ao ano), aqui o DY exigido é o que <strong>você</strong> escolheu para cada ação.</p>
+            <code>Margem de Segurança = (Preço Teto da Planilha − Cotação Atual) ÷ Cotação Atual</code>
+            <p style="font-size: 12px; margin-top: 6px; color: var(--text-muted);">
+              Margem <strong style="color: var(--green);">positiva</strong> = ação negociando <strong>abaixo</strong> do seu teto (oportunidade). Margem <strong style="color: var(--red);">negativa</strong> = negociando <strong>acima</strong> (cara). A planilha é lida direto do Google Sheets e se atualiza sozinha 1x/dia, ou na hora pelo botão "Atualizar Planilha Agora".
+            </p>
+          </div>
+        </div>
+
+        <!-- STATS ROW -->
+        <div class="grid grid-4" style="margin-bottom: 20px;">
+          <div class="stat-card">
+            <span class="stat-label">Ativos na Planilha</span>
+            <div class="stat-val" id="teto-planilha-stat-total">—</div>
+            <div class="stat-meta">Rastreados na sua planilha pessoal</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">🟢 Oportunidades</span>
+            <div class="stat-val" style="color: var(--green);" id="teto-planilha-stat-opp">—</div>
+            <div class="stat-meta">Preço abaixo do teto</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">🔴 Caras</span>
+            <div class="stat-val" style="color: var(--red);" id="teto-planilha-stat-expensive">—</div>
+            <div class="stat-meta">Preço acima do teto</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Última Sincronização</span>
+            <div class="stat-val" style="font-size: 14px;" id="teto-planilha-last-update">—</div>
+            <div class="stat-meta">Da planilha Google Sheets</div>
+          </div>
+        </div>
+
+        <!-- FILTERS -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="teto-planilha-margin-bar">
+              <button class="cat-btn active" onclick="filterTetoPlanilhaMargin('all', this)">🌐 Todas</button>
+              <button class="cat-btn" onclick="filterTetoPlanilhaMargin('positive', this)">🟢 Margem Positiva (Oportunidades)</button>
+              <button class="cat-btn" onclick="filterTetoPlanilhaMargin('negative', this)">🔴 Margem Negativa (Caras)</button>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <select class="select-field" id="teto-planilha-sector-filter" onchange="applyTetoPlanilhaFilters()" style="width: 200px;">
+                <option value="">Todos os Setores</option>
+              </select>
+              <input type="text" class="input-field" id="teto-planilha-search-input" placeholder="🔍 Filtrar... (ex: PETR4, Bancos)" oninput="applyTetoPlanilhaFilters()" style="width: 200px;">
+            </div>
+          </div>
+        </div>
+
+        <!-- TABLE -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Preço Teto de Todos os Ativos da Planilha</div>
+            <div style="font-size: 12px; color: var(--text-sub);"><span id="teto-planilha-visible-count">0</span> ativo(s) exibido(s)</div>
+          </div>
+          <div class="table-responsive" id="teto-planilha-table-container">
+            <div class="state-box">
+              <div class="spinner-ring"></div>
+              <div class="state-title">Carregando dados da planilha...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -3459,7 +3549,8 @@ const AppState = {
   currentSelic: JSON.parse(localStorage.getItem('b3_current_selic') || 'null'),
   precoTetoSheet: JSON.parse(localStorage.getItem('b3_preco_teto_sheet') || '{}'),
   precoTetoSheetUpdatedAt: localStorage.getItem('b3_preco_teto_sheet_updated') || null,
-  besstOverrides: JSON.parse(localStorage.getItem('b3_besst_overrides') || '[]')
+  besstOverrides: JSON.parse(localStorage.getItem('b3_besst_overrides') || '[]'),
+  activeTetoPlanilhaMargin: 'all'
 };
 
 // ==========================================
@@ -4344,6 +4435,7 @@ async function fetchPrecoTetoSheet(silent = true) {
     localStorage.setItem('b3_preco_teto_sheet', JSON.stringify(parsed));
     localStorage.setItem('b3_preco_teto_sheet_updated', AppState.precoTetoSheetUpdatedAt);
     renderDataFreshnessStatus();
+    if (AppState.activeTab === 'tetoplanilha') renderTetoPlanilhaView();
 
     if (!silent) showToast(`🧮 Preço teto atualizado da sua planilha (${Object.keys(parsed).length} ativos).`, 'success');
     return parsed;
@@ -4352,6 +4444,174 @@ async function fetchPrecoTetoSheet(silent = true) {
     if (!silent) showToast('Não foi possível buscar sua planilha de preço teto agora. Verifique se ela ainda está compartilhada como "Qualquer pessoa com o link".', 'warn');
     throw e;
   }
+}
+
+// ================================================================
+// TAB: PREÇO TETO (MINHA PLANILHA) - mostra TODOS os ativos da planilha
+// (favoritos ou nao), com filtro por sinal da margem de seguranca e por
+// setor. Mesmo padrao de filtragem via atributos data-* + show/hide usado
+// na aba Favoritos, para poder combinar os 3 filtros (sinal, setor, busca).
+// ================================================================
+async function renderTetoPlanilhaView() {
+  const container = document.getElementById('teto-planilha-table-container');
+  if (!container) return;
+
+  const sheet = AppState.precoTetoSheet || {};
+  const tickers = Object.keys(sheet);
+
+  if (tickers.length === 0) {
+    container.innerHTML = `
+      <div class="state-box">
+        <div class="state-icon">🔵</div>
+        <div class="state-title">Nenhum dado da planilha carregado ainda</div>
+        <div class="state-desc">Clique em "🔄 Atualizar Planilha Agora" acima ou aguarde a sincronização automática.</div>
+      </div>`;
+    updateTetoPlanilhaStats([]);
+    return;
+  }
+
+  container.innerHTML = `<div class="state-box"><div class="spinner-ring"></div><div class="state-title">Carregando cotações...</div></div>`;
+  await StockAPI.getFullB3List();
+
+  const rows = tickers.map(sym => {
+    const data = sheet[sym];
+    const mapItem = AppState.stockMap[sym];
+    const fund = B3_FUNDAMENTAL_DB[sym];
+    const price = mapItem?.close || data.precoAtual || 0;
+    const chg = mapItem?.change || 0;
+    const sector = fund?.sector || 'Ação B3';
+    const name = fund?.name || mapItem?.name || sym;
+    const margin = (data.precoTeto != null && price > 0) ? ((data.precoTeto - price) / price) * 100 : null;
+    return { symbol: sym, name, sector, price, chg, margin, precoTeto: data.precoTeto };
+  });
+
+  // Melhores oportunidades primeiro (maior margem); sem margem calculavel vai pro fim.
+  rows.sort((a, b) => (b.margin ?? -9999) - (a.margin ?? -9999));
+
+  const rowsHtml = rows.map(r => {
+    const marginSign = r.margin == null ? '' : (r.margin >= 0 ? 'positive' : 'negative');
+    const marginHtml = r.margin != null
+      ? `<span style="color:${r.margin >= 0 ? 'var(--green)' : 'var(--red)'};">${r.margin >= 0 ? '+' : ''}${NumFmt.num(r.margin, 1)}%</span>`
+      : '—';
+    const chgCls = r.chg > 0 ? 'badge-up' : r.chg < 0 ? 'badge-down' : 'badge-flat';
+    const isFav = isAssetFavorite(r.symbol);
+
+    return `
+      <tr class="teto-planilha-row" data-margin="${marginSign}" data-sector="${r.sector}" data-search="${r.symbol} ${r.name} ${r.sector}">
+        <td>
+          <div class="asset-cell">
+            <span onclick="openTickerDirect('${r.symbol}')" style="cursor: pointer;" title="Ver Gráfico & Análise Detalhada de ${r.symbol}">${getAssetLogoHtml(r.symbol, 34)}</span>
+            <div class="asset-info">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <strong>${r.symbol}</strong>
+                <span onclick="toggleAssetFavorite('${r.symbol}'); renderTetoPlanilhaView();" style="cursor:pointer; font-size:13px;" title="${isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}">${isFav ? '⭐' : '☆'}</span>
+              </div>
+              <span>${r.name}</span>
+            </div>
+          </div>
+        </td>
+        <td style="color: var(--text-sub); font-size: 12px;">${r.sector}</td>
+        <td class="text-right text-mono" style="font-weight: 700;">${NumFmt.money(r.price)}</td>
+        <td class="text-right"><span class="badge ${chgCls}">${NumFmt.pct(r.chg)}</span></td>
+        <td class="text-right text-mono" style="font-weight: 700;">${marginHtml}</td>
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <table class="custom-table">
+      <thead>
+        <tr>
+          <th>Ação / Empresa</th>
+          <th>Setor</th>
+          <th class="text-right">Cotação Atual</th>
+          <th class="text-right">Var. Dia</th>
+          <th class="text-right" title="Margem de segurança do preço teto da sua planilha em relação à cotação atual">Margem de Segurança</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  `;
+
+  renderTetoPlanilhaSectorOptions();
+  updateTetoPlanilhaStats(rows);
+  applyTetoPlanilhaFilters();
+}
+
+function updateTetoPlanilhaStats(rows) {
+  const total = rows.length;
+  const opp = rows.filter(r => r.margin != null && r.margin >= 0).length;
+  const expensive = rows.filter(r => r.margin != null && r.margin < 0).length;
+  const favCount = rows.filter(r => isAssetFavorite(r.symbol)).length;
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('teto-planilha-stat-total', total);
+  set('teto-planilha-stat-opp', opp);
+  set('teto-planilha-stat-expensive', expensive);
+
+  const pill = document.getElementById('teto-planilha-count-pill');
+  if (pill) pill.textContent = `${total} ativo${total === 1 ? '' : 's'} na planilha (${favCount} já favoritado${favCount === 1 ? '' : 's'})`;
+
+  const updEl = document.getElementById('teto-planilha-last-update');
+  if (updEl) {
+    updEl.textContent = AppState.precoTetoSheetUpdatedAt
+      ? new Date(AppState.precoTetoSheetUpdatedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : 'nunca';
+  }
+}
+
+// Popula o <select> de Setor só com os setores presentes no filtro de
+// margem ativo no momento (mesma logica da aba Favoritos).
+function renderTetoPlanilhaSectorOptions() {
+  const sel = document.getElementById('teto-planilha-sector-filter');
+  if (!sel) return;
+  const prevValue = sel.value;
+  const sign = AppState.activeTetoPlanilhaMargin || 'all';
+  const sectors = new Set();
+  document.querySelectorAll('.teto-planilha-row').forEach(r => {
+    const marginSign = r.getAttribute('data-margin');
+    if (sign !== 'all' && marginSign !== sign) return;
+    const s = r.getAttribute('data-sector');
+    if (s) sectors.add(s);
+  });
+  const sorted = [...sectors].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  sel.innerHTML = `<option value="">Todos os Setores</option>` + sorted.map(s => `<option value="${s}">${s}</option>`).join('');
+  sel.value = (prevValue && sectors.has(prevValue)) ? prevValue : '';
+}
+
+function filterTetoPlanilhaMargin(sign, btnEl) {
+  AppState.activeTetoPlanilhaMargin = sign;
+  if (btnEl) {
+    document.querySelectorAll('#teto-planilha-margin-bar .cat-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+  }
+  renderTetoPlanilhaSectorOptions();
+  applyTetoPlanilhaFilters();
+}
+
+function applyTetoPlanilhaFilters() {
+  const sign = AppState.activeTetoPlanilhaMargin || 'all';
+  const sector = document.getElementById('teto-planilha-sector-filter')?.value || '';
+  const q = (document.getElementById('teto-planilha-search-input')?.value || '').toLowerCase().trim();
+
+  const rows = document.querySelectorAll('.teto-planilha-row');
+  let visible = 0;
+  rows.forEach(r => {
+    const marginSign = r.getAttribute('data-margin');
+    const rowSector = r.getAttribute('data-sector') || '';
+    const text = (r.getAttribute('data-search') || '').toLowerCase();
+
+    const showSign = sign === 'all' || marginSign === sign;
+    const showSector = !sector || rowSector === sector;
+    const showSearch = !q || text.includes(q);
+    const show = showSign && showSector && showSearch;
+
+    r.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  const el = document.getElementById('teto-planilha-visible-count');
+  if (el) el.textContent = visible;
 }
 
 // ================================================================
@@ -10778,6 +11038,8 @@ function setTab(tabId) {
     renderBarsiView();
   } else if (tabId === 'formula') {
     executeMagicFormula();
+  } else if (tabId === 'tetoplanilha') {
+    renderTetoPlanilhaView();
   } else if (tabId === 'metricas') {
     filterMetricsCards();
   } else if (tabId === 'comp') {
@@ -10808,6 +11070,8 @@ async function syncAllData() {
     await renderBarsiView();
   } else if (AppState.activeTab === 'formula') {
     await executeMagicFormula();
+  } else if (AppState.activeTab === 'tetoplanilha') {
+    await renderTetoPlanilhaView();
   }
   showToast('Dados sincronizados com sucesso!', 'success');
 }
