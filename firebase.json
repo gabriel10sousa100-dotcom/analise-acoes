@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "analise-acoes-b3",
     "public": ".",
     "ignore": [
       "firebase.json",
