@@ -3182,7 +3182,14 @@ const B3_DIVIDEND_CALENDAR = [
 // ETFs negociados como "11" na B3 - nao sao FIIs (sem cotas/vacancia/gestora
 // imobiliaria) e tem paginas proprias no Status Invest e no Investidor10
 // (/etfs/, nao /acoes/ ou /fundos-imobiliarios/). Tratados como STOCK abaixo.
-const B3_ETF_LIST = ['HASH11', 'XFIX11', 'IVVB11', 'BOVA11'];
+// Lista expandida em 2026-10-07 (varredura pedida apos AUVP11 cair errado
+// como FII): cada ticker foi conferido individualmente via brapi.dev,
+// confirmando "Fundo de Indice" / "ETF" no nome oficial antes de entrar aqui.
+const B3_ETF_LIST = [
+  'HASH11', 'XFIX11', 'IVVB11', 'BOVA11', 'AUVP11', 'SMAL11', 'DIVO11',
+  'PIBB11', 'FIND11', 'GOLD11', 'NASD11', 'WRLD11', 'B5P211', 'IMAB11',
+  'BBSD11', 'ISUS11', 'ECOO11', 'SPXI11', 'GOVE11'
+];
 
 function isETF(ticker) {
   return B3_ETF_LIST.includes((ticker || '').trim().toUpperCase());
@@ -3226,11 +3233,16 @@ function getFiiDyVsIfixHtml(dy12m) {
 }
 
 // ASSET CLASSIFICATION & DISPATCHER HELPERS
+// Units de empresas (acao ON + PN combinadas) negociadas como "11" na B3 -
+// nao sao FIIs. BPAC11 (BTG Pactual) estava faltando aqui e caia no
+// fallback de FII por engano (bug reportado em 2026-10-07).
+const B3_UNIT_STOCK_LIST = ['TAEE11', 'TRPL11', 'SAPR11', 'KLBN11', 'ALUP11', 'SANB11', 'TIET11', 'ISAE11', 'BPAC11'];
+
 function getAssetType(ticker) {
   const sym = (ticker || '').trim().toUpperCase();
   if (isETF(sym)) return 'STOCK';
   if (B3_FII_DB[sym]) return 'FII';
-  if (sym.endsWith('11') && !['TAEE11', 'TRPL11', 'SAPR11', 'KLBN11', 'ALUP11', 'SANB11', 'TIET11', 'ISAE11'].includes(sym)) {
+  if (sym.endsWith('11') && !B3_UNIT_STOCK_LIST.includes(sym)) {
     return 'FII';
   }
   return 'STOCK';
