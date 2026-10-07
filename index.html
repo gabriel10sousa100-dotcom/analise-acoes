@@ -10844,6 +10844,17 @@ async function initApp() {
 
   // Atualizacao diaria de CDI/Ibovespa/Selic/P-L dos favoritos (nao-bloqueante)
   try { checkAndRunDailyRefresh().catch(err => console.warn('Daily refresh:', err)); } catch (e) {}
+
+  // Primeira busca do Preco Teto pessoal (planilha): independente do gate
+  // diario, para quem ainda nao tem nenhum dado em cache (ex.: acabou de
+  // ganhar esse recurso e o ciclo diario ja tinha rodado hoje antes disso).
+  // Depois da primeira vez, as atualizacoes seguintes seguem o gate normal
+  // do checkAndRunDailyRefresh (1x/dia ou "Forcar Atualizacao").
+  try {
+    if (!AppState.precoTetoSheet || !Object.keys(AppState.precoTetoSheet).length) {
+      fetchPrecoTetoSheet(true).catch(err => console.warn('Preco teto initial fetch:', err));
+    }
+  } catch (e) {}
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
