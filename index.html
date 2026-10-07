@@ -3514,7 +3514,9 @@ function openAuditModal(ticker) {
   const myTeto = AppState.precoTetoSheet?.[t] || null;
   // Margem recalculada com a cotacao ao vivo (nao a snapshot salva na planilha
   // no momento da ultima edicao), para nao desalinhar com o preco exibido no topo.
-  const myTetoMargin = (myTeto && myTeto.precoTeto > 0) ? ((myTeto.precoTeto - price) / myTeto.precoTeto) * 100 : null;
+  // Denominador e o PRECO ATUAL (nao o teto) - mesma convencao da coluna "M.
+  // SEG." da planilha do usuario (confirmado batendo os numeros linha a linha).
+  const myTetoMargin = (myTeto && myTeto.precoTeto != null && price > 0) ? ((myTeto.precoTeto - price) / price) * 100 : null;
   const effFund = getEffectiveFundamentals(t, fund);
   const lpa = effFund.lpa || (fund.netIncome && fund.shares ? (fund.netIncome / fund.shares) : 0);
   const dyProj = (price > 0 && fund.dpaProj != null) ? (fund.dpaProj / price) * 100 : null;
@@ -9655,7 +9657,8 @@ async function renderStockChart(ticker, range = '1y', interval = '1d') {
     const name = fund?.name || quote.longName || quote.shortName || ticker;
     const links = getExternalLinks(ticker);
     const myTeto = AppState.precoTetoSheet?.[ticker.toUpperCase()] || null;
-    const myTetoMargin = (myTeto && myTeto.precoTeto > 0) ? ((myTeto.precoTeto - price) / myTeto.precoTeto) * 100 : null;
+    // Denominador e o preco atual, mesma convencao da coluna "M. SEG." da planilha.
+    const myTetoMargin = (myTeto && myTeto.precoTeto != null && price > 0) ? ((myTeto.precoTeto - price) / price) * 100 : null;
 
     const isFav = isAssetFavorite(ticker);
     const favBtnHtml = isFav
