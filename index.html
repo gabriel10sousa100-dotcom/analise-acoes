@@ -3591,6 +3591,69 @@ const NumFmt = {
   }
 };
 
+// LINKS DE RI VERIFICADOS MANUALMENTE (pesquisa real, nao adivinhados) para
+// tickers sem entrada completa em B3_FUNDAMENTAL_DB. Sem isso, getExternalLinks
+// caia no chute `ri.<4 primeiras letras do ticker>.com.br`, que da errado na
+// maioria das vezes (ex.: POMO3 -> "ri.pomo.com.br" em vez do real
+// ri.marcopolo.com.br - bug reportado em 2026-10-08). Checado em 2026-10-08
+// via busca na web + fetch direto de cada pagina (alguns casos, como
+// ISAE3/TRPL3/TRPL4/TRPL11, ja tinham riUrl em B3_FUNDAMENTAL_DB mas apontando
+// pro dominio antigo isacteep.com.br/ri, que hoje so redireciona - atualizados
+// aqui tambem, ja que esse mapa tem prioridade sobre o da B3_FUNDAMENTAL_DB.
+const RI_URL_OVERRIDES = {
+  'AGRO3': 'https://ri.brasil-agro.com',
+  'ALLD3': 'https://ri.alliedbrasil.com.br',
+  'ALOS3': 'https://ri.allos.co',
+  'AXIA3': 'https://ri.axia.com.br',
+  'AXIA7': 'https://ri.axia.com.br',
+  'BMGB4': 'https://bancobmg.mzweb.com.br',
+  'BRBI11': 'https://ri.brpartners.com.br',
+  'CAML3': 'https://ri.camil.com.br',
+  'CGRA3': 'https://www.grazziotin.com.br/ri/',
+  'CGRA4': 'https://www.grazziotin.com.br/ri/',
+  'CMIN3': 'https://ri.csnmineracao.com.br',
+  'CSUD3': 'https://ri.csu.com.br',
+  'EALT3': 'https://www.altona.com.br/ri/br/',
+  'EALT4': 'https://www.altona.com.br/ri/br/',
+  'EZTC3': 'https://ri.eztec.com.br',
+  'FESA3': 'https://www.ferbasa.com.br/investidores',
+  'FESA4': 'https://www.ferbasa.com.br/investidores',
+  'FRAS3': 'https://ri.fraslemobility.com',
+  'GMAT3': 'https://ri.grupomateus.com.br',
+  'GRND3': 'https://ri.grendene.com.br',
+  'ISAE3': 'https://ri.isaenergiabrasil.com.br',
+  'ISAE4': 'https://ri.isaenergiabrasil.com.br',
+  'JHSF3': 'https://ri.jhsf.com.br',
+  'KEPL3': 'https://ri.kepler.com.br',
+  'KLBN3': 'https://ri.klabin.com.br',
+  'KLBN4': 'https://ri.klabin.com.br',
+  'KLBN11': 'https://ri.klabin.com.br',
+  'LAVV3': 'https://ri.lavvi.com.br',
+  'LEVE3': 'https://ri.mahle.com.br',
+  'LREN3': 'https://ri.lojasrenner.com.br',
+  'MTRE3': 'https://ri.mitrerealty.com.br',
+  'MYPK3': 'https://www.iochpe.com.br/servicos-ao-investidor/',
+  'PASS3': 'https://www.compassbr.com/comunicacao-e-servicos-aos-investidores/',
+  'PGMN3': 'https://ri.paguemenos.com.br',
+  'PINE4': 'https://www.pine.com/pt-BR/relacao-com-investidores/',
+  'POMO3': 'https://ri.marcopolo.com.br',
+  'POMO4': 'https://ri.marcopolo.com.br',
+  'PRIO3': 'https://ri.petroriosa.com.br',
+  'RANI3': 'https://ri.irani.com.br',
+  'RECV3': 'https://ri.petroreconcavo.com.br',
+  'ROMI3': 'https://www.romi.com/investidores/',
+  'SAUD3': 'https://www.saud3.com.br',
+  'SLCE3': 'https://ri.slcagricola.com.br',
+  'SOJA3': 'https://ri.boasafrasementes.com.br',
+  'TRPL3': 'https://ri.isaenergiabrasil.com.br',
+  'TRPL4': 'https://ri.isaenergiabrasil.com.br',
+  'TRPL11': 'https://ri.isaenergiabrasil.com.br',
+  'UGPA3': 'https://ri.ultra.com.br',
+  'UNIP3': 'https://ri.unipar.com',
+  'UNIP6': 'https://ri.unipar.com',
+  'VULC3': 'https://www.vulcabrasri.com'
+};
+
 // HELPER: BUILD EXTERNAL VALIDATION LINKS (STATUS INVEST, INVESTIDOR10, RI)
 function getExternalLinks(ticker) {
   const t = ticker.toUpperCase();
@@ -3607,7 +3670,7 @@ function getExternalLinks(ticker) {
   return {
     statusInvest: `https://statusinvest.com.br/acoes/${lower}`,
     investidor10: `https://investidor10.com.br/acoes/${lower}/`,
-    riUrl: fund?.riUrl || `https://ri.${lower.substring(0,4)}.com.br`,
+    riUrl: RI_URL_OVERRIDES[t] || fund?.riUrl || `https://ri.${lower.substring(0,4)}.com.br`,
     tradingView: `https://www.tradingview.com/chart/?symbol=BMFBOVESPA%3A${t}`
   };
 }
