@@ -4513,6 +4513,7 @@ async function renderTetoPlanilhaView() {
         <td style="color: var(--text-sub); font-size: 12px;">${r.sector}</td>
         <td class="text-right text-mono" style="font-weight: 700;">${NumFmt.money(r.price)}</td>
         <td class="text-right"><span class="badge ${chgCls}">${NumFmt.pct(r.chg)}</span></td>
+        <td class="text-right text-mono" style="font-weight: 700; color: var(--accent);">${r.precoTeto != null ? NumFmt.money(r.precoTeto) : '—'}</td>
         <td class="text-right text-mono" style="font-weight: 700;">${marginHtml}</td>
       </tr>
     `;
@@ -4526,6 +4527,7 @@ async function renderTetoPlanilhaView() {
           <th>Setor</th>
           <th class="text-right">Cotação Atual</th>
           <th class="text-right">Var. Dia</th>
+          <th class="text-right" title="Preço teto calculado na sua planilha pessoal">Preço Teto (Minha Planilha)</th>
           <th class="text-right" title="Margem de segurança do preço teto da sua planilha em relação à cotação atual">Margem de Segurança</th>
         </tr>
       </thead>
@@ -5252,6 +5254,7 @@ async function renderFavoritesView() {
         <td style="color: var(--text-sub); font-size: 12px;">${sectorStr}</td>
         <td class="text-right text-mono" style="font-weight: 700;">${NumFmt.money(price)}</td>
         <td class="text-right"><span class="badge ${badgeCls}">${NumFmt.pct(chg)}</span></td>
+        <td class="text-right text-mono" style="font-weight: 700; color: var(--accent);">${myTeto && myTeto.precoTeto != null ? NumFmt.money(myTeto.precoTeto) : '—'}</td>
         <td class="text-right text-mono" style="font-weight: 700;">${marginHtml}</td>
       </tr>
     `;
@@ -5357,6 +5360,7 @@ async function renderFavoritesView() {
                 <th>Setor</th>
                 <th class="text-right">Cotação Atual</th>
                 <th class="text-right">Var. Dia</th>
+                <th class="text-right" title="Preço teto calculado na sua planilha pessoal">Preço Teto (Minha Planilha)</th>
                 <th class="text-right" title="Margem de segurança do preço teto da sua planilha pessoal em relação à cotação atual">Margem de Segurança</th>
               </tr>
             </thead>
