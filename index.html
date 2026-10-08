@@ -238,6 +238,12 @@
     .custom-table td { padding: 12px 14px; font-size: 12.8px; border-bottom: 1px solid rgba(0, 0, 0, 0.03); white-space: nowrap; vertical-align: middle; }
     .custom-table tr:hover td { background: rgba(0, 0, 0, 0.02); }
     .custom-table tr:last-child td { border-bottom: none; }
+    /* Tabelas com poucas colunas (Favoritos - ações, Preço Teto da planilha):
+       com width:100% e so 5-6 colunas, o navegador espalha o espaço sobrando
+       entre as colunas, deixando-as "longe" umas das outras. Aqui a tabela
+       so ocupa a largura do proprio conteudo, com padding mais enxuto. */
+    .custom-table.compact { width: auto; min-width: 0; }
+    .custom-table.compact th, .custom-table.compact td { padding: 8px 12px; }
     .text-mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
     .text-right { text-align: right !important; }
     .text-center { text-align: center !important; }
@@ -4423,15 +4429,24 @@ async function fetchLiveBenchmarkUpdates(silent = false) {
 const PRECO_TETO_SHEET_ID = '1IjXhMHJ9iYZzZIoDSAs0bBbUIe95KdAEnxIKePNdNTQ';
 const PRECO_TETO_SHEET_URL = `https://docs.google.com/spreadsheets/d/${PRECO_TETO_SHEET_ID}/export?format=csv&gid=0`;
 
-// Converte "R$ 1.234,56" ou "8,35%" (formato BR) em number. "--"/"-"/vazio vira null.
+// Converte "R$ 1.234,56", "-R$ 1.234,56" (empresa com prejuizo/DPA negativo)
+// ou "8,35%" (formato BR) em number. "--"/"-"/vazio vira null.
 function parseBRNumber(raw) {
   if (raw == null) return null;
   let s = String(raw).trim();
   if (!s || s === '-' || s === '--' || s === '—') return null;
+  // O sinal de negativo pode vir ANTES do "R$" ("-R$ 3,41"), caso em que o
+  // regex de prefixo abaixo nao casava (string nao comeca com "R$") e o
+  // valor inteiro falhava silenciosamente pra null - bug reportado em
+  // 2026-10-08 com um ativo de lucro projetado negativo (AURE3).
+  const isNegative = s.startsWith('-');
+  if (isNegative) s = s.slice(1).trim();
   s = s.replace(/^R\$\s*/, '').replace(/%$/, '').trim();
   s = s.replace(/\./g, '').replace(',', '.');
-  const n = parseFloat(s);
-  return isNaN(n) ? null : n;
+  let n = parseFloat(s);
+  if (isNaN(n)) return null;
+  if (isNegative) n = -n;
+  return n;
 }
 
 // Parser de uma linha CSV respeitando campos entre aspas (podem conter virgula).
@@ -4583,7 +4598,7 @@ async function renderTetoPlanilhaView() {
   }).join('');
 
   container.innerHTML = `
-    <table class="custom-table">
+    <table class="custom-table compact">
       <thead>
         <tr>
           <th>Ação / Empresa</th>
@@ -5416,7 +5431,7 @@ async function renderFavoritesView() {
           </div>
         </div>
         <div class="table-responsive">
-          <table class="custom-table">
+          <table class="custom-table compact">
             <thead>
               <tr>
                 <th>Ação / Empresa</th>
