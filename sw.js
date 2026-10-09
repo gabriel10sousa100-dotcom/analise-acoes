@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'b3-analyzer-v2';
+﻿const CACHE_NAME = 'b3-analyzer-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

@@ -521,6 +521,14 @@
       </div>
 
       <div class="menu-group">
+        <div class="menu-header">Controle Financeiro</div>
+        <button class="nav-btn" id="nav-financas" onclick="setTab('financas')">
+          <span class="nav-icon">💰</span>
+          <span>Controle Financeiro</span>
+        </button>
+      </div>
+
+      <div class="menu-group">
         <div class="menu-header">Inteligência Artificial</div>
         <button class="nav-btn nav-ai" id="nav-ai" onclick="setTab('ai')">
           <span class="nav-icon">🤖</span>
@@ -821,6 +829,124 @@
             <div class="state-box">
               <div class="spinner-ring"></div>
               <div class="state-title">Carregando proventos da carteira...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB: CONTROLE FINANCEIRO (DIA A DIA)       -->
+      <!-- ========================================== -->
+      <div class="view-panel" id="panel-financas">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h1 class="page-title">💰 Controle Financeiro</h1>
+            <p class="page-desc" style="margin-bottom:0">Receitas, despesas, contas e cartão de crédito do dia a dia.</p>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(-1)" title="Mês anterior">◀</button>
+            <span class="status-pill good" id="finance-active-month-label" style="min-width: 140px; text-align: center;">—</span>
+            <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(1)" title="Próximo mês">▶</button>
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="grid grid-4" style="margin-bottom: 14px;">
+          <div class="stat-card">
+            <span class="stat-label">Saldo Total em Contas</span>
+            <div class="stat-val" id="finance-stat-accounts-balance">R$ 0,00</div>
+            <div class="stat-meta">Contas não-cartão</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Receitas do Mês</span>
+            <div class="stat-val" style="color: var(--green);" id="finance-stat-income">R$ 0,00</div>
+            <div class="stat-meta">Só tipo Receita</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Despesas do Mês</span>
+            <div class="stat-val" style="color: var(--red);" id="finance-stat-expense">R$ 0,00</div>
+            <div class="stat-meta">Só tipo Despesa</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Saldo do Mês</span>
+            <div class="stat-val" id="finance-stat-month-balance">R$ 0,00</div>
+            <div class="stat-meta">Receita − Despesa</div>
+          </div>
+        </div>
+
+        <!-- PATRIMONIO LIQUIDO -->
+        <div class="didactic-box blue" style="padding: 14px 20px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <span class="stat-label">💎 Patrimônio Líquido Estimado</span>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Investimentos (Minha Carteira) + Saldo em Contas − Dívida de Cartão</div>
+            </div>
+            <div class="stat-val" style="font-size: 24px;" id="finance-stat-networth">R$ 0,00</div>
+          </div>
+        </div>
+
+        <!-- FILTROS -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="finance-type-filter-bar">
+              <button class="cat-btn active" onclick="setFinanceFilter('type','all', this)">🌐 Todos</button>
+              <button class="cat-btn" onclick="setFinanceFilter('type','income', this)">🟢 Receita</button>
+              <button class="cat-btn" onclick="setFinanceFilter('type','expense', this)">🔴 Despesa</button>
+              <button class="cat-btn" onclick="setFinanceFilter('type','transfer', this)">🔁 Transferência</button>
+              <button class="cat-btn" onclick="setFinanceFilter('type','investment', this)">📈 Investimento</button>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <select class="select-field" id="finance-filter-account" onchange="setFinanceFilter('accountId', this.value)" style="width: 170px;">
+                <option value="all">Todas as Contas</option>
+              </select>
+              <select class="select-field" id="finance-filter-category" onchange="setFinanceFilter('categoryId', this.value)" style="width: 170px;">
+                <option value="all">Todas as Categorias</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="openFinanceCategoryModal()">⚙️ Categorias</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONTAS -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <div class="card-title">Minhas Contas</div>
+            <button class="btn btn-success btn-sm" onclick="openFinanceAccountModal()">+ Nova Conta</button>
+          </div>
+          <div class="grid grid-4" id="finance-accounts-grid" style="margin-top: 4px;"></div>
+        </div>
+
+        <!-- LANCAMENTOS -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <div class="card-title">Lançamentos</div>
+            <button class="btn btn-success btn-sm" onclick="openFinanceTransactionModal()">+ Novo Lançamento</button>
+          </div>
+          <div class="table-responsive" id="finance-transactions-container">
+            <div class="state-box">
+              <div class="state-icon">💰</div>
+              <div class="state-title">Nenhum lançamento ainda</div>
+              <div class="state-desc">Cadastre uma conta e clique em "+ Novo Lançamento" para começar.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GRAFICO POR CATEGORIA -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-title">Despesas por Categoria (Mês Atual)</div>
+          <div style="height: 260px; position: relative;">
+            <canvas id="finance-category-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- CARTAO DE CREDITO -->
+        <div class="card">
+          <div class="card-title">💳 Cartões de Crédito</div>
+          <div id="finance-cards-section" style="margin-top: 10px;">
+            <div class="state-box">
+              <div class="state-icon">💳</div>
+              <div class="state-title">Nenhum cartão cadastrado</div>
+              <div class="state-desc">Clique em "+ Nova Conta" acima e escolha o tipo "Cartão de Crédito".</div>
             </div>
           </div>
         </div>
@@ -1907,6 +2033,162 @@
         </div>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: LANÇAR / EDITAR LANÇAMENTO FINANCEIRO -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="finance-transaction-modal">
+  <div class="modal-box" style="max-width: 540px;">
+    <div class="modal-header">
+      <div class="modal-title" id="finance-tx-modal-title">➕ Novo Lançamento</div>
+      <button class="modal-close" onclick="closeFinanceTransactionModal()">✕</button>
+    </div>
+    <form id="finance-tx-form" onsubmit="handleSaveFinanceTransaction(event)">
+      <input type="hidden" id="finance-tx-edit-id" value="">
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Tipo</label>
+          <select class="select-field" id="finance-tx-type" style="width: 100%;" onchange="onFinanceTransactionTypeChange()">
+            <option value="expense">🔴 Despesa</option>
+            <option value="income">🟢 Receita</option>
+            <option value="transfer">🔁 Transferência entre Contas</option>
+            <option value="investment">📈 Aporte / Resgate de Investimento</option>
+          </select>
+        </div>
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Descrição</label>
+          <input type="text" class="input-field" id="finance-tx-description" placeholder="ex: Supermercado, Salário, Aplicação RDB" required style="width: 100%;">
+        </div>
+        <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Valor (R$)</label>
+            <input type="number" class="input-field" id="finance-tx-amount" min="0.01" step="0.01" required style="width: 100%;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Data</label>
+            <input type="date" class="input-field" id="finance-tx-date" required style="width: 100%;">
+          </div>
+        </div>
+        <div id="finance-tx-account-row" style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;" id="finance-tx-account-label">Conta</label>
+            <select class="select-field" id="finance-tx-account" style="width: 100%;" onchange="onFinanceTransactionAccountChange()"></select>
+          </div>
+          <div id="finance-tx-transfer-account-box" style="display:none;">
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Conta de Destino</label>
+            <select class="select-field" id="finance-tx-transfer-account" style="width: 100%;"></select>
+          </div>
+        </div>
+        <div id="finance-tx-category-box">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Categoria</label>
+          <select class="select-field" id="finance-tx-category" style="width: 100%;"></select>
+        </div>
+        <div id="finance-tx-investment-box" style="display:none;">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Direção</label>
+          <select class="select-field" id="finance-tx-investment-direction" style="width: 100%;">
+            <option value="contribution">📈 Aporte (saiu da conta)</option>
+            <option value="redemption">📉 Resgate (entrou na conta)</option>
+          </select>
+        </div>
+        <div id="finance-tx-installment-box" style="display:none; background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 12px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; margin-bottom: 8px;">
+            <input type="checkbox" id="finance-tx-is-installment" onchange="document.getElementById('finance-tx-installment-count-box').style.display = this.checked ? 'block' : 'none';">
+            Compra parcelada no cartão
+          </label>
+          <div id="finance-tx-installment-count-box" style="display:none;">
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Número de Parcelas</label>
+            <input type="number" class="input-field" id="finance-tx-installment-count" min="2" max="48" step="1" value="2" style="width: 100%;">
+          </div>
+        </div>
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Observações (Opcional)</label>
+          <input type="text" class="input-field" id="finance-tx-notes" style="width: 100%;">
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeFinanceTransactionModal()">Cancelar</button>
+          <button type="button" class="btn btn-secondary" id="finance-tx-delete-btn" style="color: var(--red); display: none;" onclick="handleDeleteCurrentFinanceTransaction()">Excluir</button>
+          <button type="submit" class="btn btn-success" style="flex: 1;" id="finance-tx-submit-btn">Salvar Lançamento</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: LANÇAR / EDITAR CONTA FINANCEIRA    -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="finance-account-modal">
+  <div class="modal-box" style="max-width: 480px;">
+    <div class="modal-header">
+      <div class="modal-title" id="finance-acc-modal-title">➕ Nova Conta</div>
+      <button class="modal-close" onclick="closeFinanceAccountModal()">✕</button>
+    </div>
+    <form id="finance-acc-form" onsubmit="handleSaveFinanceAccount(event)">
+      <input type="hidden" id="finance-acc-edit-id" value="">
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Nome da Conta</label>
+          <input type="text" class="input-field" id="finance-acc-name" placeholder="ex: Nubank, Carteira, Cartão Inter" required style="width: 100%;">
+        </div>
+        <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Tipo</label>
+            <select class="select-field" id="finance-acc-type" style="width: 100%;" onchange="onFinanceAccountTypeChange()">
+              <option value="checking">🏦 Conta Corrente</option>
+              <option value="savings">🐷 Poupança</option>
+              <option value="cash">💵 Dinheiro</option>
+              <option value="credit_card">💳 Cartão de Crédito</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;" id="finance-acc-balance-label">Saldo Inicial (R$)</label>
+            <input type="number" class="input-field" id="finance-acc-initial-balance" step="0.01" value="0" style="width: 100%;">
+          </div>
+        </div>
+        <div id="finance-acc-card-fields" style="display:none; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Limite (R$)</label>
+            <input type="number" class="input-field" id="finance-acc-credit-limit" min="0" step="0.01" style="width: 100%;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Dia Fechamento</label>
+            <input type="number" class="input-field" id="finance-acc-closing-day" min="1" max="31" step="1" style="width: 100%;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Dia Vencimento</label>
+            <input type="number" class="input-field" id="finance-acc-due-day" min="1" max="31" step="1" style="width: 100%;">
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeFinanceAccountModal()">Cancelar</button>
+          <button type="button" class="btn btn-secondary" id="finance-acc-archive-btn" style="display: none;" onclick="handleArchiveCurrentFinanceAccount()">Arquivar</button>
+          <button type="button" class="btn btn-secondary" id="finance-acc-delete-btn" style="color: var(--red); display: none;" onclick="handleDeleteCurrentFinanceAccount()">Excluir</button>
+          <button type="submit" class="btn btn-success" style="flex: 1;" id="finance-acc-submit-btn">Salvar Conta</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: GERENCIAR CATEGORIAS FINANCEIRAS    -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="finance-category-modal">
+  <div class="modal-box" style="max-width: 520px;">
+    <div class="modal-header">
+      <div class="modal-title">⚙️ Gerenciar Categorias</div>
+      <button class="modal-close" onclick="closeFinanceCategoryModal()">✕</button>
+    </div>
+    <div style="display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;">
+      <input type="text" class="input-field" id="finance-cat-new-icon" placeholder="🏷️" maxlength="2" style="width: 50px; text-align: center;">
+      <input type="text" class="input-field" id="finance-cat-new-name" placeholder="Nome da nova categoria" style="flex: 1; min-width: 160px;">
+      <label style="display:flex; align-items:center; gap:4px; font-size:11px;"><input type="checkbox" id="finance-cat-new-expense" checked> Despesa</label>
+      <label style="display:flex; align-items:center; gap:4px; font-size:11px;"><input type="checkbox" id="finance-cat-new-income"> Receita</label>
+      <button class="btn btn-success btn-sm" onclick="handleAddFinanceCategory()">+ Adicionar</button>
+    </div>
+    <div id="finance-category-list" style="display:flex; flex-direction:column; gap:6px; max-height: 360px; overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -3486,6 +3768,30 @@ const DEFAULT_FAVORITES = [
   "BSLI4", "BAZA3", "BMEB4", "GGBR4", "GOAU4", "SUZB3", "VALE3", "PETR4", "WEGE3"
 ];
 
+// Paleta fixa reutilizada em todos os graficos doughnut do app (Carteira:
+// diversificacao por ativo/setor; Controle Financeiro: gasto por categoria).
+const CHART_COLOR_PALETTE = ['#0f6b4c', '#92610d', '#6d4a8f', '#a3271f', '#0e7490', '#15803d', '#a54f6f', '#453163', '#b45309'];
+
+// Categorias padrao do Controle Financeiro, baseadas nas categorias reais de
+// um export do Mobills (app que o usuario ja usava) - nao uma lista generica
+// inventada. IDs fixos (nao Date.now()) para ficarem estaveis entre sessoes/
+// backup/sincronizacao em nuvem.
+const DEFAULT_FINANCE_CATEGORIES = [
+  { id: 'cat_compras', name: 'Compras', icon: '🛍️', color: CHART_COLOR_PALETTE[0], appliesTo: ['expense'], isCustom: false, archived: false },
+  { id: 'cat_alimentacao', name: 'Alimentação', icon: '🍔', color: CHART_COLOR_PALETTE[1], appliesTo: ['expense'], isCustom: false, archived: false },
+  { id: 'cat_transporte', name: 'Transporte', icon: '🚗', color: CHART_COLOR_PALETTE[2], appliesTo: ['expense'], isCustom: false, archived: false },
+  { id: 'cat_supermercado', name: 'Supermercado', icon: '🛒', color: CHART_COLOR_PALETTE[3], appliesTo: ['expense'], isCustom: false, archived: false },
+  { id: 'cat_servicos', name: 'Serviços', icon: '🔧', color: CHART_COLOR_PALETTE[4], appliesTo: ['expense'], isCustom: false, archived: false },
+  { id: 'cat_saude', name: 'Saúde', icon: '💊', color: CHART_COLOR_PALETTE[5], appliesTo: ['expense'], isCustom: false, archived: false },
+  { id: 'cat_viagem', name: 'Viagem', icon: '✈️', color: CHART_COLOR_PALETTE[6], appliesTo: ['expense'], isCustom: false, archived: false },
+  { id: 'cat_assinatura', name: 'Assinatura', icon: '📱', color: CHART_COLOR_PALETTE[7], appliesTo: ['expense'], isCustom: false, archived: false },
+  { id: 'cat_outros', name: 'Outros', icon: '📦', color: CHART_COLOR_PALETTE[8], appliesTo: ['expense', 'income'], isCustom: false, archived: false },
+  { id: 'cat_renda_extra', name: 'Renda extra', icon: '💰', color: CHART_COLOR_PALETTE[0], appliesTo: ['income'], isCustom: false, archived: false },
+  { id: 'cat_educacao', name: 'Educação', icon: '🎓', color: CHART_COLOR_PALETTE[1], appliesTo: ['expense'], isCustom: false, archived: false },
+  { id: 'cat_lazer', name: 'Lazer', icon: '🎮', color: CHART_COLOR_PALETTE[2], appliesTo: ['expense'], isCustom: false, archived: false },
+  { id: 'cat_casa', name: 'Casa', icon: '🏠', color: CHART_COLOR_PALETTE[3], appliesTo: ['expense'], isCustom: false, archived: false }
+];
+
 // GLOBAL STATE
 const AppState = {
   token: localStorage.getItem('brapi_token') || 'gs1DdyJMLPRA5AmaFjqc4F',
@@ -3556,7 +3862,23 @@ const AppState = {
   precoTetoSheet: JSON.parse(localStorage.getItem('b3_preco_teto_sheet') || '{}'),
   precoTetoSheetUpdatedAt: localStorage.getItem('b3_preco_teto_sheet_updated') || null,
   besstOverrides: JSON.parse(localStorage.getItem('b3_besst_overrides') || '[]'),
-  activeTetoPlanilhaMargin: 'all'
+  activeTetoPlanilhaMargin: 'all',
+
+  // CONTROLE FINANCEIRO (dia a dia - contas, categorias, lancamentos)
+  financeAccounts: JSON.parse(localStorage.getItem('b3_finance_accounts') || '[]'),
+  financeCategories: (function() {
+    try {
+      const c = JSON.parse(localStorage.getItem('b3_finance_categories') || '[]');
+      return (Array.isArray(c) && c.length > 0) ? c : [...DEFAULT_FINANCE_CATEGORIES];
+    } catch (e) {
+      return [...DEFAULT_FINANCE_CATEGORIES];
+    }
+  })(),
+  financeTransactions: JSON.parse(localStorage.getItem('b3_finance_transactions') || '[]'),
+  financeActiveMonth: new Date().toISOString().slice(0, 7),
+  financeFilters: { type: 'all', accountId: 'all', categoryId: 'all' },
+  financeAccountChartInstance: null,
+  financeCategoryChartInstance: null
 };
 
 // ==========================================
@@ -6437,6 +6759,209 @@ function getConsolidatedPortfolio() {
   });
 }
 
+// ================================================================
+// CONTROLE FINANCEIRO: CALCULO E AGREGACAO (funcoes puras, sem DOM)
+// ================================================================
+
+function daysInMonth(year, month1to12) {
+  return new Date(year, month1to12, 0).getDate();
+}
+
+// Soma n meses a uma string 'YYYY-MM' (n pode ser negativo), com rollover de ano.
+function addMonthsToYYYYMM(yyyymm, n) {
+  const [y, m] = yyyymm.split('-').map(Number);
+  const d = new Date(y, (m - 1) + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Em qual ciclo de fatura (mes de FECHAMENTO, 'YYYY-MM') uma data cai, dado o
+// dia de fechamento do cartao. Compra EXATAMENTE no dia de fechamento ainda
+// entra nesse ciclo (comparacao e "day > effClosing", nao ">=").
+function getInvoiceCycleForDate(cardAccount, dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const year = d.getFullYear();
+  const month1 = d.getMonth() + 1;
+  const day = d.getDate();
+  const effClosing = Math.min(cardAccount.closingDay, daysInMonth(year, month1));
+  const base = `${year}-${String(month1).padStart(2, '0')}`;
+  return day > effClosing ? addMonthsToYYYYMM(base, 1) : base;
+}
+
+// Data de vencimento de uma fatura a partir do mes de fechamento dela.
+// Regra padrao de cartao brasileiro: se o dia de vencimento e <= dia de
+// fechamento, o vencimento cai no mes SEGUINTE ao fechamento; senao, no
+// mesmo mes do fechamento.
+function getInvoiceDueDate(cardAccount, invoiceMonth) {
+  const dueMonth = cardAccount.dueDay <= cardAccount.closingDay ? addMonthsToYYYYMM(invoiceMonth, 1) : invoiceMonth;
+  const [y, m] = dueMonth.split('-').map(Number);
+  const dueDayClamped = Math.min(cardAccount.dueDay, daysInMonth(y, m));
+  return `${dueMonth}-${String(dueDayClamped).padStart(2, '0')}`;
+}
+
+// Gera os N lancamentos (parcelas) de uma compra - sempre type:'expense'.
+// Usada tanto pra compras parceladas (N>1) quanto pra compra de cartao a
+// vista (N=1, sem installmentGroupId) - assim toda despesa no cartao,
+// parcelada ou nao, ja sai com invoiceMonth calculado e gravado uma unica
+// vez. Funcao pura: nao mexe em AppState nem localStorage, quem chama
+// persiste.
+function generateInstallments(purchase) {
+  const { accountId, totalAmount, installmentCount, purchaseDate, description, categoryId, notes, tags } = purchase;
+  const card = (AppState.financeAccounts || []).find(a => a.id === accountId);
+  const n = Math.max(1, installmentCount || 1);
+  const groupId = n > 1 ? ('insg_' + Date.now() + '_' + Math.floor(Math.random() * 1000)) : null;
+  const baseCycle = card ? getInvoiceCycleForDate(card, purchaseDate) : purchaseDate.slice(0, 7);
+  const perInstallment = Math.floor((totalAmount * 100) / n) / 100;
+
+  const result = [];
+  for (let i = 1; i <= n; i++) {
+    const amount = i < n ? perInstallment : parseFloat((totalAmount - perInstallment * (n - 1)).toFixed(2));
+    result.push({
+      id: 'ftx_' + Date.now() + '_' + i + '_' + Math.floor(Math.random() * 1000),
+      type: 'expense',
+      description: n > 1 ? `${description} (${i}/${n})` : description,
+      amount,
+      date: purchaseDate,
+      accountId,
+      categoryId,
+      notes: notes || '',
+      tags: tags || [],
+      source: 'manual',
+      importId: null,
+      originalAccountLabel: null,
+      transferAccountId: null,
+      investmentDirection: null,
+      isCardPurchase: true,
+      installmentGroupId: groupId,
+      installmentNumber: i,
+      installmentTotal: n,
+      invoiceMonth: addMonthsToYYYYMM(baseCycle, i - 1)
+    });
+  }
+  return result;
+}
+
+// Saldo de uma conta NAO-cartao, sempre calculado on-the-fly (initialBalance
+// + soma assinada das transacoes) - nunca um numero mutavel persistido, pra
+// nao dessincronizar quando um lancamento antigo e editado/excluido.
+function getFinanceAccountBalance(accountId) {
+  const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
+  let balance = acc ? (Number(acc.initialBalance) || 0) : 0;
+  (AppState.financeTransactions || []).forEach(tx => {
+    const amt = Number(tx.amount) || 0;
+    if (tx.accountId === accountId) {
+      if (tx.type === 'expense' || tx.type === 'transfer') balance -= amt;
+      else if (tx.type === 'income') balance += amt;
+      else if (tx.type === 'investment') balance += (tx.investmentDirection === 'redemption' ? amt : -amt);
+    }
+    if (tx.type === 'transfer' && tx.transferAccountId === accountId) balance += amt;
+  });
+  return balance;
+}
+
+// Mes "efetivo" de um lancamento pra fins de agregacao mensal: compra de
+// cartao conta no mes da FATURA (invoiceMonth), nao no mes da compra.
+function getEffectiveMonth(tx) {
+  if (tx.isCardPurchase && tx.invoiceMonth) return tx.invoiceMonth;
+  return (tx.date || '').slice(0, 7);
+}
+
+// Resumo do mes: Receita/Despesa/Saldo somam SO income/expense (transfer e
+// investment nunca entram aqui - sao movimentacao, nao ganho/gasto real).
+function getFinanceMonthSummary(monthStr) {
+  const txs = (AppState.financeTransactions || []).filter(tx => getEffectiveMonth(tx) === monthStr);
+  let income = 0, expense = 0;
+  const byCategory = {};
+  txs.forEach(tx => {
+    const amt = Number(tx.amount) || 0;
+    if (tx.type === 'income') income += amt;
+    else if (tx.type === 'expense') {
+      expense += amt;
+      const cat = (AppState.financeCategories || []).find(c => c.id === tx.categoryId);
+      const label = cat ? `${cat.icon} ${cat.name}` : 'Outros';
+      byCategory[label] = (byCategory[label] || 0) + amt;
+    }
+  });
+  return { income, expense, balance: income - expense, byCategory };
+}
+
+function getCardCurrentOpenCycle(cardAccountId) {
+  const card = (AppState.financeAccounts || []).find(a => a.id === cardAccountId);
+  if (!card) return null;
+  return getInvoiceCycleForDate(card, new Date().toISOString().slice(0, 10));
+}
+
+function getCardInvoiceForCycle(cardAccountId, invoiceMonth) {
+  const card = (AppState.financeAccounts || []).find(a => a.id === cardAccountId);
+  const txs = (AppState.financeTransactions || []).filter(tx => tx.accountId === cardAccountId && tx.invoiceMonth === invoiceMonth);
+  const total = txs.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  const currentCycle = getCardCurrentOpenCycle(cardAccountId);
+  let status = 'closed';
+  if (invoiceMonth === currentCycle) status = 'open';
+  else if (currentCycle && invoiceMonth > currentCycle) status = 'future';
+  return {
+    invoiceMonth,
+    total,
+    status,
+    isPaid: card ? (card.paidInvoiceMonths || []).includes(invoiceMonth) : false,
+    dueDate: card ? getInvoiceDueDate(card, invoiceMonth) : null,
+    transactions: txs
+  };
+}
+
+// Soma de parcelas futuras (ainda nao faturadas no ciclo atual) - sai de
+// graca por as parcelas ja estarem materializadas desde o lancamento.
+function getCardFutureCommitted(cardAccountId) {
+  const currentCycle = getCardCurrentOpenCycle(cardAccountId);
+  if (!currentCycle) return 0;
+  return (AppState.financeTransactions || [])
+    .filter(tx => tx.accountId === cardAccountId && tx.invoiceMonth && tx.invoiceMonth > currentCycle)
+    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+}
+
+// "Usado" do limite = soma de despesas cujo invoiceMonth ainda nao foi
+// marcado como pago (cobre fatura aberta + fechada nao paga + futuras).
+function getCardLimitUsage(cardAccountId) {
+  const card = (AppState.financeAccounts || []).find(a => a.id === cardAccountId);
+  if (!card) return { used: 0, available: 0, limit: 0, pct: 0 };
+  const paid = card.paidInvoiceMonths || [];
+  const used = (AppState.financeTransactions || [])
+    .filter(tx => tx.accountId === cardAccountId && tx.type === 'expense' && !paid.includes(tx.invoiceMonth))
+    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  const limit = Number(card.creditLimit) || 0;
+  return { used, available: Math.max(0, limit - used), limit, pct: limit > 0 ? (used / limit) * 100 : 0 };
+}
+
+function markCardInvoiceAsPaid(cardAccountId, invoiceMonth) {
+  const card = (AppState.financeAccounts || []).find(a => a.id === cardAccountId);
+  if (!card) return;
+  if (!card.paidInvoiceMonths.includes(invoiceMonth)) card.paidInvoiceMonths.push(invoiceMonth);
+  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  renderFinanceView();
+}
+
+function unmarkCardInvoiceAsPaid(cardAccountId, invoiceMonth) {
+  const card = (AppState.financeAccounts || []).find(a => a.id === cardAccountId);
+  if (!card) return;
+  card.paidInvoiceMonths = card.paidInvoiceMonths.filter(m => m !== invoiceMonth);
+  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  renderFinanceView();
+}
+
+// Patrimonio Liquido = Investimentos (ja trackados na Carteira) + Saldo em
+// contas - Divida de cartao (inclui parcelas futuras ja comprometidas,
+// decisao de produto documentada: conta como "ja gasto", nao so a fatura
+// do mes).
+function getNetWorthSnapshot() {
+  const investments = getConsolidatedPortfolio().reduce((sum, p) => sum + p.cost, 0);
+  const accountsBalance = (AppState.financeAccounts || [])
+    .filter(a => a.type !== 'credit_card' && !a.archived)
+    .reduce((sum, a) => sum + getFinanceAccountBalance(a.id), 0);
+  const cardDebt = (AppState.financeAccounts || [])
+    .filter(a => a.type === 'credit_card' && !a.archived)
+    .reduce((sum, a) => sum + getCardLimitUsage(a.id).used, 0);
+  return { investments, accountsBalance, cardDebt, total: investments + accountsBalance - cardDebt };
+}
+
 function syncAutomatedDividends() {
   const todayStr = new Date().toISOString().split('T')[0];
   const trades = AppState.trades || [];
@@ -6991,6 +7516,589 @@ function renderPortfolioCharts(assetLabels, assetValues, sectorMap) {
       }
     });
   }
+}
+
+// ================================================================
+// TAB: CONTROLE FINANCEIRO (DIA A DIA)
+// ================================================================
+
+function renderFinanceView() {
+  const monthLabel = document.getElementById('finance-active-month-label');
+  if (monthLabel) {
+    const [y, m] = AppState.financeActiveMonth.split('-').map(Number);
+    const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    monthLabel.textContent = `${monthNames[m - 1]} ${y}`;
+  }
+  populateFinanceAccountAndCategorySelects();
+  renderFinanceKpis();
+  renderFinanceAccountsList();
+  renderFinanceTransactionsList();
+  renderFinanceCategoryChart();
+  renderFinanceCardsSection();
+}
+
+function populateFinanceAccountAndCategorySelects() {
+  const accSel = document.getElementById('finance-filter-account');
+  if (accSel) {
+    const accounts = (AppState.financeAccounts || []).filter(a => !a.archived);
+    accSel.innerHTML = `<option value="all">Todas as Contas</option>` + accounts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
+    accSel.value = AppState.financeFilters.accountId;
+  }
+  const catSel = document.getElementById('finance-filter-category');
+  if (catSel) {
+    const cats = (AppState.financeCategories || []).filter(c => !c.archived);
+    catSel.innerHTML = `<option value="all">Todas as Categorias</option>` + cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+    catSel.value = AppState.financeFilters.categoryId;
+  }
+}
+
+function renderFinanceKpis() {
+  const accountsBalance = (AppState.financeAccounts || [])
+    .filter(a => a.type !== 'credit_card' && !a.archived)
+    .reduce((sum, a) => sum + getFinanceAccountBalance(a.id), 0);
+  const summary = getFinanceMonthSummary(AppState.financeActiveMonth);
+  const net = getNetWorthSnapshot();
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('finance-stat-accounts-balance', NumFmt.money(accountsBalance));
+  set('finance-stat-income', NumFmt.money(summary.income));
+  set('finance-stat-expense', NumFmt.money(summary.expense));
+  const balEl = document.getElementById('finance-stat-month-balance');
+  if (balEl) {
+    balEl.textContent = NumFmt.money(summary.balance);
+    balEl.style.color = summary.balance >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+  set('finance-stat-networth', NumFmt.money(net.total));
+}
+
+function renderFinanceAccountsList() {
+  const grid = document.getElementById('finance-accounts-grid');
+  if (!grid) return;
+  const accounts = (AppState.financeAccounts || []).filter(a => !a.archived);
+  if (accounts.length === 0) {
+    grid.innerHTML = `<div class="state-box" style="grid-column: 1 / -1;"><div class="state-icon">🏦</div><div class="state-title">Nenhuma conta cadastrada</div><div class="state-desc">Clique em "+ Nova Conta" para começar.</div></div>`;
+    return;
+  }
+  const typeLabel = { checking: 'Conta Corrente', savings: 'Poupança', cash: 'Dinheiro' };
+  grid.innerHTML = accounts.map(a => {
+    if (a.type === 'credit_card') {
+      const usage = getCardLimitUsage(a.id);
+      return `
+        <div class="stat-card" style="cursor:pointer;" onclick="openFinanceAccountModal('${a.id}')">
+          <span class="stat-label">${a.icon || '💳'} ${a.name}</span>
+          <div class="stat-val" style="color: var(--red); font-size: 18px;">${NumFmt.money(usage.used)}</div>
+          <div class="stat-meta">Limite: ${NumFmt.money(usage.limit)} (${NumFmt.num(usage.pct, 0)}% usado)</div>
+        </div>`;
+    }
+    const balance = getFinanceAccountBalance(a.id);
+    return `
+      <div class="stat-card" style="cursor:pointer;" onclick="openFinanceAccountModal('${a.id}')">
+        <span class="stat-label">${a.icon || '🏦'} ${a.name}</span>
+        <div class="stat-val" style="font-size: 18px; color: ${balance >= 0 ? 'var(--text)' : 'var(--red)'};">${NumFmt.money(balance)}</div>
+        <div class="stat-meta">${typeLabel[a.type] || a.type}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderFinanceTransactionsList() {
+  const container = document.getElementById('finance-transactions-container');
+  if (!container) return;
+
+  const f = AppState.financeFilters;
+  let txs = (AppState.financeTransactions || []).filter(tx => getEffectiveMonth(tx) === AppState.financeActiveMonth);
+  if (f.type !== 'all') txs = txs.filter(tx => tx.type === f.type);
+  if (f.accountId !== 'all') txs = txs.filter(tx => tx.accountId === f.accountId || tx.transferAccountId === f.accountId);
+  if (f.categoryId !== 'all') txs = txs.filter(tx => tx.categoryId === f.categoryId);
+  txs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  if (txs.length === 0) {
+    container.innerHTML = `<div class="state-box"><div class="state-icon">💰</div><div class="state-title">Nenhum lançamento neste mês</div><div class="state-desc">Ajuste os filtros ou clique em "+ Novo Lançamento".</div></div>`;
+    return;
+  }
+
+  const typeLabels = { expense: '🔴 Despesa', income: '🟢 Receita', transfer: '🔁 Transferência', investment: '📈 Investimento' };
+  const rowsHtml = txs.map(tx => {
+    const acc = (AppState.financeAccounts || []).find(a => a.id === tx.accountId);
+    const cat = (AppState.financeCategories || []).find(c => c.id === tx.categoryId);
+    const isPositive = tx.type === 'income' || (tx.type === 'investment' && tx.investmentDirection === 'redemption');
+    const amountColor = isPositive ? 'var(--green)' : (tx.type === 'expense' ? 'var(--red)' : 'var(--text)');
+    const amountSign = tx.type === 'income' ? '+' : (tx.type === 'investment' ? (isPositive ? '+' : '-') : (tx.type === 'expense' || tx.type === 'transfer' ? '-' : ''));
+    const installmentBadge = tx.installmentTotal > 1
+      ? `<span class="badge badge-flat" style="cursor:pointer; font-size:10px;" onclick="toggleFinanceInstallmentGroup('${tx.installmentGroupId}')">${tx.installmentNumber}/${tx.installmentTotal} 🔽</span>`
+      : '';
+    const destAccName = tx.type === 'transfer' ? ((AppState.financeAccounts || []).find(a => a.id === tx.transferAccountId)?.name || 'Conta removida') : '';
+    return `
+      <tr class="fav-table-row">
+        <td class="text-mono" style="font-size:12px;">${NumFmt.date(tx.date)}</td>
+        <td>${tx.description} ${installmentBadge}</td>
+        <td style="font-size:12px; color:var(--text-sub);">${cat ? cat.icon + ' ' + cat.name : '—'}</td>
+        <td style="font-size:12px; color:var(--text-sub);">${acc ? (acc.icon || '') + ' ' + acc.name : 'Conta removida'}${tx.type === 'transfer' ? ' → ' + destAccName : ''}</td>
+        <td class="text-right text-mono" style="font-weight:700; color:${amountColor};">${amountSign}${NumFmt.money(tx.amount)}</td>
+        <td><span class="badge badge-flat" style="font-size:10px;">${typeLabels[tx.type] || tx.type}</span></td>
+        <td class="text-center">
+          <button class="btn btn-icon btn-sm" onclick="openFinanceTransactionModal('${tx.id}')" title="Editar">✏️</button>
+          <button class="btn btn-icon btn-sm" onclick="handleDeleteFinanceTransaction('${tx.id}')" title="Excluir" style="color:var(--red);">✕</button>
+        </td>
+      </tr>
+      ${tx.installmentTotal > 1 ? `
+      <tr class="sub-trades-row" id="finance-inst-group-${tx.installmentGroupId}-${tx.id}" style="display:none;">
+        <td colspan="7" class="sub-trades-cell">
+          <div class="sub-trades-box">
+            <div class="sub-trades-header">Parcelas de "${tx.description.replace(/\s*\(\d+\/\d+\)$/, '')}"
+              <button class="btn btn-secondary btn-sm" style="color:var(--red); margin-left:8px;" onclick="handleDeleteFinanceInstallmentGroup('${tx.installmentGroupId}')">Excluir compra parcelada inteira</button>
+            </div>
+            <table class="sub-trades-table">
+              ${(AppState.financeTransactions || []).filter(t => t.installmentGroupId === tx.installmentGroupId).sort((a, b) => a.installmentNumber - b.installmentNumber).map(p => `
+                <tr><td>${p.installmentNumber}/${p.installmentTotal}</td><td>${p.invoiceMonth}</td><td class="text-right text-mono">${NumFmt.money(p.amount)}</td></tr>
+              `).join('')}
+            </table>
+          </div>
+        </td>
+      </tr>` : ''}
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <table class="custom-table compact">
+      <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Conta</th><th class="text-right">Valor</th><th>Tipo</th><th class="text-center">Ações</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+}
+
+function renderFinanceCategoryChart() {
+  const canvas = document.getElementById('finance-category-chart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const summary = getFinanceMonthSummary(AppState.financeActiveMonth);
+  const labels = Object.keys(summary.byCategory);
+  const values = Object.values(summary.byCategory);
+
+  if (AppState.financeCategoryChartInstance) { AppState.financeCategoryChartInstance.destroy(); AppState.financeCategoryChartInstance = null; }
+  if (labels.length === 0) return;
+
+  AppState.financeCategoryChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: labels.map((_, i) => CHART_COLOR_PALETTE[i % CHART_COLOR_PALETTE.length]), borderColor: '#ffffff', borderWidth: 2 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { color: '#57503f', font: { family: 'Inter', size: 11 } } },
+        tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: R$ ${ctx.parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` } }
+      }
+    }
+  });
+}
+
+function renderFinanceCardsSection() {
+  const container = document.getElementById('finance-cards-section');
+  if (!container) return;
+  const cards = (AppState.financeAccounts || []).filter(a => a.type === 'credit_card' && !a.archived);
+  if (cards.length === 0) {
+    container.innerHTML = `<div class="state-box"><div class="state-icon">💳</div><div class="state-title">Nenhum cartão cadastrado</div><div class="state-desc">Clique em "+ Nova Conta" acima e escolha o tipo "Cartão de Crédito".</div></div>`;
+    return;
+  }
+  container.innerHTML = cards.map(card => {
+    const currentCycle = getCardCurrentOpenCycle(card.id);
+    const openInvoice = getCardInvoiceForCycle(card.id, currentCycle);
+    const prevCycle = addMonthsToYYYYMM(currentCycle, -1);
+    const prevInvoice = getCardInvoiceForCycle(card.id, prevCycle);
+    const futureCommitted = getCardFutureCommitted(card.id);
+    const usage = getCardLimitUsage(card.id);
+    const usageColor = usage.pct >= 90 ? 'var(--red)' : usage.pct >= 70 ? 'var(--yellow)' : 'var(--green)';
+
+    return `
+      <div class="card" style="margin-bottom: 14px; border-left: 3px solid var(--accent);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+          <strong>${card.icon || '💳'} ${card.name}</strong>
+          <span style="font-size:11px; color:var(--text-sub);">Fecha dia ${card.closingDay} · Vence dia ${card.dueDay}</span>
+        </div>
+        <div class="grid grid-4">
+          <div class="stat-card">
+            <span class="stat-label">Fatura Aberta (${currentCycle})</span>
+            <div class="stat-val" style="font-size:16px;">${NumFmt.money(openInvoice.total)}</div>
+            <div class="stat-meta">Vence ${NumFmt.date(openInvoice.dueDate)}</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Fatura Fechada (${prevCycle})</span>
+            <div class="stat-val" style="font-size:16px; color:${prevInvoice.isPaid ? 'var(--green)' : 'var(--red)'};">${NumFmt.money(prevInvoice.total)}</div>
+            <div class="stat-meta">
+              ${prevInvoice.isPaid
+                ? `✅ Paga <span style="cursor:pointer; text-decoration:underline;" onclick="unmarkCardInvoiceAsPaid('${card.id}','${prevCycle}')">(desfazer)</span>`
+                : `<span style="cursor:pointer; text-decoration:underline; color:var(--accent);" onclick="markCardInvoiceAsPaid('${card.id}','${prevCycle}')">Marcar como paga</span>`}
+            </div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Parcelas Futuras</span>
+            <div class="stat-val" style="font-size:16px; color:var(--yellow);">${NumFmt.money(futureCommitted)}</div>
+            <div class="stat-meta">Já comprometido, ainda não faturado</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Limite Usado</span>
+            <div class="stat-val" style="font-size:16px; color:${usageColor};">${NumFmt.num(usage.pct, 0)}%</div>
+            <div class="stat-meta">${NumFmt.money(usage.used)} de ${NumFmt.money(usage.limit)}</div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleFinanceInstallmentGroup(groupId) {
+  document.querySelectorAll(`tr[id^="finance-inst-group-${groupId}-"]`).forEach(row => {
+    row.style.display = row.style.display === 'none' ? '' : 'none';
+  });
+}
+
+function toggleFinanceMonth(delta) {
+  AppState.financeActiveMonth = addMonthsToYYYYMM(AppState.financeActiveMonth, delta);
+  renderFinanceView();
+}
+
+function setFinanceFilter(key, value, btnEl) {
+  AppState.financeFilters[key] = value;
+  if (key === 'type' && btnEl) {
+    document.querySelectorAll('#finance-type-filter-bar .cat-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+  }
+  renderFinanceTransactionsList();
+}
+
+// ---------- MODAL: LANÇAMENTO ----------
+
+function openFinanceTransactionModal(editId = '') {
+  const modal = document.getElementById('finance-transaction-modal');
+  const accounts = (AppState.financeAccounts || []).filter(a => !a.archived);
+  if (accounts.length === 0) { showToast('Cadastre uma conta antes de lançar.', 'warn'); return; }
+
+  document.getElementById('finance-tx-edit-id').value = editId;
+  const accSel = document.getElementById('finance-tx-account');
+  const transferSel = document.getElementById('finance-tx-transfer-account');
+  const optsHtml = accounts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
+  accSel.innerHTML = optsHtml;
+  transferSel.innerHTML = optsHtml;
+
+  const tx = editId ? (AppState.financeTransactions || []).find(t => t.id === editId) : null;
+  const typeSel = document.getElementById('finance-tx-type');
+  const isInstallmentTx = !!(tx && tx.installmentTotal > 1);
+
+  document.getElementById('finance-tx-modal-title').textContent = editId ? '✏️ Editar Lançamento' : '➕ Novo Lançamento';
+  typeSel.value = tx ? tx.type : 'expense';
+  typeSel.disabled = isInstallmentTx;
+  document.getElementById('finance-tx-description').value = tx ? tx.description.replace(/\s*\(\d+\/\d+\)$/, '') : '';
+  document.getElementById('finance-tx-amount').value = tx ? tx.amount : '';
+  document.getElementById('finance-tx-amount').disabled = isInstallmentTx;
+  document.getElementById('finance-tx-date').value = tx ? tx.date : new Date().toISOString().slice(0, 10);
+  document.getElementById('finance-tx-date').disabled = isInstallmentTx;
+  accSel.value = tx ? tx.accountId : accounts[0].id;
+  accSel.disabled = isInstallmentTx;
+  if (tx && tx.transferAccountId) transferSel.value = tx.transferAccountId;
+  if (tx && tx.investmentDirection) document.getElementById('finance-tx-investment-direction').value = tx.investmentDirection;
+  document.getElementById('finance-tx-notes').value = tx ? (tx.notes || '') : '';
+  document.getElementById('finance-tx-is-installment').checked = false;
+  document.getElementById('finance-tx-is-installment').disabled = !!tx;
+  document.getElementById('finance-tx-installment-count').value = 2;
+  document.getElementById('finance-tx-installment-count-box').style.display = 'none';
+
+  document.getElementById('finance-tx-delete-btn').style.display = editId ? 'inline-flex' : 'none';
+  document.getElementById('finance-tx-submit-btn').textContent = editId ? 'Salvar Alterações' : 'Salvar Lançamento';
+
+  onFinanceTransactionTypeChange();
+  if (tx && tx.categoryId) document.getElementById('finance-tx-category').value = tx.categoryId;
+  onFinanceTransactionAccountChange();
+  if (isInstallmentTx) document.getElementById('finance-tx-installment-box').style.display = 'none';
+
+  modal.classList.add('active');
+}
+
+function closeFinanceTransactionModal() {
+  const modal = document.getElementById('finance-transaction-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function onFinanceTransactionTypeChange() {
+  const type = document.getElementById('finance-tx-type').value;
+  document.getElementById('finance-tx-transfer-account-box').style.display = type === 'transfer' ? 'block' : 'none';
+  document.getElementById('finance-tx-category-box').style.display = (type === 'expense' || type === 'income') ? 'block' : 'none';
+  document.getElementById('finance-tx-investment-box').style.display = type === 'investment' ? 'block' : 'none';
+  document.getElementById('finance-tx-account-label').textContent = type === 'transfer' ? 'Conta de Origem' : 'Conta';
+
+  const catSel = document.getElementById('finance-tx-category');
+  if (type === 'expense' || type === 'income') {
+    const cats = (AppState.financeCategories || []).filter(c => !c.archived && c.appliesTo.includes(type));
+    catSel.innerHTML = cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+  }
+
+  onFinanceTransactionAccountChange();
+}
+
+function onFinanceTransactionAccountChange() {
+  const type = document.getElementById('finance-tx-type').value;
+  const accId = document.getElementById('finance-tx-account').value;
+  const acc = (AppState.financeAccounts || []).find(a => a.id === accId);
+  const isCard = !!(acc && acc.type === 'credit_card');
+  const editId = document.getElementById('finance-tx-edit-id').value;
+  document.getElementById('finance-tx-installment-box').style.display = (type === 'expense' && isCard && !editId) ? 'block' : 'none';
+}
+
+function handleSaveFinanceTransaction(e) {
+  e.preventDefault();
+  const editId = document.getElementById('finance-tx-edit-id').value;
+  const type = document.getElementById('finance-tx-type').value;
+  const description = document.getElementById('finance-tx-description').value.trim();
+  const amount = parseFloat(document.getElementById('finance-tx-amount').value);
+  const date = document.getElementById('finance-tx-date').value;
+  const accountId = document.getElementById('finance-tx-account').value;
+  const categoryId = (type === 'expense' || type === 'income') ? document.getElementById('finance-tx-category').value : null;
+  const transferAccountId = type === 'transfer' ? document.getElementById('finance-tx-transfer-account').value : null;
+  const investmentDirection = type === 'investment' ? document.getElementById('finance-tx-investment-direction').value : null;
+  const notes = document.getElementById('finance-tx-notes').value.trim();
+
+  if (!description || isNaN(amount) || amount <= 0 || !date || !accountId) {
+    showToast('Preencha os campos corretamente.', 'error');
+    return;
+  }
+  if (type === 'transfer' && transferAccountId === accountId) {
+    showToast('Conta de origem e destino devem ser diferentes.', 'error');
+    return;
+  }
+
+  if (editId) {
+    const idx = AppState.financeTransactions.findIndex(t => t.id === editId);
+    if (idx === -1) return;
+    const existing = AppState.financeTransactions[idx];
+    if (existing.installmentTotal > 1) {
+      const baseDesc = description.replace(/\s*\(\d+\/\d+\)$/, '');
+      AppState.financeTransactions = AppState.financeTransactions.map(t => {
+        if (t.installmentGroupId !== existing.installmentGroupId) return t;
+        return { ...t, description: `${baseDesc} (${t.installmentNumber}/${t.installmentTotal})`, categoryId: categoryId || t.categoryId, notes };
+      });
+    } else {
+      AppState.financeTransactions[idx] = { ...existing, type, description, amount, date, accountId, categoryId, transferAccountId, investmentDirection, notes };
+    }
+  } else {
+    const isInstallmentChecked = document.getElementById('finance-tx-is-installment').checked;
+    const installmentCount = isInstallmentChecked ? (parseInt(document.getElementById('finance-tx-installment-count').value) || 1) : 1;
+    const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
+    const isCardExpense = type === 'expense' && acc && acc.type === 'credit_card';
+
+    if (isCardExpense) {
+      const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description, categoryId, notes, tags: [] });
+      AppState.financeTransactions.unshift(...newTxs);
+    } else {
+      AppState.financeTransactions.unshift({
+        id: 'ftx_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+        type, description, amount, date, accountId, categoryId,
+        notes, tags: [], source: 'manual', importId: null, originalAccountLabel: null,
+        transferAccountId, investmentDirection,
+        isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null
+      });
+    }
+  }
+
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  closeFinanceTransactionModal();
+  renderFinanceView();
+  showToast('Lançamento salvo!', 'success');
+}
+
+function handleDeleteCurrentFinanceTransaction() {
+  const editId = document.getElementById('finance-tx-edit-id').value;
+  if (editId) { closeFinanceTransactionModal(); handleDeleteFinanceTransaction(editId); }
+}
+
+function handleDeleteFinanceTransaction(id) {
+  const tx = (AppState.financeTransactions || []).find(t => t.id === id);
+  if (!tx) return;
+  if (!confirm(`Excluir o lançamento "${tx.description}" (${NumFmt.money(tx.amount)})?`)) return;
+  AppState.financeTransactions = AppState.financeTransactions.filter(t => t.id !== id);
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  renderFinanceView();
+  showToast('Lançamento excluído.', 'info');
+}
+
+function handleDeleteFinanceInstallmentGroup(groupId) {
+  const count = (AppState.financeTransactions || []).filter(t => t.installmentGroupId === groupId).length;
+  if (!confirm(`Excluir as ${count} parcelas dessa compra inteira?`)) return;
+  AppState.financeTransactions = AppState.financeTransactions.filter(t => t.installmentGroupId !== groupId);
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  renderFinanceView();
+  showToast('Compra parcelada excluída.', 'info');
+}
+
+// ---------- MODAL: CONTA ----------
+
+function openFinanceAccountModal(editId = '') {
+  const modal = document.getElementById('finance-account-modal');
+  document.getElementById('finance-acc-edit-id').value = editId;
+  const acc = editId ? (AppState.financeAccounts || []).find(a => a.id === editId) : null;
+
+  document.getElementById('finance-acc-modal-title').textContent = editId ? '✏️ Editar Conta' : '➕ Nova Conta';
+  document.getElementById('finance-acc-name').value = acc ? acc.name : '';
+  document.getElementById('finance-acc-type').value = acc ? acc.type : 'checking';
+  document.getElementById('finance-acc-type').disabled = !!acc;
+  document.getElementById('finance-acc-initial-balance').value = acc ? acc.initialBalance : 0;
+  document.getElementById('finance-acc-credit-limit').value = acc ? (acc.creditLimit || '') : '';
+  document.getElementById('finance-acc-closing-day').value = acc ? (acc.closingDay || '') : '';
+  document.getElementById('finance-acc-due-day').value = acc ? (acc.dueDay || '') : '';
+
+  document.getElementById('finance-acc-archive-btn').style.display = editId ? 'inline-flex' : 'none';
+  document.getElementById('finance-acc-delete-btn').style.display = editId ? 'inline-flex' : 'none';
+  document.getElementById('finance-acc-submit-btn').textContent = editId ? 'Salvar Alterações' : 'Salvar Conta';
+
+  onFinanceAccountTypeChange();
+  modal.classList.add('active');
+}
+
+function closeFinanceAccountModal() {
+  const modal = document.getElementById('finance-account-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function onFinanceAccountTypeChange() {
+  const type = document.getElementById('finance-acc-type').value;
+  const isCard = type === 'credit_card';
+  document.getElementById('finance-acc-card-fields').style.display = isCard ? 'grid' : 'none';
+  document.getElementById('finance-acc-initial-balance').parentElement.style.display = isCard ? 'none' : 'block';
+}
+
+function handleSaveFinanceAccount(e) {
+  e.preventDefault();
+  const editId = document.getElementById('finance-acc-edit-id').value;
+  const name = document.getElementById('finance-acc-name').value.trim();
+  const type = document.getElementById('finance-acc-type').value;
+  const initialBalance = parseFloat(document.getElementById('finance-acc-initial-balance').value) || 0;
+
+  if (!name) { showToast('Preencha o nome da conta.', 'error'); return; }
+
+  const typeIcons = { checking: '🏦', savings: '🐷', cash: '💵', credit_card: '💳' };
+
+  if (editId) {
+    const idx = AppState.financeAccounts.findIndex(a => a.id === editId);
+    if (idx === -1) return;
+    const existing = AppState.financeAccounts[idx];
+    const updated = { ...existing, name };
+    if (existing.type === 'credit_card') {
+      updated.creditLimit = parseFloat(document.getElementById('finance-acc-credit-limit').value) || 0;
+      updated.closingDay = parseInt(document.getElementById('finance-acc-closing-day').value) || 1;
+      updated.dueDay = parseInt(document.getElementById('finance-acc-due-day').value) || 1;
+    } else {
+      updated.initialBalance = initialBalance;
+    }
+    AppState.financeAccounts[idx] = updated;
+  } else {
+    const isCard = type === 'credit_card';
+    AppState.financeAccounts.unshift({
+      id: 'facc_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+      name, type, icon: typeIcons[type], color: CHART_COLOR_PALETTE[AppState.financeAccounts.length % CHART_COLOR_PALETTE.length],
+      initialBalance: isCard ? 0 : initialBalance,
+      initialBalanceDate: new Date().toISOString().slice(0, 10),
+      archived: false, createdAt: new Date().toISOString(),
+      creditLimit: isCard ? (parseFloat(document.getElementById('finance-acc-credit-limit').value) || 0) : null,
+      closingDay: isCard ? (parseInt(document.getElementById('finance-acc-closing-day').value) || 1) : null,
+      dueDay: isCard ? (parseInt(document.getElementById('finance-acc-due-day').value) || 1) : null,
+      paidInvoiceMonths: []
+    });
+  }
+
+  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  closeFinanceAccountModal();
+  renderFinanceView();
+  showToast('Conta salva!', 'success');
+}
+
+function handleArchiveCurrentFinanceAccount() {
+  const editId = document.getElementById('finance-acc-edit-id').value;
+  if (!editId) return;
+  const acc = AppState.financeAccounts.find(a => a.id === editId);
+  if (!acc) return;
+  if (!confirm(`Arquivar a conta "${acc.name}"? Ela some das listas, mas o histórico de lançamentos é mantido.`)) return;
+  acc.archived = true;
+  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  closeFinanceAccountModal();
+  renderFinanceView();
+  showToast('Conta arquivada.', 'info');
+}
+
+function handleDeleteCurrentFinanceAccount() {
+  const editId = document.getElementById('finance-acc-edit-id').value;
+  if (!editId) return;
+  const acc = AppState.financeAccounts.find(a => a.id === editId);
+  if (!acc) return;
+  const inUse = (AppState.financeTransactions || []).some(t => t.accountId === editId || t.transferAccountId === editId);
+  if (inUse) { showToast('Essa conta tem lançamentos vinculados. Arquive em vez de excluir.', 'error'); return; }
+  if (!confirm(`Excluir a conta "${acc.name}"? Essa ação não pode ser desfeita.`)) return;
+  AppState.financeAccounts = AppState.financeAccounts.filter(a => a.id !== editId);
+  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  closeFinanceAccountModal();
+  renderFinanceView();
+  showToast('Conta excluída.', 'info');
+}
+
+// ---------- MODAL: CATEGORIAS ----------
+
+function openFinanceCategoryModal() {
+  renderFinanceCategoryModalList();
+  document.getElementById('finance-category-modal').classList.add('active');
+}
+
+function closeFinanceCategoryModal() {
+  const modal = document.getElementById('finance-category-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function renderFinanceCategoryModalList() {
+  const list = document.getElementById('finance-category-list');
+  if (!list) return;
+  const cats = AppState.financeCategories || [];
+  list.innerHTML = cats.map(c => `
+    <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--radius-md); background: rgba(0,0,0,0.02); ${c.archived ? 'opacity:0.5;' : ''}">
+      <span style="font-size:16px;">${c.icon}</span>
+      <span style="flex:1; font-size:13px;">${c.name}</span>
+      <span style="font-size:10px; color:var(--text-sub);">${c.appliesTo.join('/')}</span>
+      ${c.isCustom
+        ? `<button class="btn btn-icon btn-sm" style="color:var(--red);" onclick="handleDeleteFinanceCategory('${c.id}')" title="Excluir">✕</button>`
+        : `<button class="btn btn-icon btn-sm" onclick="toggleArchiveFinanceCategory('${c.id}')" title="${c.archived ? 'Reativar' : 'Arquivar'}">${c.archived ? '♻️' : '🗄️'}</button>`}
+    </div>
+  `).join('');
+}
+
+function handleAddFinanceCategory() {
+  const icon = document.getElementById('finance-cat-new-icon').value.trim() || '🏷️';
+  const name = document.getElementById('finance-cat-new-name').value.trim();
+  const isExpense = document.getElementById('finance-cat-new-expense').checked;
+  const isIncome = document.getElementById('finance-cat-new-income').checked;
+  if (!name) { showToast('Digite o nome da categoria.', 'error'); return; }
+  if (!isExpense && !isIncome) { showToast('Selecione pelo menos Despesa ou Receita.', 'error'); return; }
+  const appliesTo = [...(isExpense ? ['expense'] : []), ...(isIncome ? ['income'] : [])];
+  AppState.financeCategories.push({
+    id: 'cat_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+    name, icon, color: CHART_COLOR_PALETTE[AppState.financeCategories.length % CHART_COLOR_PALETTE.length],
+    appliesTo, isCustom: true, archived: false
+  });
+  localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
+  document.getElementById('finance-cat-new-name').value = '';
+  document.getElementById('finance-cat-new-icon').value = '';
+  renderFinanceCategoryModalList();
+  populateFinanceAccountAndCategorySelects();
+  showToast('Categoria adicionada!', 'success');
+}
+
+function handleDeleteFinanceCategory(id) {
+  const inUse = (AppState.financeTransactions || []).some(t => t.categoryId === id);
+  if (inUse) { showToast('Categoria em uso. Arquive em vez de excluir.', 'error'); return; }
+  if (!confirm('Excluir essa categoria?')) return;
+  AppState.financeCategories = AppState.financeCategories.filter(c => c.id !== id);
+  localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
+  renderFinanceCategoryModalList();
+  populateFinanceAccountAndCategorySelects();
+}
+
+function toggleArchiveFinanceCategory(id) {
+  const cat = AppState.financeCategories.find(c => c.id === id);
+  if (!cat) return;
+  cat.archived = !cat.archived;
+  localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
+  renderFinanceCategoryModalList();
+  populateFinanceAccountAndCategorySelects();
 }
 
 // ==========================================
@@ -10564,16 +11672,23 @@ async function testApiConnection() {
 }
 
 function clearAllCache() {
-  if (confirm('Deseja limpar o cache e restaurar os favoritos, aportes e carteira padrão?')) {
+  if (confirm('Deseja limpar o cache e restaurar os favoritos, aportes, carteira e controle financeiro para os padrões?')) {
     localStorage.removeItem('b3_favorites');
     localStorage.removeItem('b3_user_trades');
     localStorage.removeItem('b3_portfolio_dividends');
+    localStorage.removeItem('b3_finance_accounts');
+    localStorage.removeItem('b3_finance_categories');
+    localStorage.removeItem('b3_finance_transactions');
     AppState.favorites = [...DEFAULT_FAVORITES];
     AppState.trades = [...DEFAULT_USER_TRADES];
     AppState.portfolioDividends = [];
+    AppState.financeAccounts = [];
+    AppState.financeCategories = [...DEFAULT_FINANCE_CATEGORIES];
+    AppState.financeTransactions = [];
     syncAutomatedDividends();
     showToast('Dados restaurados para os padrões.', 'info');
     renderFavoritesView();
+    if (AppState.activeTab === 'financas') renderFinanceView();
   }
 }
 
@@ -10911,7 +12026,7 @@ async function signOutCloudSync() {
 
 function buildBackupPayload() {
   return {
-    version: '2.5',
+    version: '2.6',
     exportDate: new Date().toISOString(),
     trades: AppState.trades || [],
     favorites: AppState.favorites || [],
@@ -10924,7 +12039,10 @@ function buildBackupPayload() {
     geminiModel: AppState.geminiModel,
     geminiKey: AppState.geminiKey,
     brapiToken: AppState.token,
-    aiFolderFiles: AppState.aiFolderFiles || []
+    aiFolderFiles: AppState.aiFolderFiles || [],
+    financeAccounts: AppState.financeAccounts || [],
+    financeCategories: AppState.financeCategories || [],
+    financeTransactions: AppState.financeTransactions || []
   };
 }
 
@@ -10939,6 +12057,9 @@ function applyBackupPayload(data) {
   if (data.brapiToken) { AppState.token = data.brapiToken; localStorage.setItem('brapi_token', data.brapiToken); }
   if (data.geminiKey) { AppState.geminiKey = data.geminiKey; localStorage.setItem('gemini_api_key', data.geminiKey); }
   if (data.aiFolderFiles) { AppState.aiFolderFiles = data.aiFolderFiles; localStorage.setItem('b3_ai_folder_files', JSON.stringify(data.aiFolderFiles)); }
+  if (data.financeAccounts) { AppState.financeAccounts = data.financeAccounts; localStorage.setItem('b3_finance_accounts', JSON.stringify(data.financeAccounts)); }
+  if (data.financeCategories) { AppState.financeCategories = data.financeCategories; localStorage.setItem('b3_finance_categories', JSON.stringify(data.financeCategories)); }
+  if (data.financeTransactions) { AppState.financeTransactions = data.financeTransactions; localStorage.setItem('b3_finance_transactions', JSON.stringify(data.financeTransactions)); }
 }
 
 async function pushToCloud() {
@@ -11122,6 +12243,8 @@ function setTab(tabId) {
     executeMagicFormula();
   } else if (tabId === 'tetoplanilha') {
     renderTetoPlanilhaView();
+  } else if (tabId === 'financas') {
+    renderFinanceView();
   } else if (tabId === 'metricas') {
     filterMetricsCards();
   } else if (tabId === 'comp') {
@@ -11154,6 +12277,8 @@ async function syncAllData() {
     await executeMagicFormula();
   } else if (AppState.activeTab === 'tetoplanilha') {
     await renderTetoPlanilhaView();
+  } else if (AppState.activeTab === 'financas') {
+    renderFinanceView();
   }
   showToast('Dados sincronizados com sucesso!', 'success');
 }
@@ -11196,6 +12321,9 @@ async function initApp() {
       closeAiHistoryModal();
       closeFiiAuditModal();
       closeEtfAuditModal();
+      closeFinanceTransactionModal();
+      closeFinanceAccountModal();
+      closeFinanceCategoryModal();
     }
   });
 
