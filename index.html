@@ -844,6 +844,7 @@
             <p class="page-desc" style="margin-bottom:0">Receitas, despesas, contas e cartão de crédito do dia a dia.</p>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn btn-secondary btn-sm" onclick="openFinanceImportModal()">📥 Importar CSV do Mobills</button>
             <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(-1)" title="Mês anterior">◀</button>
             <span class="status-pill good" id="finance-active-month-label" style="min-width: 140px; text-align: center;">—</span>
             <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(1)" title="Próximo mês">▶</button>
@@ -2189,6 +2190,26 @@
       <button class="btn btn-success btn-sm" onclick="handleAddFinanceCategory()">+ Adicionar</button>
     </div>
     <div id="finance-category-list" style="display:flex; flex-direction:column; gap:6px; max-height: 360px; overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: IMPORTAR CSV DO MOBILLS             -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="finance-import-modal">
+  <div class="modal-box modal-lg" style="max-width: 680px;">
+    <div class="modal-header">
+      <div class="modal-title">📥 Importar CSV do Mobills</div>
+      <button class="modal-close" onclick="closeFinanceImportModal()">✕</button>
+    </div>
+    <div id="finance-import-step-file">
+      <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+        Selecione o CSV exportado do Mobills (colunas Data;Descrição;Valor;Conta;Categoria;Subcategoria;Tags). Nada é gravado até você conferir e confirmar na próxima tela.
+      </p>
+      <input type="file" accept=".csv,text/csv" id="finance-import-file-input" class="input-field" onchange="handleMobillsFileSelected(event)" style="width: 100%;">
+      <div id="finance-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
+    </div>
+    <div id="finance-import-preview" style="display:none;"></div>
   </div>
 </div>
 
@@ -3878,7 +3899,8 @@ const AppState = {
   financeActiveMonth: new Date().toISOString().slice(0, 7),
   financeFilters: { type: 'all', accountId: 'all', categoryId: 'all' },
   financeAccountChartInstance: null,
-  financeCategoryChartInstance: null
+  financeCategoryChartInstance: null,
+  financeImportStaging: null
 };
 
 // ==========================================
@@ -8099,6 +8121,304 @@ function toggleArchiveFinanceCategory(id) {
   localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
   renderFinanceCategoryModalList();
   populateFinanceAccountAndCategorySelects();
+}
+
+// ---------- IMPORTAR CSV DO MOBILLS ----------
+// Le o arquivo como ArrayBuffer (nao texto direto) pra poder detectar a
+// codificacao real pelos bytes - exports do Mobills em algumas plataformas
+// saem em UTF-16 com BOM, que vira "lixo" (um espaco fantasma entre cada
+// letra) se lido como UTF-8/Latin1 direto.
+function detectAndDecodeText(buffer) {
+  const bytes = new Uint8Array(buffer);
+  if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) return new TextDecoder('utf-16le').decode(buffer);
+  if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) return new TextDecoder('utf-16be').decode(buffer);
+  let text = new TextDecoder('utf-8').decode(buffer);
+  // Sem BOM: se vier com muito caractere de substituicao (�), o arquivo
+  // provavelmente esta em Windows-1252 (comum em export de planilha BR).
+  const replacementCount = (text.match(/�/g) || []).length;
+  if (replacementCount > 3) text = new TextDecoder('windows-1252').decode(buffer);
+  return text;
+}
+
+function parseMobillsCsvRow(line) {
+  const cells = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else inQuotes = false; }
+      else cur += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ';') { cells.push(cur); cur = ''; }
+      else cur += c;
+    }
+  }
+  cells.push(cur);
+  return cells;
+}
+
+// "-2,00" / "336,00" (formato BR, sinal ja embutido no valor - Mobills nao
+// tem um campo "tipo" separado).
+function parseMobillsAmount(raw) {
+  const s = (raw || '').trim();
+  if (!s) return 0;
+  const n = parseFloat(s.replace(/\./g, '').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+
+function parseMobillsDate(raw) {
+  const parts = (raw || '').trim().split('/');
+  if (parts.length !== 3) return null;
+  const [d, m, y] = parts;
+  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
+
+function parseMobillsCsv(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+  let headerIdx = lines.findIndex(l => l.replace(/"/g, '').trim().toUpperCase().startsWith('DATA;'));
+  if (headerIdx === -1) headerIdx = 0;
+  const result = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const cells = parseMobillsCsvRow(lines[i]);
+    if (cells.length < 5) continue;
+    const date = parseMobillsDate(cells[0]);
+    const description = (cells[1] || '').trim();
+    const amount = parseMobillsAmount(cells[2]);
+    const account = (cells[3] || '').trim();
+    const category = (cells[4] || '').trim();
+    const tags = (cells[6] || '').trim();
+    if (!date || !description || !account) continue;
+    result.push({ date, description, amount, account, category, tags });
+  }
+  return result;
+}
+
+// Categorias do Mobills que normalmente sao Pix/transferencia pra si mesmo
+// entre contas proprias (nao da pra saber a conta de destino so com esse
+// CSV, entao a opcao mais segura e nao importar como despesa/receita real).
+const MOBILLS_TRANSFER_CATEGORIES = ['pix', 'transferência enviada', 'transferencia enviada', 'operação bancária', 'operacao bancaria'];
+const MOBILLS_INVESTMENT_KEYWORDS = ['rdb', 'tesouro direto'];
+
+function classifyMobillsRow(row) {
+  const descLower = row.description.toLowerCase();
+  const catLower = (row.category || '').toLowerCase();
+  const isInvestment = catLower === 'investimento' || MOBILLS_INVESTMENT_KEYWORDS.some(k => descLower.includes(k));
+  const isTransferCandidate = !isInvestment && MOBILLS_TRANSFER_CATEGORIES.includes(catLower);
+  return { isInvestment, isTransferCandidate };
+}
+
+function buildMobillsImportStaging(rows) {
+  const accounts = {};
+  const categories = {};
+  let transferCount = 0, investmentCount = 0, minDate = null, maxDate = null;
+
+  rows.forEach(row => {
+    accounts[row.account] = (accounts[row.account] || 0) + 1;
+    const { isInvestment, isTransferCandidate } = classifyMobillsRow(row);
+    if (isTransferCandidate) transferCount++;
+    else if (isInvestment) investmentCount++;
+    else categories[row.category || 'Outros'] = (categories[row.category || 'Outros'] || 0) + 1;
+    if (!minDate || row.date < minDate) minDate = row.date;
+    if (!maxDate || row.date > maxDate) maxDate = row.date;
+  });
+
+  return {
+    rows,
+    accountNames: Object.keys(accounts),
+    accountCounts: accounts,
+    categoryCounts: categories,
+    transferCount, investmentCount, minDate, maxDate,
+    skipTransfers: true,
+    markInvestments: true,
+    accountMapping: {}
+  };
+}
+
+function openFinanceImportModal() {
+  AppState.financeImportStaging = null;
+  document.getElementById('finance-import-step-file').style.display = 'block';
+  document.getElementById('finance-import-preview').style.display = 'none';
+  document.getElementById('finance-import-preview').innerHTML = '';
+  document.getElementById('finance-import-file-input').value = '';
+  document.getElementById('finance-import-file-error').textContent = '';
+  document.getElementById('finance-import-modal').classList.add('active');
+}
+
+function closeFinanceImportModal() {
+  const modal = document.getElementById('finance-import-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function handleMobillsFileSelected(event) {
+  const file = event.target.files[0];
+  const errorEl = document.getElementById('finance-import-file-error');
+  errorEl.textContent = '';
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = detectAndDecodeText(e.target.result);
+      const rows = parseMobillsCsv(text);
+      if (rows.length === 0) {
+        errorEl.textContent = 'Não encontrei lançamentos nesse arquivo. Confira se é o CSV exportado do Mobills.';
+        return;
+      }
+      AppState.financeImportStaging = buildMobillsImportStaging(rows);
+      document.getElementById('finance-import-step-file').style.display = 'none';
+      document.getElementById('finance-import-preview').style.display = 'block';
+      renderMobillsImportPreview();
+    } catch (err) {
+      errorEl.textContent = 'Erro ao ler o arquivo: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function setMobillsAccountMapping(name, value) {
+  const staging = AppState.financeImportStaging;
+  if (!staging) return;
+  staging.accountMapping[name] = value === '__create__' ? { mode: 'create' } : { mode: 'existing', existingId: value };
+}
+
+function renderMobillsImportPreview() {
+  const staging = AppState.financeImportStaging;
+  const container = document.getElementById('finance-import-preview');
+  if (!staging || !container) return;
+
+  const existingAccounts = (AppState.financeAccounts || []).filter(a => !a.archived);
+  const accountRowsHtml = staging.accountNames.map(name => {
+    const mapping = staging.accountMapping[name] || { mode: 'create' };
+    const optionsHtml = existingAccounts.map(a => `<option value="${a.id}" ${mapping.existingId === a.id ? 'selected' : ''}>${a.icon || ''} ${a.name}</option>`).join('');
+    return `
+      <div style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:6px;">
+        <span style="flex:1;">${name} <span style="color:var(--text-sub);">(${staging.accountCounts[name]} lançamentos)</span></span>
+        <select class="select-field" style="width:230px; font-size:11px;" onchange="setMobillsAccountMapping('${name.replace(/'/g, "\\'")}', this.value)">
+          <option value="__create__" ${mapping.mode === 'create' ? 'selected' : ''}>+ Criar nova conta "${name}"</option>
+          ${optionsHtml}
+        </select>
+      </div>`;
+  }).join('');
+
+  const categoryList = Object.entries(staging.categoryCounts).map(([cat, count]) => {
+    const existing = (AppState.financeCategories || []).find(c => c.name.toLowerCase() === cat.toLowerCase());
+    return `<li>${cat} (${count})${existing ? ' — já existe ✅' : ' — será criada automaticamente 🆕'}</li>`;
+  }).join('');
+
+  const totalRows = staging.rows.length;
+  const willSkip = staging.skipTransfers ? staging.transferCount : 0;
+  const willImport = totalRows - willSkip;
+
+  container.innerHTML = `
+    <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:12px;">
+      ${totalRows} lançamentos lidos, de ${NumFmt.date(staging.minDate)} a ${NumFmt.date(staging.maxDate)}.
+    </div>
+    <div style="margin-bottom:14px;">
+      <strong style="font-size:12px;">Contas encontradas</strong>
+      <div style="margin-top:6px;">${accountRowsHtml}</div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <strong style="font-size:12px;">Categorias (${Object.keys(staging.categoryCounts).length})</strong>
+      <ul style="font-size:11.5px; color:var(--text-muted); margin:6px 0 0 16px; max-height:120px; overflow-y:auto;">${categoryList}</ul>
+    </div>
+    <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin-bottom:8px; cursor:pointer;">
+      <input type="checkbox" id="finance-import-skip-transfers" ${staging.skipTransfers ? 'checked' : ''} onchange="AppState.financeImportStaging.skipTransfers = this.checked; renderMobillsImportPreview();">
+      Não importar ${staging.transferCount} lançamento(s) de Pix/Transferência/Operação bancária (parecem movimentação entre suas próprias contas - não dá pra saber a conta de destino automaticamente a partir do CSV)
+    </label>
+    <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin-bottom:14px; cursor:pointer;">
+      <input type="checkbox" id="finance-import-mark-investments" ${staging.markInvestments ? 'checked' : ''} onchange="AppState.financeImportStaging.markInvestments = this.checked; renderMobillsImportPreview();">
+      Marcar ${staging.investmentCount} lançamento(s) com "RDB"/"Tesouro Direto" como Aporte/Resgate de Investimento (não como despesa/receita)
+    </label>
+    <div style="background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px; font-size:12.5px;">
+      <strong>${willImport}</strong> lançamento(s) serão importados${willSkip > 0 ? `, <strong>${willSkip}</strong> ficarão de fora` : ''}.
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeFinanceImportModal()">Cancelar</button>
+      <button type="button" class="btn btn-success" style="flex:1;" onclick="handleConfirmMobillsImport()">Importar ${willImport} Lançamentos</button>
+    </div>
+  `;
+}
+
+function handleConfirmMobillsImport() {
+  const staging = AppState.financeImportStaging;
+  if (!staging) return;
+
+  const accountIdByName = {};
+  staging.accountNames.forEach(name => {
+    const mapping = staging.accountMapping[name] || { mode: 'create' };
+    if (mapping.mode === 'existing' && mapping.existingId) {
+      accountIdByName[name] = mapping.existingId;
+    } else {
+      const newAcc = {
+        id: 'facc_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
+        name, type: 'checking', icon: '🏦',
+        color: CHART_COLOR_PALETTE[AppState.financeAccounts.length % CHART_COLOR_PALETTE.length],
+        initialBalance: 0, initialBalanceDate: new Date().toISOString().slice(0, 10),
+        archived: false, createdAt: new Date().toISOString(),
+        creditLimit: null, closingDay: null, dueDay: null, paidInvoiceMonths: []
+      };
+      AppState.financeAccounts.push(newAcc);
+      accountIdByName[name] = newAcc.id;
+    }
+  });
+
+  const categoryIdByName = {};
+  Object.keys(staging.categoryCounts).forEach(catName => {
+    const existing = AppState.financeCategories.find(c => c.name.toLowerCase() === catName.toLowerCase());
+    if (existing) { categoryIdByName[catName] = existing.id; return; }
+    const newCat = {
+      id: 'cat_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
+      name: catName, icon: '📥', color: CHART_COLOR_PALETTE[AppState.financeCategories.length % CHART_COLOR_PALETTE.length],
+      appliesTo: ['expense', 'income'], isCustom: true, archived: false
+    };
+    AppState.financeCategories.push(newCat);
+    categoryIdByName[catName] = newCat.id;
+  });
+
+  const existingImportIds = new Set((AppState.financeTransactions || []).filter(t => t.importId).map(t => t.importId));
+  let imported = 0, skippedTransfer = 0, skippedDuplicate = 0;
+  const newTxs = [];
+
+  staging.rows.forEach(row => {
+    const { isInvestment, isTransferCandidate } = classifyMobillsRow(row);
+    if (staging.skipTransfers && isTransferCandidate) { skippedTransfer++; return; }
+
+    const importId = 'mobills_' + row.date + '_' + row.description + '_' + row.amount + '_' + row.account;
+    if (existingImportIds.has(importId)) { skippedDuplicate++; return; }
+    existingImportIds.add(importId);
+
+    const accountId = accountIdByName[row.account];
+    const amount = Math.abs(row.amount);
+    let type, categoryId = null, investmentDirection = null;
+    if (staging.markInvestments && isInvestment) {
+      type = 'investment';
+      investmentDirection = row.amount >= 0 ? 'redemption' : 'contribution';
+    } else {
+      type = row.amount >= 0 ? 'income' : 'expense';
+      categoryId = categoryIdByName[row.category || 'Outros'] || null;
+    }
+
+    newTxs.push({
+      id: 'ftx_' + Date.now() + '_' + imported + '_' + Math.floor(Math.random() * 100000),
+      type, description: row.description, amount, date: row.date, accountId, categoryId,
+      notes: '', tags: row.tags ? [row.tags] : [], source: 'import', importId, originalAccountLabel: row.account,
+      transferAccountId: null, investmentDirection,
+      isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null
+    });
+    imported++;
+  });
+
+  AppState.financeTransactions.unshift(...newTxs);
+  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+
+  AppState.financeImportStaging = null;
+  closeFinanceImportModal();
+  renderFinanceView();
+  showToast(`${imported} lançamento(s) importados do Mobills (${skippedTransfer} transferência(s) ignorada(s), ${skippedDuplicate} duplicado(s) ignorado(s)).`, 'success');
 }
 
 // ==========================================
@@ -12324,6 +12644,7 @@ async function initApp() {
       closeFinanceTransactionModal();
       closeFinanceAccountModal();
       closeFinanceCategoryModal();
+      closeFinanceImportModal();
     }
   });
 
