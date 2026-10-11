@@ -889,6 +889,15 @@
           </div>
         </div>
 
+        <!-- EVOLUCAO DO PATRIMONIO LIQUIDO -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-title">📈 Evolução do Patrimônio Líquido</div>
+          <p style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 10px;">Passa a registrar um ponto por mês a partir de agora - não reconstrói meses anteriores.</p>
+          <div style="height: 220px; position: relative;">
+            <canvas id="finance-networth-chart"></canvas>
+          </div>
+        </div>
+
         <!-- CONTAS -->
         <div class="card" style="margin-bottom: 20px;">
           <div class="card-header">
@@ -927,6 +936,7 @@
                 <option value="all">Todas as Contas</option>
               </select>
               <button class="btn btn-secondary btn-sm" id="finance-calendar-toggle-btn" onclick="toggleFinanceCalendar()">📅 Ver Calendário</button>
+              <button class="btn btn-secondary btn-sm" onclick="handleExportFinanceCsv()">📤 Exportar CSV</button>
               <button class="btn btn-success btn-sm" onclick="openFinanceTransactionModal()">+ Novo Lançamento</button>
             </div>
           </div>
@@ -2101,12 +2111,12 @@
         </div>
         <div>
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Descrição</label>
-          <input type="text" class="input-field" id="finance-tx-description" placeholder="ex: Supermercado, Salário, Aplicação RDB" required style="width: 100%;">
+          <input type="text" class="input-field" id="finance-tx-description" placeholder="ex: Supermercado, Salário, Aplicação RDB" required style="width: 100%;" onblur="autoApplyFinanceCategoryRule()">
         </div>
         <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
           <div>
             <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Valor (R$)</label>
-            <input type="number" class="input-field" id="finance-tx-amount" min="0.01" step="0.01" required style="width: 100%;">
+            <input type="number" class="input-field" id="finance-tx-amount" min="0.01" step="0.01" required style="width: 100%;" oninput="updateFinanceTxSplitRemaining()">
           </div>
           <div>
             <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Data</label>
@@ -2126,6 +2136,17 @@
         <div id="finance-tx-category-box">
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Categoria</label>
           <select class="select-field" id="finance-tx-category" style="width: 100%;"></select>
+        </div>
+        <div id="finance-tx-split-toggle-box" style="display:none;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer;">
+            <input type="checkbox" id="finance-tx-is-split" onchange="onFinanceTransactionSplitToggle()">
+            ✂️ Dividir esse lançamento em mais de uma categoria
+          </label>
+        </div>
+        <div id="finance-tx-split-box" style="display:none; background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 12px;">
+          <div id="finance-tx-split-rows" style="display:flex; flex-direction:column; gap:8px;"></div>
+          <button type="button" class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="addFinanceTxSplitRow()">+ Adicionar categoria</button>
+          <div style="margin-top:8px; font-size:12px; font-weight:700;" id="finance-tx-split-remaining">Restante: R$ 0,00</div>
         </div>
         <div id="finance-tx-investment-box" style="display:none;">
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Direção</label>
@@ -2151,7 +2172,7 @@
         </div>
         <div id="finance-tx-installment-box" style="display:none; background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 12px;">
           <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; margin-bottom: 8px;">
-            <input type="checkbox" id="finance-tx-is-installment" onchange="document.getElementById('finance-tx-installment-count-box').style.display = this.checked ? 'block' : 'none';">
+            <input type="checkbox" id="finance-tx-is-installment" onchange="onFinanceTransactionInstallmentToggle(this)">
             Compra parcelada no cartão
           </label>
           <div id="finance-tx-installment-count-box" style="display:none;">
@@ -2265,6 +2286,19 @@
       <button class="btn btn-success btn-sm" onclick="handleAddFinanceCategory()">+ Adicionar</button>
     </div>
     <div id="finance-category-list" style="display:flex; flex-direction:column; gap:6px; max-height: 360px; overflow-y:auto;"></div>
+
+    <div style="border-top: 1px solid var(--border); margin-top: 16px; padding-top: 14px;">
+      <div style="font-size: 12px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 6px;">🔤 Regras de Categorização Automática</div>
+      <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+        Quando a descrição de um lançamento (novo ou importado) contiver a palavra-chave, a categoria é aplicada automaticamente. Ex: "uber" → Transporte.
+      </p>
+      <div style="display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;">
+        <input type="text" class="input-field" id="finance-catrule-new-keyword" placeholder="Palavra-chave (ex: uber)" style="flex: 1; min-width: 140px;">
+        <select class="select-field" id="finance-catrule-new-category" style="min-width: 160px;"></select>
+        <button class="btn btn-success btn-sm" onclick="handleAddFinanceCategoryRule()">+ Adicionar</button>
+      </div>
+      <div id="finance-catrule-list" style="display:flex; flex-direction:column; gap:6px; max-height: 200px; overflow-y:auto;"></div>
+    </div>
   </div>
 </div>
 
@@ -4105,7 +4139,11 @@ const AppState = {
   financeGoals: JSON.parse(localStorage.getItem('b3_finance_goals') || '[]'),
   financeFixedCosts: JSON.parse(localStorage.getItem('b3_finance_fixed_costs') || '[]'),
   triggeredFixedCostAlerts: JSON.parse(localStorage.getItem('b3_triggered_fixedcost_alerts') || '[]'),
-  financeChangeLog: JSON.parse(localStorage.getItem('b3_finance_changelog') || '[]')
+  financeChangeLog: JSON.parse(localStorage.getItem('b3_finance_changelog') || '[]'),
+  financeCategoryRules: JSON.parse(localStorage.getItem('b3_finance_category_rules') || '[]'),
+  financeNetWorthHistory: JSON.parse(localStorage.getItem('b3_finance_networth_history') || '[]'),
+  triggeredUnusualSpendingAlerts: JSON.parse(localStorage.getItem('b3_triggered_unusual_spending_alerts') || '[]'),
+  financeNetWorthChartInstance: null
 };
 
 // Migracao one-time: custos fixos marcados como pagos antes da mudanca para
@@ -7082,7 +7120,8 @@ function generateInstallments(purchase) {
       fixedCostId: null,
       goalId: null,
       goalDirection: null,
-      ignored: false
+      ignored: false,
+      splitGroupId: null
     });
   }
   return result;
@@ -7960,6 +7999,28 @@ function renderFinanceKpis() {
   }
   set('finance-stat-networth', NumFmt.money(net.total));
   set('finance-networth-breakdown', `Minha Carteira: ${NumFmt.money(net.stockInvestments)} + Investimentos: ${NumFmt.money(net.fixedIncomeInvestments)} + Saldo Total em Contas: ${NumFmt.money(net.accountsBalance)} − Cartão: ${NumFmt.money(net.cardDebt)}`);
+
+  snapshotFinanceNetWorth(net);
+  renderFinanceNetWorthChart();
+}
+
+// Grava/atualiza o snapshot do patrimonio liquido do mes CALENDARIO real
+// (hoje), nunca do mes que o usuario esta navegando na tela - e assim que
+// o historico so cresce "pra frente": cada mes real so e gravado uma vez
+// que ele acontece, sem tentar reconstruir patrimonio de meses passados
+// (dado que nao existe, preco historico de ativo em datas antigas nao e
+// confiavel o bastante pra isso). Atualiza o mes atual repetidamente (pode
+// mudar varias vezes dentro do mesmo mes) e so passa a ser "historico
+// congelado" quando o mes vira.
+function snapshotFinanceNetWorth(net) {
+  const realMonth = new Date().toISOString().slice(0, 7);
+  const history = AppState.financeNetWorthHistory || [];
+  const idx = history.findIndex(h => h.month === realMonth);
+  const entry = { month: realMonth, total: net.total, stockInvestments: net.stockInvestments, fixedIncomeInvestments: net.fixedIncomeInvestments, accountsBalance: net.accountsBalance, cardDebt: net.cardDebt };
+  if (idx === -1) history.push(entry);
+  else history[idx] = entry;
+  AppState.financeNetWorthHistory = history;
+  localStorage.setItem('b3_finance_networth_history', JSON.stringify(history));
 }
 
 function renderFinanceAccountsList() {
@@ -7991,10 +8052,10 @@ function renderFinanceAccountsList() {
   }).join('');
 }
 
-function renderFinanceTransactionsList() {
-  const container = document.getElementById('finance-transactions-container');
-  if (!container) return;
-
+// Filtro de lancamentos do mes ativo (tipo/conta/categoria/dia) - extraido
+// pra ser reusado tanto pela lista na tela quanto pela exportacao CSV, sem
+// duplicar a logica de filtro em 2 lugares.
+function getFilteredFinanceTransactions() {
   const f = AppState.financeFilters;
   let txs = (AppState.financeTransactions || []).filter(tx => getEffectiveMonth(tx) === AppState.financeActiveMonth);
   if (f.type !== 'all') txs = txs.filter(tx => tx.type === f.type);
@@ -8002,6 +8063,60 @@ function renderFinanceTransactionsList() {
   if (f.categoryId !== 'all') txs = txs.filter(tx => tx.categoryId === f.categoryId);
   if (f.day) txs = txs.filter(tx => tx.date === f.day);
   txs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return txs;
+}
+
+function csvEscapeField(value) {
+  const str = String(value == null ? '' : value);
+  if (/[";\n]/.test(str)) return '"' + str.replace(/"/g, '""') + '"';
+  return str;
+}
+
+// Exporta os lancamentos do mes ativo (respeitando os filtros de tipo/conta/
+// categoria/dia atualmente aplicados) pra CSV - delimitador ";" e decimal
+// com virgula, mesmo padrao BR usado nos importadores (abre certo no Excel
+// pt-BR sem precisar configurar nada).
+function handleExportFinanceCsv() {
+  const txs = getFilteredFinanceTransactions();
+  if (txs.length === 0) { showToast('Nenhum lançamento para exportar com os filtros atuais.', 'warn'); return; }
+
+  const typeLabels = { expense: 'Despesa', income: 'Receita', transfer: 'Transferência', investment: 'Investimento' };
+  const header = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Conta', 'Valor', 'Tags', 'Observações', 'Ignorado'];
+  const rows = txs.map(tx => {
+    const acc = (AppState.financeAccounts || []).find(a => a.id === tx.accountId);
+    const cat = (AppState.financeCategories || []).find(c => c.id === tx.categoryId);
+    return [
+      NumFmt.date(tx.date),
+      typeLabels[tx.type] || tx.type,
+      tx.description,
+      cat ? cat.name : '',
+      acc ? acc.name : '',
+      (Number(tx.amount) || 0).toFixed(2).replace('.', ','),
+      (tx.tags || []).join(', '),
+      tx.notes || '',
+      tx.ignored ? 'Sim' : 'Não'
+    ];
+  });
+
+  const csvContent = '﻿' + [header, ...rows].map(row => row.map(csvEscapeField).join(';')).join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `lancamentos_${AppState.financeActiveMonth}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`${txs.length} lançamento(s) exportado(s).`, 'success');
+}
+
+function renderFinanceTransactionsList() {
+  const container = document.getElementById('finance-transactions-container');
+  if (!container) return;
+
+  const f = AppState.financeFilters;
+  const txs = getFilteredFinanceTransactions();
 
   const chipEl = document.getElementById('finance-day-filter-chip');
   if (chipEl) {
@@ -8026,10 +8141,13 @@ function renderFinanceTransactionsList() {
       : '';
     const destAccName = tx.type === 'transfer' ? ((AppState.financeAccounts || []).find(a => a.id === tx.transferAccountId)?.name || 'Conta removida') : '';
     const ignoredBadge = tx.ignored ? `<span class="badge badge-flat" style="font-size:9.5px; color:var(--text-sub);">🙈 Ignorado</span>` : '';
+    const splitBadge = tx.splitGroupId
+      ? `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);" title="Parte de um lançamento dividido em mais de uma categoria">✂️ Dividido</span>`
+      : '';
     return `
       <tr class="fav-table-row" style="cursor:pointer; ${tx.ignored ? 'opacity:0.55;' : ''}" onclick="openFinanceTransactionModal('${tx.id}')" title="Clique para editar">
         <td class="text-mono" style="font-size:12px;">${NumFmt.date(tx.date)}</td>
-        <td>${tx.description} ${installmentBadge} ${ignoredBadge} ${(tx.tags || []).map(tag => `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);">🏷️ ${tag}</span>`).join(' ')}</td>
+        <td>${tx.description} ${installmentBadge} ${splitBadge} ${ignoredBadge} ${(tx.tags || []).map(tag => `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);">🏷️ ${tag}</span>`).join(' ')}</td>
         <td style="font-size:12px; color:var(--text-sub);">${cat ? cat.icon + ' ' + cat.name : '—'}</td>
         <td style="font-size:12px; color:var(--text-sub);">${acc ? (acc.icon || '') + ' ' + acc.name : 'Conta removida'}${tx.type === 'transfer' ? ' → ' + destAccName : ''}</td>
         <td class="text-right text-mono" style="font-weight:700; color:${amountColor};">${amountSign}${NumFmt.money(tx.amount)}</td>
@@ -8202,6 +8320,53 @@ function renderFinanceTrendChart() {
       plugins: {
         legend: { position: 'top', labels: { color: '#57503f', font: { family: 'Inter', size: 11 } } },
         tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: R$ ${ctx.parsed.y.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` } }
+      }
+    }
+  });
+}
+
+// Evolucao do patrimonio liquido - so soma "pra frente": cada ponto e um
+// snapshot do mes CALENDARIO real gravado por snapshotFinanceNetWorth()
+// quando aquele mes estava em curso, nunca reconstruido de tras pra frente.
+// Por isso comeca com so 1 ponto (o mes em que essa feature foi ativada) e
+// cresce 1 ponto por mes a partir de agora.
+function renderFinanceNetWorthChart() {
+  const canvas = document.getElementById('finance-networth-chart');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const history = [...(AppState.financeNetWorthHistory || [])].sort((a, b) => a.month.localeCompare(b.month));
+  const labels = history.map(h => `${monthNames[parseInt(h.month.split('-')[1], 10) - 1]}/${h.month.split('-')[0].slice(2)}`);
+  const data = history.map(h => h.total);
+
+  if (AppState.financeNetWorthChartInstance) { AppState.financeNetWorthChartInstance.destroy(); AppState.financeNetWorthChartInstance = null; }
+  if (history.length === 0) return;
+
+  AppState.financeNetWorthChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Patrimônio Líquido',
+        data,
+        borderColor: CHART_COLOR_PALETTE[0],
+        backgroundColor: 'rgba(15, 107, 76, 0.12)',
+        fill: true,
+        tension: 0.25,
+        pointRadius: 4,
+        pointBackgroundColor: CHART_COLOR_PALETTE[0]
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#57503f', font: { family: 'Inter', size: 11 } }, grid: { display: false } },
+        y: { ticks: { color: '#57503f', font: { family: 'JetBrains Mono', size: 10 }, callback: (v) => 'R$ ' + v.toLocaleString('pt-BR') }, grid: { color: 'rgba(0,0,0,0.04)' } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => ` R$ ${ctx.parsed.y.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` } }
       }
     }
   });
@@ -8610,6 +8775,9 @@ function openFinanceTransactionModal(editId = '') {
   document.getElementById('finance-tx-is-installment').disabled = !!tx;
   document.getElementById('finance-tx-installment-count').value = 2;
   document.getElementById('finance-tx-installment-count-box').style.display = 'none';
+  document.getElementById('finance-tx-is-split').checked = false;
+  document.getElementById('finance-tx-split-rows').innerHTML = '';
+  document.getElementById('finance-tx-split-box').style.display = 'none';
 
   document.getElementById('finance-tx-delete-btn').style.display = editId ? 'inline-flex' : 'none';
   document.getElementById('finance-tx-submit-btn').textContent = editId ? 'Salvar Alterações' : 'Salvar Lançamento';
@@ -8629,8 +8797,8 @@ function closeFinanceTransactionModal() {
 
 function onFinanceTransactionTypeChange() {
   const type = document.getElementById('finance-tx-type').value;
+  const editId = document.getElementById('finance-tx-edit-id').value;
   document.getElementById('finance-tx-transfer-account-box').style.display = type === 'transfer' ? 'block' : 'none';
-  document.getElementById('finance-tx-category-box').style.display = (type === 'expense' || type === 'income') ? 'block' : 'none';
   document.getElementById('finance-tx-investment-box').style.display = type === 'investment' ? 'block' : 'none';
   document.getElementById('finance-tx-account-label').textContent = type === 'transfer' ? 'Conta de Origem' : 'Conta';
 
@@ -8640,7 +8808,77 @@ function onFinanceTransactionTypeChange() {
     catSel.innerHTML = cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
   }
 
+  // Divisao em categorias so faz sentido em despesa/receita e so na criacao
+  // (editar um lancamento ja dividido edita so aquela parte - ver comentario
+  // em handleSaveFinanceTransaction).
+  const canSplit = (type === 'expense' || type === 'income') && !editId;
+  document.getElementById('finance-tx-split-toggle-box').style.display = canSplit ? 'block' : 'none';
+  if (!canSplit) {
+    document.getElementById('finance-tx-is-split').checked = false;
+    document.getElementById('finance-tx-split-box').style.display = 'none';
+  }
+  updateFinanceTxCategoryVisibility();
+
   onFinanceTransactionAccountChange();
+}
+
+function updateFinanceTxCategoryVisibility() {
+  const type = document.getElementById('finance-tx-type').value;
+  const isSplit = document.getElementById('finance-tx-is-split').checked;
+  document.getElementById('finance-tx-category-box').style.display = ((type === 'expense' || type === 'income') && !isSplit) ? 'block' : 'none';
+}
+
+function onFinanceTransactionInstallmentToggle(checkbox) {
+  document.getElementById('finance-tx-installment-count-box').style.display = checkbox.checked ? 'block' : 'none';
+  if (checkbox.checked) {
+    const splitCheckbox = document.getElementById('finance-tx-is-split');
+    if (splitCheckbox.checked) { splitCheckbox.checked = false; onFinanceTransactionSplitToggle(); }
+  }
+}
+
+function onFinanceTransactionSplitToggle() {
+  const checked = document.getElementById('finance-tx-is-split').checked;
+  document.getElementById('finance-tx-split-box').style.display = checked ? 'block' : 'none';
+  updateFinanceTxCategoryVisibility();
+  if (checked) {
+    const instCheckbox = document.getElementById('finance-tx-is-installment');
+    if (instCheckbox.checked) { instCheckbox.checked = false; document.getElementById('finance-tx-installment-count-box').style.display = 'none'; }
+    document.getElementById('finance-tx-split-rows').innerHTML = '';
+    addFinanceTxSplitRow();
+    addFinanceTxSplitRow();
+  }
+}
+
+function addFinanceTxSplitRow(categoryId = '', amount = '') {
+  const type = document.getElementById('finance-tx-type').value;
+  const cats = (AppState.financeCategories || []).filter(c => !c.archived && c.appliesTo.includes(type));
+  const row = document.createElement('div');
+  row.className = 'finance-tx-split-row';
+  row.style.cssText = 'display:flex; gap:8px; align-items:center;';
+  row.innerHTML = `
+    <select class="select-field finance-tx-split-category" style="flex:1;">${cats.map(c => `<option value="${c.id}" ${c.id === categoryId ? 'selected' : ''}>${c.icon} ${c.name}</option>`).join('')}</select>
+    <input type="number" class="input-field finance-tx-split-amount" min="0.01" step="0.01" value="${amount}" placeholder="Valor" style="width:110px;" oninput="updateFinanceTxSplitRemaining()">
+    <button type="button" class="btn btn-icon btn-sm" style="color:var(--red);" onclick="removeFinanceTxSplitRow(this)" title="Remover">✕</button>
+  `;
+  document.getElementById('finance-tx-split-rows').appendChild(row);
+  updateFinanceTxSplitRemaining();
+}
+
+function removeFinanceTxSplitRow(btn) {
+  const rows = document.getElementById('finance-tx-split-rows');
+  if (rows.children.length <= 2) { showToast('Mínimo de 2 categorias para dividir - desmarque "Dividir" se quiser voltar a uma categoria só.', 'warn'); return; }
+  btn.closest('.finance-tx-split-row').remove();
+  updateFinanceTxSplitRemaining();
+}
+
+function updateFinanceTxSplitRemaining() {
+  const el = document.getElementById('finance-tx-split-remaining');
+  if (!el) return;
+  const total = parseFloat(document.getElementById('finance-tx-amount').value) || 0;
+  const sum = [...document.querySelectorAll('.finance-tx-split-amount')].reduce((s, input) => s + (parseFloat(input.value) || 0), 0);
+  const remaining = total - sum;
+  el.textContent = `Restante: ${NumFmt.money(remaining)}`;
+  el.style.color = Math.abs(remaining) < 0.01 ? 'var(--green)' : 'var(--red)';
 }
 
 function onFinanceTransactionAccountChange() {
@@ -8698,8 +8936,34 @@ function handleSaveFinanceTransaction(e) {
     const installmentCount = isInstallmentChecked ? (parseInt(document.getElementById('finance-tx-installment-count').value) || 1) : 1;
     const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
     const isCardExpense = type === 'expense' && acc && acc.type === 'credit_card';
+    const isSplitChecked = document.getElementById('finance-tx-is-split').checked;
 
-    if (isCardExpense) {
+    if (isSplitChecked) {
+      const splitRows = [...document.querySelectorAll('.finance-tx-split-row')].map(row => ({
+        categoryId: row.querySelector('.finance-tx-split-category').value,
+        amount: parseFloat(row.querySelector('.finance-tx-split-amount').value) || 0
+      }));
+      if (splitRows.some(r => !r.categoryId || r.amount <= 0)) {
+        showToast('Preencha categoria e valor de todas as divisões.', 'error');
+        return;
+      }
+      const splitSum = splitRows.reduce((s, r) => s + r.amount, 0);
+      if (Math.abs(splitSum - amount) > 0.01) {
+        showToast(`A soma das divisões (${NumFmt.money(splitSum)}) precisa ser igual ao valor total (${NumFmt.money(amount)}).`, 'error');
+        return;
+      }
+      const splitGroupId = 'fsplit_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      const newTxs = splitRows.map((r, i) => ({
+        id: 'ftx_' + Date.now() + '_' + i + '_' + Math.floor(Math.random() * 1000),
+        type, description, amount: r.amount, date, accountId, categoryId: r.categoryId,
+        notes, tags, source: 'manual', importId: null, originalAccountLabel: null,
+        transferAccountId: null, investmentDirection: null, goalId, goalDirection,
+        isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
+        fixedCostId: null, ignored, splitGroupId
+      }));
+      AppState.financeTransactions.unshift(...newTxs);
+      logFinanceChange('create', 'transacao', `Lançamento "${description}" (${NumFmt.money(amount)}) dividido em ${newTxs.length} categorias${ignored ? ' (ignorado)' : ''}`);
+    } else if (isCardExpense) {
       const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description, categoryId, notes, tags });
       newTxs.forEach(t => { t.goalId = goalId; t.goalDirection = goalDirection; t.ignored = ignored; });
       AppState.financeTransactions.unshift(...newTxs);
@@ -8711,7 +8975,7 @@ function handleSaveFinanceTransaction(e) {
         notes, tags, source: 'manual', importId: null, originalAccountLabel: null,
         transferAccountId, investmentDirection, goalId, goalDirection,
         isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-        fixedCostId: null, ignored
+        fixedCostId: null, ignored, splitGroupId: null
       });
       logFinanceChange('create', 'transacao', `Lançamento "${description}" (${NumFmt.money(amount)}) lançado${ignored ? ' (ignorado)' : ''}`);
     }
@@ -8918,12 +9182,79 @@ function handleDeleteCurrentFinanceAccount() {
 function openFinanceCategoryModal() {
   AppState.financeCategoryEditingId = null;
   renderFinanceCategoryModalList();
+  renderFinanceCategoryRulesList();
   document.getElementById('finance-category-modal').classList.add('active');
 }
 
 function closeFinanceCategoryModal() {
   const modal = document.getElementById('finance-category-modal');
   if (modal) modal.classList.remove('active');
+}
+
+// Regra de categorizacao automatica: so bate por substring (case-insensitive)
+// na descricao do lancamento - primeira regra que bater vence. Usada nos 2
+// importadores (so quando a categoria original e desconhecida/"Outros", no
+// caso do Mobills - o Nubank nativo nao tem categoria nenhuma) e como
+// sugestao no lancamento manual.
+function matchFinanceCategoryRule(description) {
+  const descLower = (description || '').toLowerCase();
+  const rule = (AppState.financeCategoryRules || []).find(r => descLower.includes(r.keyword.toLowerCase()));
+  return rule ? rule.categoryId : null;
+}
+
+// Sugestao automatica no lancamento manual: so aplica se a descricao bater
+// com alguma regra E a categoria sugerida existir no select atual (categoria
+// pode nao aplicar a despesa/receita, dependendo do tipo escolhido).
+function autoApplyFinanceCategoryRule() {
+  const type = document.getElementById('finance-tx-type').value;
+  if (type !== 'expense' && type !== 'income') return;
+  const description = document.getElementById('finance-tx-description').value;
+  const categoryId = matchFinanceCategoryRule(description);
+  if (!categoryId) return;
+  const catSel = document.getElementById('finance-tx-category');
+  if ([...catSel.options].some(o => o.value === categoryId)) catSel.value = categoryId;
+}
+
+function renderFinanceCategoryRulesList() {
+  const catSel = document.getElementById('finance-catrule-new-category');
+  if (catSel) {
+    const cats = (AppState.financeCategories || []).filter(c => !c.archived);
+    catSel.innerHTML = cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+  }
+
+  const list = document.getElementById('finance-catrule-list');
+  if (!list) return;
+  const rules = AppState.financeCategoryRules || [];
+  if (rules.length === 0) {
+    list.innerHTML = `<div style="font-size:11.5px; color:var(--text-muted); padding:4px;">Nenhuma regra cadastrada ainda.</div>`;
+    return;
+  }
+  list.innerHTML = rules.map(r => {
+    const cat = (AppState.financeCategories || []).find(c => c.id === r.categoryId);
+    return `
+    <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--radius-md); background: rgba(0,0,0,0.02);">
+      <span style="flex:1; font-size:12.5px;"><strong>"${r.keyword}"</strong> → ${cat ? cat.icon + ' ' + cat.name : 'Categoria removida'}</span>
+      <button class="btn btn-icon btn-sm" style="color:var(--red);" onclick="handleDeleteFinanceCategoryRule('${r.id}')" title="Excluir">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function handleAddFinanceCategoryRule() {
+  const keyword = document.getElementById('finance-catrule-new-keyword').value.trim();
+  const categoryId = document.getElementById('finance-catrule-new-category').value;
+  if (!keyword) { showToast('Digite a palavra-chave.', 'error'); return; }
+  if (!categoryId) { showToast('Cadastre uma categoria antes de criar regras.', 'error'); return; }
+  AppState.financeCategoryRules.push({ id: 'frule_' + Date.now() + '_' + Math.floor(Math.random() * 1000), keyword, categoryId });
+  localStorage.setItem('b3_finance_category_rules', JSON.stringify(AppState.financeCategoryRules));
+  document.getElementById('finance-catrule-new-keyword').value = '';
+  renderFinanceCategoryRulesList();
+  showToast('Regra adicionada!', 'success');
+}
+
+function handleDeleteFinanceCategoryRule(id) {
+  AppState.financeCategoryRules = (AppState.financeCategoryRules || []).filter(r => r.id !== id);
+  localStorage.setItem('b3_finance_category_rules', JSON.stringify(AppState.financeCategoryRules));
+  renderFinanceCategoryRulesList();
 }
 
 function renderFinanceCategoryModalList() {
@@ -9290,7 +9621,10 @@ function handleConfirmMobillsImport() {
       investmentDirection = row.amount >= 0 ? 'redemption' : 'contribution';
     } else {
       type = row.amount >= 0 ? 'income' : 'expense';
-      categoryId = categoryIdByName[row.category || 'Outros'] || null;
+      const mobillsCatName = row.category || 'Outros';
+      categoryId = mobillsCatName.toLowerCase() === 'outros'
+        ? (matchFinanceCategoryRule(row.description) || categoryIdByName[mobillsCatName] || null)
+        : (categoryIdByName[mobillsCatName] || null);
     }
 
     newTxs.push({
@@ -9299,7 +9633,7 @@ function handleConfirmMobillsImport() {
       notes: '', tags: row.tags ? [row.tags] : [], source: 'import', importId, originalAccountLabel: row.account,
       transferAccountId: null, investmentDirection,
       isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-      fixedCostId: null, goalId: null, goalDirection: null, ignored: false
+      fixedCostId: null, goalId: null, goalDirection: null, ignored: false, splitGroupId: null
     });
     imported++;
   });
@@ -9525,7 +9859,7 @@ function handleConfirmNubankImport() {
       investmentDirection = row.amount >= 0 ? 'redemption' : 'contribution';
     } else {
       type = row.amount >= 0 ? 'income' : 'expense';
-      categoryId = outrosCategoryId;
+      categoryId = matchFinanceCategoryRule(row.description) || outrosCategoryId;
     }
 
     newTxs.push({
@@ -9534,7 +9868,7 @@ function handleConfirmNubankImport() {
       notes: '', tags: [], source: 'import', importId, originalAccountLabel: 'Nubank (extrato nativo)',
       transferAccountId: null, investmentDirection,
       isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-      fixedCostId: null, goalId: null, goalDirection: null, ignored: false
+      fixedCostId: null, goalId: null, goalDirection: null, ignored: false, splitGroupId: null
     });
     imported++;
   });
@@ -13131,6 +13465,9 @@ function clearAllCache() {
     localStorage.removeItem('b3_finance_goals');
     localStorage.removeItem('b3_finance_fixed_costs');
     localStorage.removeItem('b3_finance_changelog');
+    localStorage.removeItem('b3_finance_category_rules');
+    localStorage.removeItem('b3_finance_networth_history');
+    localStorage.removeItem('b3_triggered_unusual_spending_alerts');
     AppState.favorites = [...DEFAULT_FAVORITES];
     AppState.trades = [...DEFAULT_USER_TRADES];
     AppState.portfolioDividends = [];
@@ -13140,6 +13477,9 @@ function clearAllCache() {
     AppState.financeGoals = [];
     AppState.financeFixedCosts = [];
     AppState.financeChangeLog = [];
+    AppState.financeCategoryRules = [];
+    AppState.financeNetWorthHistory = [];
+    AppState.triggeredUnusualSpendingAlerts = [];
     syncAutomatedDividends();
     showToast('Dados restaurados para os padrões.', 'info');
     renderFavoritesView();
@@ -13372,7 +13712,7 @@ function renderPriceAlertsList() {
 }
 
 async function checkAlerts() {
-  if (!AppState.priceAlerts.some(a => a.active) && !AppState.favorites.length && !AppState.fiiFavorites.length && !AppState.trades.length && !(AppState.financeFixedCosts || []).length) return;
+  if (!AppState.priceAlerts.some(a => a.active) && !AppState.favorites.length && !AppState.fiiFavorites.length && !AppState.trades.length && !(AppState.financeFixedCosts || []).length && !(AppState.financeTransactions || []).length) return;
 
   let priceDirty = false;
   for (const a of AppState.priceAlerts) {
@@ -13446,6 +13786,32 @@ async function checkAlerts() {
     fcDirty = true;
   }
   if (fcDirty) localStorage.setItem('b3_triggered_fixedcost_alerts', JSON.stringify(AppState.triggeredFixedCostAlerts));
+
+  // Alerta de gasto incomum - compara a despesa de cada categoria no mes
+  // CALENDARIO real contra a media dos 3 meses anteriores NESSA MESMA
+  // categoria. So dispara se a categoria tem historico (media > 0), o gasto
+  // atual passou 50% da media, e o valor absoluto e relevante (>= R$50,
+  // pra nao alertar por categoria pequena que varia proporcionalmente
+  // muito sem significar nada). 1 alerta por categoria por mes.
+  const currentByCategory = getFinanceMonthSummary(realMonth).byCategory;
+  let spendDirty = false;
+  for (const [label, currentAmt] of Object.entries(currentByCategory)) {
+    if (currentAmt < 50) continue;
+    const pastAmounts = [1, 2, 3].map(n => getFinanceMonthSummary(addMonthsToYYYYMM(realMonth, -n)).byCategory[label] || 0);
+    const avg = pastAmounts.reduce((s, v) => s + v, 0) / pastAmounts.length;
+    if (avg <= 0 || currentAmt < avg * 1.5) continue;
+    const alertId = `${label}-${realMonth}`;
+    if (AppState.triggeredUnusualSpendingAlerts.includes(alertId)) continue;
+    notifyUser(
+      `📊 Gasto incomum: ${label}`,
+      `${NumFmt.money(currentAmt)} esse mês, ${NumFmt.pct((currentAmt / avg - 1) * 100)} acima da média dos últimos 3 meses (${NumFmt.money(avg)}).`,
+      `unusual-${alertId}`
+    );
+    showToast(`📊 Gasto incomum em ${label}: ${NumFmt.money(currentAmt)} (média: ${NumFmt.money(avg)}).`, 'warn');
+    AppState.triggeredUnusualSpendingAlerts.push(alertId);
+    spendDirty = true;
+  }
+  if (spendDirty) localStorage.setItem('b3_triggered_unusual_spending_alerts', JSON.stringify(AppState.triggeredUnusualSpendingAlerts));
 }
 
 // ==========================================
@@ -13527,7 +13893,9 @@ function buildBackupPayload() {
     financeTransactions: AppState.financeTransactions || [],
     financeGoals: AppState.financeGoals || [],
     financeFixedCosts: AppState.financeFixedCosts || [],
-    financeChangeLog: AppState.financeChangeLog || []
+    financeChangeLog: AppState.financeChangeLog || [],
+    financeCategoryRules: AppState.financeCategoryRules || [],
+    financeNetWorthHistory: AppState.financeNetWorthHistory || []
   };
 }
 
@@ -13548,6 +13916,8 @@ function applyBackupPayload(data) {
   if (data.financeGoals) { AppState.financeGoals = data.financeGoals; localStorage.setItem('b3_finance_goals', JSON.stringify(data.financeGoals)); }
   if (data.financeFixedCosts) { AppState.financeFixedCosts = data.financeFixedCosts; localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(data.financeFixedCosts)); }
   if (data.financeChangeLog) { AppState.financeChangeLog = data.financeChangeLog; localStorage.setItem('b3_finance_changelog', JSON.stringify(data.financeChangeLog)); }
+  if (data.financeCategoryRules) { AppState.financeCategoryRules = data.financeCategoryRules; localStorage.setItem('b3_finance_category_rules', JSON.stringify(data.financeCategoryRules)); }
+  if (data.financeNetWorthHistory) { AppState.financeNetWorthHistory = data.financeNetWorthHistory; localStorage.setItem('b3_finance_networth_history', JSON.stringify(data.financeNetWorthHistory)); }
 }
 
 async function pushToCloud() {
