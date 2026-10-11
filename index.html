@@ -922,8 +922,13 @@
         <div class="card" style="margin-bottom: 20px;">
           <div class="card-header">
             <div class="card-title">Lançamentos</div>
-            <button class="btn btn-success btn-sm" onclick="openFinanceTransactionModal()">+ Novo Lançamento</button>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-secondary btn-sm" id="finance-calendar-toggle-btn" onclick="toggleFinanceCalendar()">📅 Ver Calendário</button>
+              <button class="btn btn-success btn-sm" onclick="openFinanceTransactionModal()">+ Novo Lançamento</button>
+            </div>
           </div>
+          <div id="finance-calendar-container" style="display:none; margin-bottom: 16px;"></div>
+          <div id="finance-day-filter-chip" style="display:none; margin-bottom: 10px;"></div>
           <div class="table-responsive" id="finance-transactions-container">
             <div class="state-box">
               <div class="state-icon">💰</div>
@@ -947,6 +952,24 @@
               <canvas id="finance-trend-chart"></canvas>
             </div>
           </div>
+        </div>
+
+        <!-- OBJETIVOS -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <div class="card-title">🎯 Objetivos</div>
+            <button class="btn btn-success btn-sm" onclick="openFinanceGoalModal()">+ Nova Meta</button>
+          </div>
+          <div class="grid grid-3" id="finance-goals-grid" style="margin-top: 4px;"></div>
+        </div>
+
+        <!-- CUSTOS FIXOS -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <div class="card-title">📌 Custos Fixos</div>
+            <button class="btn btn-success btn-sm" onclick="openFinanceFixedCostModal()">+ Novo Custo Fixo</button>
+          </div>
+          <div class="table-responsive" id="finance-fixedcosts-container" style="margin-top: 4px;"></div>
         </div>
 
         <!-- CARTAO DE CREDITO -->
@@ -2219,6 +2242,92 @@
       <div id="finance-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
     </div>
     <div id="finance-import-preview" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: LANÇAR / EDITAR OBJETIVO (META)     -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="finance-goal-modal">
+  <div class="modal-box" style="max-width: 460px;">
+    <div class="modal-header">
+      <div class="modal-title" id="finance-goal-modal-title">➕ Nova Meta</div>
+      <button class="modal-close" onclick="closeFinanceGoalModal()">✕</button>
+    </div>
+    <form id="finance-goal-form" onsubmit="handleSaveFinanceGoal(event)">
+      <input type="hidden" id="finance-goal-edit-id" value="">
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: grid; grid-template-columns: 56px 1fr; gap: 10px;">
+          <input type="text" class="input-field" id="finance-goal-icon" value="🎯" maxlength="2" style="text-align:center;">
+          <input type="text" class="input-field" id="finance-goal-name" placeholder="ex: Viagem, Reserva de Emergência" required style="width: 100%;">
+        </div>
+        <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Valor Alvo (R$)</label>
+            <input type="number" class="input-field" id="finance-goal-target" min="0.01" step="0.01" required style="width: 100%;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Já Acumulado (R$)</label>
+            <input type="number" class="input-field" id="finance-goal-current" min="0" step="0.01" value="0" style="width: 100%;">
+          </div>
+        </div>
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Prazo (Opcional)</label>
+          <input type="date" class="input-field" id="finance-goal-deadline" style="width: 100%;">
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeFinanceGoalModal()">Cancelar</button>
+          <button type="button" class="btn btn-secondary" id="finance-goal-delete-btn" style="color: var(--red); display: none;" onclick="handleDeleteCurrentFinanceGoal()">Excluir</button>
+          <button type="submit" class="btn btn-success" style="flex: 1;" id="finance-goal-submit-btn">Salvar Meta</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: LANÇAR / EDITAR CUSTO FIXO          -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="finance-fixedcost-modal">
+  <div class="modal-box" style="max-width: 500px;">
+    <div class="modal-header">
+      <div class="modal-title" id="finance-fixedcost-modal-title">➕ Novo Custo Fixo</div>
+      <button class="modal-close" onclick="closeFinanceFixedCostModal()">✕</button>
+    </div>
+    <form id="finance-fixedcost-form" onsubmit="handleSaveFinanceFixedCost(event)">
+      <input type="hidden" id="finance-fixedcost-edit-id" value="">
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Descrição</label>
+          <input type="text" class="input-field" id="finance-fixedcost-description" placeholder="ex: Aluguel, Internet, Academia" required style="width: 100%;">
+        </div>
+        <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Valor (R$)</label>
+            <input type="number" class="input-field" id="finance-fixedcost-amount" min="0.01" step="0.01" required style="width: 100%;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Dia do Vencimento</label>
+            <input type="number" class="input-field" id="finance-fixedcost-dueday" min="1" max="31" step="1" required style="width: 100%;">
+          </div>
+        </div>
+        <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Categoria</label>
+            <select class="select-field" id="finance-fixedcost-category" style="width: 100%;"></select>
+          </div>
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Conta/Cartão de Pagamento</label>
+            <select class="select-field" id="finance-fixedcost-account" style="width: 100%;"></select>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeFinanceFixedCostModal()">Cancelar</button>
+          <button type="button" class="btn btn-secondary" id="finance-fixedcost-delete-btn" style="color: var(--red); display: none;" onclick="handleDeleteCurrentFinanceFixedCost()">Excluir</button>
+          <button type="submit" class="btn btn-success" style="flex: 1;" id="finance-fixedcost-submit-btn">Salvar Custo Fixo</button>
+        </div>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -3906,12 +4015,16 @@ const AppState = {
   })(),
   financeTransactions: JSON.parse(localStorage.getItem('b3_finance_transactions') || '[]'),
   financeActiveMonth: new Date().toISOString().slice(0, 7),
-  financeFilters: { type: 'all', accountId: 'all', categoryId: 'all' },
+  financeFilters: { type: 'all', accountId: 'all', categoryId: 'all', day: null },
+  financeShowCalendar: false,
   financeAccountChartInstance: null,
   financeCategoryChartInstance: null,
   financeTrendChartInstance: null,
   financeImportStaging: null,
-  financeCategoryEditingId: null
+  financeCategoryEditingId: null,
+  financeGoals: JSON.parse(localStorage.getItem('b3_finance_goals') || '[]'),
+  financeFixedCosts: JSON.parse(localStorage.getItem('b3_finance_fixed_costs') || '[]'),
+  triggeredFixedCostAlerts: JSON.parse(localStorage.getItem('b3_triggered_fixedcost_alerts') || '[]')
 };
 
 // ==========================================
@@ -6867,7 +6980,8 @@ function generateInstallments(purchase) {
       installmentGroupId: groupId,
       installmentNumber: i,
       installmentTotal: n,
-      invoiceMonth: addMonthsToYYYYMM(baseCycle, i - 1)
+      invoiceMonth: addMonthsToYYYYMM(baseCycle, i - 1),
+      fixedCostId: null
     });
   }
   return result;
@@ -7616,8 +7730,11 @@ async function renderFinanceView() {
   renderFinanceKpis();
   renderFinanceAccountsList();
   renderFinanceTransactionsList();
+  if (AppState.financeShowCalendar) renderFinanceCalendar();
   renderFinanceCategoryChart();
   renderFinanceTrendChart();
+  renderFinanceGoalsSection();
+  renderFinanceFixedCostsSection();
   renderFinanceCardsSection();
 }
 
@@ -7694,10 +7811,17 @@ function renderFinanceTransactionsList() {
   if (f.type !== 'all') txs = txs.filter(tx => tx.type === f.type);
   if (f.accountId !== 'all') txs = txs.filter(tx => tx.accountId === f.accountId || tx.transferAccountId === f.accountId);
   if (f.categoryId !== 'all') txs = txs.filter(tx => tx.categoryId === f.categoryId);
+  if (f.day) txs = txs.filter(tx => tx.date === f.day);
   txs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
+  const chipEl = document.getElementById('finance-day-filter-chip');
+  if (chipEl) {
+    chipEl.style.display = f.day ? 'block' : 'none';
+    if (f.day) chipEl.innerHTML = `<span class="ticker-tag">📅 ${NumFmt.date(f.day)} <span class="tag-del" onclick="clearFinanceDayFilter()">✕</span></span>`;
+  }
+
   if (txs.length === 0) {
-    container.innerHTML = `<div class="state-box"><div class="state-icon">💰</div><div class="state-title">Nenhum lançamento neste mês</div><div class="state-desc">Ajuste os filtros ou clique em "+ Novo Lançamento".</div></div>`;
+    container.innerHTML = `<div class="state-box"><div class="state-icon">💰</div><div class="state-title">Nenhum lançamento ${f.day ? 'nesse dia' : 'neste mês'}</div><div class="state-desc">Ajuste os filtros ou clique em "+ Novo Lançamento".</div></div>`;
     return;
   }
 
@@ -7744,6 +7868,65 @@ function renderFinanceTransactionsList() {
       <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Conta</th><th class="text-right">Valor</th><th>Tipo</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>`;
+}
+
+function toggleFinanceCalendar() {
+  AppState.financeShowCalendar = !AppState.financeShowCalendar;
+  const container = document.getElementById('finance-calendar-container');
+  const btn = document.getElementById('finance-calendar-toggle-btn');
+  if (container) container.style.display = AppState.financeShowCalendar ? 'block' : 'none';
+  if (btn) btn.textContent = AppState.financeShowCalendar ? '📋 Ver Lista' : '📅 Ver Calendário';
+  if (AppState.financeShowCalendar) renderFinanceCalendar();
+}
+
+function setFinanceDayFilter(day) {
+  AppState.financeFilters.day = (AppState.financeFilters.day === day) ? null : day;
+  renderFinanceTransactionsList();
+  if (AppState.financeShowCalendar) renderFinanceCalendar();
+}
+
+function clearFinanceDayFilter() {
+  AppState.financeFilters.day = null;
+  renderFinanceTransactionsList();
+  if (AppState.financeShowCalendar) renderFinanceCalendar();
+}
+
+// Grade mensal (estilo Mobills): um dia por celula, com total de receita/
+// despesa daquele dia exato. Clicar no dia filtra a lista de lancamentos
+// abaixo (reusa renderFinanceTransactionsList, nao duplica UI de lista).
+function renderFinanceCalendar() {
+  const container = document.getElementById('finance-calendar-container');
+  if (!container) return;
+
+  const [year, month1] = AppState.financeActiveMonth.split('-').map(Number);
+  const firstDow = new Date(year, month1 - 1, 1).getDay();
+  const totalDays = daysInMonth(year, month1);
+
+  const byDay = {};
+  (AppState.financeTransactions || []).forEach(tx => {
+    if ((tx.date || '').slice(0, 7) !== AppState.financeActiveMonth) return;
+    if (!byDay[tx.date]) byDay[tx.date] = { income: 0, expense: 0 };
+    if (tx.type === 'income') byDay[tx.date].income += Number(tx.amount) || 0;
+    else if (tx.type === 'expense') byDay[tx.date].expense += Number(tx.amount) || 0;
+  });
+
+  const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  let cellsHtml = weekDays.map(d => `<div style="text-align:center; font-size:10px; font-weight:700; color:var(--text-sub); text-transform:uppercase; padding:4px;">${d}</div>`).join('');
+  for (let i = 0; i < firstDow; i++) cellsHtml += `<div></div>`;
+
+  for (let d = 1; d <= totalDays; d++) {
+    const dateStr = `${year}-${String(month1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const info = byDay[dateStr];
+    const isSelected = AppState.financeFilters.day === dateStr;
+    cellsHtml += `
+      <div onclick="setFinanceDayFilter('${dateStr}')" style="cursor:pointer; min-height:56px; border-radius:var(--radius-md); padding:4px 6px; border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}; background:${isSelected ? 'rgba(15,107,76,0.08)' : 'transparent'};">
+        <div style="font-size:11px; font-weight:700; color:var(--text-sub);">${d}</div>
+        ${info?.income ? `<div style="font-size:9.5px; color:var(--green); font-weight:600;">+${NumFmt.compact(info.income)}</div>` : ''}
+        ${info?.expense ? `<div style="font-size:9.5px; color:var(--red); font-weight:600;">−${NumFmt.compact(info.expense)}</div>` : ''}
+      </div>`;
+  }
+
+  container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">${cellsHtml}</div>`;
 }
 
 function renderFinanceCategoryChart() {
@@ -7862,6 +8045,267 @@ function renderFinanceCardsSection() {
   }).join('');
 }
 
+// ---------- OBJETIVOS (METAS) ----------
+
+function renderFinanceGoalsSection() {
+  const grid = document.getElementById('finance-goals-grid');
+  if (!grid) return;
+  const goals = (AppState.financeGoals || []).filter(g => !g.archived);
+  if (goals.length === 0) {
+    grid.innerHTML = `<div class="state-box" style="grid-column: 1 / -1;"><div class="state-icon">🎯</div><div class="state-title">Nenhum objetivo cadastrado</div><div class="state-desc">Clique em "+ Nova Meta" pra acompanhar uma meta financeira.</div></div>`;
+    return;
+  }
+  grid.innerHTML = goals.map(g => {
+    const pct = g.targetAmount > 0 ? Math.min(100, (g.currentAmount / g.targetAmount) * 100) : 0;
+    const barColor = pct >= 100 ? 'var(--green)' : 'var(--accent)';
+    let deadlineHtml = '';
+    if (g.deadline) {
+      const daysLeft = Math.ceil((new Date(g.deadline + 'T00:00:00') - new Date()) / 86400000);
+      deadlineHtml = `<div class="stat-meta">${daysLeft >= 0 ? `${daysLeft} dia(s) até ${NumFmt.date(g.deadline)}` : `Prazo vencido (${NumFmt.date(g.deadline)})`}</div>`;
+    }
+    return `
+      <div class="stat-card" style="cursor:pointer;" onclick="openFinanceGoalModal('${g.id}')">
+        <span class="stat-label">${g.icon || '🎯'} ${g.name}</span>
+        <div class="stat-val" style="font-size:16px;">${NumFmt.money(g.currentAmount)} <span style="font-size:11px; color:var(--text-sub); font-weight:400;">/ ${NumFmt.money(g.targetAmount)}</span></div>
+        <div style="background:rgba(0,0,0,0.06); border-radius:100px; height:6px; margin-top:6px; overflow:hidden;">
+          <div style="width:${pct}%; height:100%; background:${barColor};"></div>
+        </div>
+        <div class="stat-meta" style="margin-top:4px;">${NumFmt.num(pct, 0)}% concluído</div>
+        ${deadlineHtml}
+      </div>`;
+  }).join('');
+}
+
+function openFinanceGoalModal(editId = '') {
+  const modal = document.getElementById('finance-goal-modal');
+  document.getElementById('finance-goal-edit-id').value = editId;
+  const goal = editId ? (AppState.financeGoals || []).find(g => g.id === editId) : null;
+
+  document.getElementById('finance-goal-modal-title').textContent = editId ? '✏️ Editar Meta' : '➕ Nova Meta';
+  document.getElementById('finance-goal-icon').value = goal ? goal.icon : '🎯';
+  document.getElementById('finance-goal-name').value = goal ? goal.name : '';
+  document.getElementById('finance-goal-target').value = goal ? goal.targetAmount : '';
+  document.getElementById('finance-goal-current').value = goal ? goal.currentAmount : 0;
+  document.getElementById('finance-goal-deadline').value = goal ? (goal.deadline || '') : '';
+  document.getElementById('finance-goal-delete-btn').style.display = editId ? 'inline-flex' : 'none';
+  document.getElementById('finance-goal-submit-btn').textContent = editId ? 'Salvar Alterações' : 'Salvar Meta';
+
+  modal.classList.add('active');
+}
+
+function closeFinanceGoalModal() {
+  const modal = document.getElementById('finance-goal-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function handleSaveFinanceGoal(e) {
+  e.preventDefault();
+  const editId = document.getElementById('finance-goal-edit-id').value;
+  const icon = document.getElementById('finance-goal-icon').value.trim() || '🎯';
+  const name = document.getElementById('finance-goal-name').value.trim();
+  const targetAmount = parseFloat(document.getElementById('finance-goal-target').value);
+  const currentAmount = parseFloat(document.getElementById('finance-goal-current').value) || 0;
+  const deadline = document.getElementById('finance-goal-deadline').value || null;
+
+  if (!name || isNaN(targetAmount) || targetAmount <= 0) { showToast('Preencha os campos corretamente.', 'error'); return; }
+
+  if (editId) {
+    const idx = AppState.financeGoals.findIndex(g => g.id === editId);
+    if (idx === -1) return;
+    AppState.financeGoals[idx] = { ...AppState.financeGoals[idx], icon, name, targetAmount, currentAmount, deadline };
+  } else {
+    AppState.financeGoals.unshift({
+      id: 'fgoal_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+      icon, name, targetAmount, currentAmount, deadline, createdAt: new Date().toISOString(), archived: false
+    });
+  }
+
+  localStorage.setItem('b3_finance_goals', JSON.stringify(AppState.financeGoals));
+  closeFinanceGoalModal();
+  renderFinanceGoalsSection();
+  showToast('Meta salva!', 'success');
+}
+
+function handleDeleteCurrentFinanceGoal() {
+  const editId = document.getElementById('finance-goal-edit-id').value;
+  if (!editId) return;
+  const goal = AppState.financeGoals.find(g => g.id === editId);
+  if (!goal) return;
+  if (!confirm(`Excluir a meta "${goal.name}"?`)) return;
+  AppState.financeGoals = AppState.financeGoals.filter(g => g.id !== editId);
+  localStorage.setItem('b3_finance_goals', JSON.stringify(AppState.financeGoals));
+  closeFinanceGoalModal();
+  renderFinanceGoalsSection();
+  showToast('Meta excluída.', 'info');
+}
+
+// ---------- CUSTOS FIXOS ----------
+// Status de "pago no mes" e sempre DERIVADO de existir um lancamento com
+// fixedCostId apontando pra esse custo fixo nesse mes - sem array de
+// "meses pagos" separado pra nao dessincronizar se o usuario excluir o
+// lancamento manualmente depois. Recebe o mes como parametro (nao so o mes
+// ativo da UI) porque o lembrete de vencimento em checkAlerts() precisa
+// checar o mes CALENDARIO real (hoje), independente de qual mes o usuario
+// esta navegando na tela do Controle Financeiro.
+function isFixedCostPaidForMonth(fc, monthStr) {
+  return (AppState.financeTransactions || []).some(t => t.fixedCostId === fc.id && getEffectiveMonth(t) === monthStr);
+}
+function isFixedCostPaidThisMonth(fc) {
+  return isFixedCostPaidForMonth(fc, AppState.financeActiveMonth);
+}
+
+function renderFinanceFixedCostsSection() {
+  const container = document.getElementById('finance-fixedcosts-container');
+  if (!container) return;
+  const costs = (AppState.financeFixedCosts || []).filter(fc => fc.active);
+  if (costs.length === 0) {
+    container.innerHTML = `<div class="state-box"><div class="state-icon">📌</div><div class="state-title">Nenhum custo fixo cadastrado</div><div class="state-desc">Clique em "+ Novo Custo Fixo" pra cadastrar contas recorrentes (aluguel, assinaturas, etc).</div></div>`;
+    return;
+  }
+
+  const isCurrentMonthActive = AppState.financeActiveMonth === new Date().toISOString().slice(0, 7);
+  const todayDay = new Date().getDate();
+
+  const rowsHtml = costs.map(fc => {
+    const cat = (AppState.financeCategories || []).find(c => c.id === fc.categoryId);
+    const acc = (AppState.financeAccounts || []).find(a => a.id === fc.accountId);
+    const paid = isFixedCostPaidThisMonth(fc);
+    let statusHtml;
+    if (paid) statusHtml = `<span class="status-pill good">✅ Pago</span>`;
+    else if (isCurrentMonthActive && todayDay > fc.dueDay) statusHtml = `<span class="status-pill bad">⚠️ Vencido</span>`;
+    else statusHtml = `<span class="status-pill warn">Vence dia ${fc.dueDay}</span>`;
+
+    return `
+      <tr class="fav-table-row" style="cursor:pointer;" onclick="openFinanceFixedCostModal('${fc.id}')">
+        <td>${fc.description}</td>
+        <td style="font-size:12px; color:var(--text-sub);">${cat ? cat.icon + ' ' + cat.name : '—'}</td>
+        <td style="font-size:12px; color:var(--text-sub);">${acc ? (acc.icon || '') + ' ' + acc.name : '—'}</td>
+        <td class="text-right text-mono" style="font-weight:700;">${NumFmt.money(fc.amount)}</td>
+        <td class="text-center">${statusHtml}</td>
+        <td class="text-center">
+          ${paid
+            ? `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); unmarkFinanceFixedCostPaid('${fc.id}')">Desfazer</button>`
+            : `<button class="btn btn-success btn-sm" onclick="event.stopPropagation(); markFinanceFixedCostPaid('${fc.id}')">Marcar como pago</button>`}
+        </td>
+      </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <table class="custom-table compact">
+      <thead><tr><th>Descrição</th><th>Categoria</th><th>Conta</th><th class="text-right">Valor</th><th class="text-center">Status (${AppState.financeActiveMonth})</th><th class="text-center">Ação</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+}
+
+function markFinanceFixedCostPaid(id) {
+  const fc = (AppState.financeFixedCosts || []).find(f => f.id === id);
+  if (!fc || isFixedCostPaidThisMonth(fc)) return;
+  const [y, m] = AppState.financeActiveMonth.split('-').map(Number);
+  const day = String(Math.min(fc.dueDay, daysInMonth(y, m))).padStart(2, '0');
+  const date = `${AppState.financeActiveMonth}-${day}`;
+
+  AppState.financeTransactions.unshift({
+    id: 'ftx_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
+    type: 'expense', description: fc.description, amount: fc.amount, date,
+    accountId: fc.accountId, categoryId: fc.categoryId,
+    notes: '', tags: [], source: 'manual', importId: null, originalAccountLabel: null,
+    transferAccountId: null, investmentDirection: null,
+    isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
+    fixedCostId: fc.id
+  });
+
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  renderFinanceView();
+  showToast(`${fc.description} marcado como pago.`, 'success');
+}
+
+function unmarkFinanceFixedCostPaid(id) {
+  const fc = (AppState.financeFixedCosts || []).find(f => f.id === id);
+  if (!fc) return;
+  const linkedTx = (AppState.financeTransactions || []).find(t => t.fixedCostId === fc.id && getEffectiveMonth(t) === AppState.financeActiveMonth);
+  if (!linkedTx) return;
+  if (!confirm(`Desfazer o pagamento de "${fc.description}" neste mês? Isso remove o lançamento gerado.`)) return;
+  AppState.financeTransactions = AppState.financeTransactions.filter(t => t.id !== linkedTx.id);
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  renderFinanceView();
+  showToast('Pagamento desfeito.', 'info');
+}
+
+function openFinanceFixedCostModal(editId = '') {
+  const accounts = (AppState.financeAccounts || []).filter(a => !a.archived);
+  if (accounts.length === 0) { showToast('Cadastre uma conta antes de criar um custo fixo.', 'warn'); return; }
+
+  const modal = document.getElementById('finance-fixedcost-modal');
+  document.getElementById('finance-fixedcost-edit-id').value = editId;
+  const fc = editId ? (AppState.financeFixedCosts || []).find(f => f.id === editId) : null;
+
+  const catSel = document.getElementById('finance-fixedcost-category');
+  const expenseCats = (AppState.financeCategories || []).filter(c => !c.archived && c.appliesTo.includes('expense'));
+  catSel.innerHTML = expenseCats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+
+  const accSel = document.getElementById('finance-fixedcost-account');
+  accSel.innerHTML = accounts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
+
+  document.getElementById('finance-fixedcost-modal-title').textContent = editId ? '✏️ Editar Custo Fixo' : '➕ Novo Custo Fixo';
+  document.getElementById('finance-fixedcost-description').value = fc ? fc.description : '';
+  document.getElementById('finance-fixedcost-amount').value = fc ? fc.amount : '';
+  document.getElementById('finance-fixedcost-dueday').value = fc ? fc.dueDay : '';
+  if (fc) { catSel.value = fc.categoryId; accSel.value = fc.accountId; }
+  document.getElementById('finance-fixedcost-delete-btn').style.display = editId ? 'inline-flex' : 'none';
+  document.getElementById('finance-fixedcost-submit-btn').textContent = editId ? 'Salvar Alterações' : 'Salvar Custo Fixo';
+
+  modal.classList.add('active');
+}
+
+function closeFinanceFixedCostModal() {
+  const modal = document.getElementById('finance-fixedcost-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function handleSaveFinanceFixedCost(e) {
+  e.preventDefault();
+  const editId = document.getElementById('finance-fixedcost-edit-id').value;
+  const description = document.getElementById('finance-fixedcost-description').value.trim();
+  const amount = parseFloat(document.getElementById('finance-fixedcost-amount').value);
+  const dueDay = parseInt(document.getElementById('finance-fixedcost-dueday').value);
+  const categoryId = document.getElementById('finance-fixedcost-category').value;
+  const accountId = document.getElementById('finance-fixedcost-account').value;
+
+  if (!description || isNaN(amount) || amount <= 0 || isNaN(dueDay) || dueDay < 1 || dueDay > 31) {
+    showToast('Preencha os campos corretamente.', 'error');
+    return;
+  }
+
+  if (editId) {
+    const idx = AppState.financeFixedCosts.findIndex(f => f.id === editId);
+    if (idx === -1) return;
+    AppState.financeFixedCosts[idx] = { ...AppState.financeFixedCosts[idx], description, amount, dueDay, categoryId, accountId };
+  } else {
+    AppState.financeFixedCosts.unshift({
+      id: 'ffix_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+      description, amount, dueDay, categoryId, accountId, active: true, createdAt: new Date().toISOString()
+    });
+  }
+
+  localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
+  closeFinanceFixedCostModal();
+  renderFinanceFixedCostsSection();
+  showToast('Custo fixo salvo!', 'success');
+}
+
+function handleDeleteCurrentFinanceFixedCost() {
+  const editId = document.getElementById('finance-fixedcost-edit-id').value;
+  if (!editId) return;
+  const fc = AppState.financeFixedCosts.find(f => f.id === editId);
+  if (!fc) return;
+  if (!confirm(`Excluir o custo fixo "${fc.description}"? Lançamentos já gerados por ele não serão apagados.`)) return;
+  AppState.financeFixedCosts = AppState.financeFixedCosts.filter(f => f.id !== editId);
+  localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
+  closeFinanceFixedCostModal();
+  renderFinanceFixedCostsSection();
+  showToast('Custo fixo excluído.', 'info');
+}
+
 function toggleFinanceInstallmentGroup(groupId) {
   document.querySelectorAll(`tr[id^="finance-inst-group-${groupId}-"]`).forEach(row => {
     row.style.display = row.style.display === 'none' ? '' : 'none';
@@ -7870,6 +8314,7 @@ function toggleFinanceInstallmentGroup(groupId) {
 
 function toggleFinanceMonth(delta) {
   AppState.financeActiveMonth = addMonthsToYYYYMM(AppState.financeActiveMonth, delta);
+  AppState.financeFilters.day = null;
   renderFinanceView();
 }
 
@@ -8009,7 +8454,8 @@ function handleSaveFinanceTransaction(e) {
         type, description, amount, date, accountId, categoryId,
         notes, tags: [], source: 'manual', importId: null, originalAccountLabel: null,
         transferAccountId, investmentDirection,
-        isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null
+        isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
+        fixedCostId: null
       });
     }
   }
@@ -8533,7 +8979,8 @@ function handleConfirmMobillsImport() {
       type, description: row.description, amount, date: row.date, accountId, categoryId,
       notes: '', tags: row.tags ? [row.tags] : [], source: 'import', importId, originalAccountLabel: row.account,
       transferAccountId: null, investmentDirection,
-      isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null
+      isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
+      fixedCostId: null
     });
     imported++;
   });
@@ -12127,12 +12574,16 @@ function clearAllCache() {
     localStorage.removeItem('b3_finance_accounts');
     localStorage.removeItem('b3_finance_categories');
     localStorage.removeItem('b3_finance_transactions');
+    localStorage.removeItem('b3_finance_goals');
+    localStorage.removeItem('b3_finance_fixed_costs');
     AppState.favorites = [...DEFAULT_FAVORITES];
     AppState.trades = [...DEFAULT_USER_TRADES];
     AppState.portfolioDividends = [];
     AppState.financeAccounts = [];
     AppState.financeCategories = [...DEFAULT_FINANCE_CATEGORIES];
     AppState.financeTransactions = [];
+    AppState.financeGoals = [];
+    AppState.financeFixedCosts = [];
     syncAutomatedDividends();
     showToast('Dados restaurados para os padrões.', 'info');
     renderFavoritesView();
@@ -12365,7 +12816,7 @@ function renderPriceAlertsList() {
 }
 
 async function checkAlerts() {
-  if (!AppState.priceAlerts.some(a => a.active) && !AppState.favorites.length && !AppState.fiiFavorites.length && !AppState.trades.length) return;
+  if (!AppState.priceAlerts.some(a => a.active) && !AppState.favorites.length && !AppState.fiiFavorites.length && !AppState.trades.length && !(AppState.financeFixedCosts || []).length) return;
 
   let priceDirty = false;
   for (const a of AppState.priceAlerts) {
@@ -12412,6 +12863,33 @@ async function checkAlerts() {
     divDirty = true;
   }
   if (divDirty) localStorage.setItem('b3_triggered_div_alerts', JSON.stringify(AppState.triggeredDividendAlerts));
+
+  // Lembrete de custo fixo vencendo - mesma janela de antecedencia do
+  // provento (AppState.dividendAlertDays), mas checa contra o mes
+  // CALENDARIO real (hoje), nao o mes que o usuario esta navegando na
+  // tela. O id disparado inclui o mes (ex. "fc1-2026-10") pra poder
+  // notificar de novo no mes seguinte mesmo que ja tenha notificado antes.
+  const realMonth = today.toISOString().slice(0, 7);
+  const [realY, realM] = realMonth.split('-').map(Number);
+  let fcDirty = false;
+  for (const fc of (AppState.financeFixedCosts || [])) {
+    if (!fc.active) continue;
+    if (isFixedCostPaidForMonth(fc, realMonth)) continue;
+    const dueDay = Math.min(fc.dueDay, daysInMonth(realY, realM));
+    const dueDate = new Date(realY, realM - 1, dueDay);
+    if (dueDate < today || dueDate > horizon) continue;
+    const alertId = `${fc.id}-${realMonth}`;
+    if (AppState.triggeredFixedCostAlerts.includes(alertId)) continue;
+    notifyUser(
+      `📌 Custo fixo vencendo: ${fc.description}`,
+      `${NumFmt.money(fc.amount)} vence em ${dueDate.toLocaleDateString('pt-BR')}.`,
+      `fixedcost-${alertId}`
+    );
+    showToast(`📌 ${fc.description} vence em breve (${NumFmt.money(fc.amount)}).`, 'warn');
+    AppState.triggeredFixedCostAlerts.push(alertId);
+    fcDirty = true;
+  }
+  if (fcDirty) localStorage.setItem('b3_triggered_fixedcost_alerts', JSON.stringify(AppState.triggeredFixedCostAlerts));
 }
 
 // ==========================================
@@ -12490,7 +12968,9 @@ function buildBackupPayload() {
     aiFolderFiles: AppState.aiFolderFiles || [],
     financeAccounts: AppState.financeAccounts || [],
     financeCategories: AppState.financeCategories || [],
-    financeTransactions: AppState.financeTransactions || []
+    financeTransactions: AppState.financeTransactions || [],
+    financeGoals: AppState.financeGoals || [],
+    financeFixedCosts: AppState.financeFixedCosts || []
   };
 }
 
@@ -12508,6 +12988,8 @@ function applyBackupPayload(data) {
   if (data.financeAccounts) { AppState.financeAccounts = data.financeAccounts; localStorage.setItem('b3_finance_accounts', JSON.stringify(data.financeAccounts)); }
   if (data.financeCategories) { AppState.financeCategories = data.financeCategories; localStorage.setItem('b3_finance_categories', JSON.stringify(data.financeCategories)); }
   if (data.financeTransactions) { AppState.financeTransactions = data.financeTransactions; localStorage.setItem('b3_finance_transactions', JSON.stringify(data.financeTransactions)); }
+  if (data.financeGoals) { AppState.financeGoals = data.financeGoals; localStorage.setItem('b3_finance_goals', JSON.stringify(data.financeGoals)); }
+  if (data.financeFixedCosts) { AppState.financeFixedCosts = data.financeFixedCosts; localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(data.financeFixedCosts)); }
 }
 
 async function pushToCloud() {
@@ -12773,6 +13255,8 @@ async function initApp() {
       closeFinanceAccountModal();
       closeFinanceCategoryModal();
       closeFinanceImportModal();
+      closeFinanceGoalModal();
+      closeFinanceFixedCostModal();
     }
   });
 
