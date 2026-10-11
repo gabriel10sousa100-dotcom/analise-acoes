@@ -973,7 +973,10 @@
         <div class="card" style="margin-bottom: 20px;">
           <div class="card-header">
             <div class="card-title">📌 Custos Fixos</div>
-            <button class="btn btn-success btn-sm" onclick="openFinanceFixedCostModal()">+ Novo Custo Fixo</button>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span class="status-pill" id="finance-fixedcosts-total" style="font-size:12px;">Total: R$ 0,00</span>
+              <button class="btn btn-success btn-sm" onclick="openFinanceFixedCostModal()">+ Novo Custo Fixo</button>
+            </div>
           </div>
           <div class="table-responsive" id="finance-fixedcosts-container" style="margin-top: 4px;"></div>
         </div>
@@ -2391,15 +2394,9 @@
             <input type="number" class="input-field" id="finance-fixedcost-dueday" min="1" max="31" step="1" required style="width: 100%;">
           </div>
         </div>
-        <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
-          <div>
-            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Categoria</label>
-            <select class="select-field" id="finance-fixedcost-category" style="width: 100%;"></select>
-          </div>
-          <div>
-            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Conta/Cartão de Pagamento</label>
-            <select class="select-field" id="finance-fixedcost-account" style="width: 100%;"></select>
-          </div>
+        <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Categoria</label>
+          <select class="select-field" id="finance-fixedcost-category" style="width: 100%;"></select>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 10px;">
           <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeFinanceFixedCostModal()">Cancelar</button>
@@ -8404,8 +8401,15 @@ function isFixedCostPaidThisMonth(fc) {
 
 function renderFinanceFixedCostsSection() {
   const container = document.getElementById('finance-fixedcosts-container');
+  const totalEl = document.getElementById('finance-fixedcosts-total');
   if (!container) return;
   const costs = (AppState.financeFixedCosts || []).filter(fc => fc.active);
+
+  if (totalEl) {
+    const total = costs.reduce((sum, fc) => sum + (Number(fc.amount) || 0), 0);
+    totalEl.textContent = `Total: ${NumFmt.money(total)}/mês`;
+  }
+
   if (costs.length === 0) {
     container.innerHTML = `<div class="state-box"><div class="state-icon">📌</div><div class="state-title">Nenhum custo fixo cadastrado</div><div class="state-desc">Clique em "+ Novo Custo Fixo" pra cadastrar contas recorrentes (aluguel, assinaturas, etc).</div></div>`;
     return;
@@ -8416,7 +8420,6 @@ function renderFinanceFixedCostsSection() {
 
   const rowsHtml = costs.map(fc => {
     const cat = (AppState.financeCategories || []).find(c => c.id === fc.categoryId);
-    const acc = (AppState.financeAccounts || []).find(a => a.id === fc.accountId);
     const paid = isFixedCostPaidThisMonth(fc);
     let statusHtml;
     if (paid) statusHtml = `<span class="status-pill good">✅ Pago</span>`;
@@ -8427,7 +8430,6 @@ function renderFinanceFixedCostsSection() {
       <tr class="fav-table-row" style="cursor:pointer;" onclick="openFinanceFixedCostModal('${fc.id}')">
         <td>${fc.description}</td>
         <td style="font-size:12px; color:var(--text-sub);">${cat ? cat.icon + ' ' + cat.name : '—'}</td>
-        <td style="font-size:12px; color:var(--text-sub);">${acc ? (acc.icon || '') + ' ' + acc.name : '—'}</td>
         <td class="text-right text-mono" style="font-weight:700;">${NumFmt.money(fc.amount)}</td>
         <td class="text-center">${statusHtml}</td>
         <td class="text-center">
@@ -8440,7 +8442,7 @@ function renderFinanceFixedCostsSection() {
 
   container.innerHTML = `
     <table class="custom-table compact">
-      <thead><tr><th>Descrição</th><th>Categoria</th><th>Conta</th><th class="text-right">Valor</th><th class="text-center">Status (${AppState.financeActiveMonth})</th><th class="text-center">Ação</th></tr></thead>
+      <thead><tr><th>Descrição</th><th>Categoria</th><th class="text-right">Valor</th><th class="text-center">Status (${AppState.financeActiveMonth})</th><th class="text-center">Ação</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>`;
 }
@@ -8468,9 +8470,6 @@ function unmarkFinanceFixedCostPaid(id) {
 }
 
 function openFinanceFixedCostModal(editId = '') {
-  const accounts = (AppState.financeAccounts || []).filter(a => !a.archived);
-  if (accounts.length === 0) { showToast('Cadastre uma conta antes de criar um custo fixo.', 'warn'); return; }
-
   const modal = document.getElementById('finance-fixedcost-modal');
   document.getElementById('finance-fixedcost-edit-id').value = editId;
   const fc = editId ? (AppState.financeFixedCosts || []).find(f => f.id === editId) : null;
@@ -8479,14 +8478,11 @@ function openFinanceFixedCostModal(editId = '') {
   const expenseCats = (AppState.financeCategories || []).filter(c => !c.archived && c.appliesTo.includes('expense'));
   catSel.innerHTML = expenseCats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
 
-  const accSel = document.getElementById('finance-fixedcost-account');
-  accSel.innerHTML = accounts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
-
   document.getElementById('finance-fixedcost-modal-title').textContent = editId ? '✏️ Editar Custo Fixo' : '➕ Novo Custo Fixo';
   document.getElementById('finance-fixedcost-description').value = fc ? fc.description : '';
   document.getElementById('finance-fixedcost-amount').value = fc ? fc.amount : '';
   document.getElementById('finance-fixedcost-dueday').value = fc ? fc.dueDay : '';
-  if (fc) { catSel.value = fc.categoryId; accSel.value = fc.accountId; }
+  if (fc) catSel.value = fc.categoryId;
   document.getElementById('finance-fixedcost-delete-btn').style.display = editId ? 'inline-flex' : 'none';
   document.getElementById('finance-fixedcost-submit-btn').textContent = editId ? 'Salvar Alterações' : 'Salvar Custo Fixo';
 
@@ -8505,7 +8501,6 @@ function handleSaveFinanceFixedCost(e) {
   const amount = parseFloat(document.getElementById('finance-fixedcost-amount').value);
   const dueDay = parseInt(document.getElementById('finance-fixedcost-dueday').value);
   const categoryId = document.getElementById('finance-fixedcost-category').value;
-  const accountId = document.getElementById('finance-fixedcost-account').value;
 
   if (!description || isNaN(amount) || amount <= 0 || isNaN(dueDay) || dueDay < 1 || dueDay > 31) {
     showToast('Preencha os campos corretamente.', 'error');
@@ -8515,12 +8510,12 @@ function handleSaveFinanceFixedCost(e) {
   if (editId) {
     const idx = AppState.financeFixedCosts.findIndex(f => f.id === editId);
     if (idx === -1) return;
-    AppState.financeFixedCosts[idx] = { ...AppState.financeFixedCosts[idx], description, amount, dueDay, categoryId, accountId };
+    AppState.financeFixedCosts[idx] = { ...AppState.financeFixedCosts[idx], description, amount, dueDay, categoryId };
     logFinanceChange('update', 'custo_fixo', `Custo fixo "${description}" atualizado`);
   } else {
     AppState.financeFixedCosts.unshift({
       id: 'ffix_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-      description, amount, dueDay, categoryId, accountId, active: true, createdAt: new Date().toISOString(), paidMonths: []
+      description, amount, dueDay, categoryId, active: true, createdAt: new Date().toISOString(), paidMonths: []
     });
     logFinanceChange('create', 'custo_fixo', `Custo fixo "${description}" criado (${NumFmt.money(amount)}, vence dia ${dueDay})`);
   }
