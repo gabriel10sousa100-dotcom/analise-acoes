@@ -9209,6 +9209,18 @@ function parseNubankCsvRow(line) {
   return cells;
 }
 
+// Descricao nativa do Nubank pra Pix/transferencia vem com os dados
+// bancarios completos do contraparte: "<tipo> - <nome> - <cpf/cnpj
+// mascarado> - <banco> (<codigo>) Agência: <n> Conta: <n>". Mantem o tipo
+// e o nome (uteis pra identificar o lancamento), remove CPF/CNPJ/banco/
+// agencia/conta. So bate quando esse bloco de dados bancarios existe -
+// descricoes sem ele (ex: "Compra no débito - MERCADO", "Aplicação RDB")
+// nao sao alteradas.
+const NUBANK_ACCOUNT_DETAILS_RE = / - (?:•••\.\d{3}\.\d{3}-••|\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}) - .*Agência:\s*\d+\s*Conta:\s*[\w-]+\s*$/i;
+function stripNubankAccountDetails(description) {
+  return description.replace(NUBANK_ACCOUNT_DETAILS_RE, '').trim();
+}
+
 // So os 3 primeiros campos sao fixos (Data, Valor, Identificador) - o
 // resto da linha, mesmo com virgulas dentro (raro mas possivel em nome
 // de estabelecimento), e tudo Descricao.
@@ -9223,7 +9235,7 @@ function parseNubankCsv(text) {
     const date = parseMobillsDate(cells[0]);
     const amount = parseFloat(cells[1]);
     const identifier = (cells[2] || '').trim();
-    const description = cells.slice(3).join(',').trim();
+    const description = stripNubankAccountDetails(cells.slice(3).join(',').trim());
     if (!date || isNaN(amount) || !identifier || !description) continue;
     result.push({ date, amount, identifier, description });
   }
