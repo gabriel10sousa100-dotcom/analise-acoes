@@ -881,7 +881,7 @@
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
               <span class="stat-label">💎 Patrimônio Líquido Estimado</span>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="finance-networth-breakdown">Ações/FIIs (Minha Carteira) + Renda Fixa (aportes) + Saldo em Contas − Dívida de Cartão</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="finance-networth-breakdown">Minha Carteira + Investimentos + Saldo Total em Contas − Cartão</div>
             </div>
             <div class="stat-val" style="font-size: 24px;" id="finance-stat-networth">R$ 0,00</div>
           </div>
@@ -7620,7 +7620,7 @@ function renderFinanceKpis() {
     balEl.style.color = summary.balance >= 0 ? 'var(--green)' : 'var(--red)';
   }
   set('finance-stat-networth', NumFmt.money(net.total));
-  set('finance-networth-breakdown', `Ações/FIIs: ${NumFmt.money(net.stockInvestments)} + Renda Fixa: ${NumFmt.money(net.fixedIncomeInvestments)} + Contas: ${NumFmt.money(net.accountsBalance)} − Cartão: ${NumFmt.money(net.cardDebt)}`);
+  set('finance-networth-breakdown', `Minha Carteira: ${NumFmt.money(net.stockInvestments)} + Investimentos: ${NumFmt.money(net.fixedIncomeInvestments)} + Saldo Total em Contas: ${NumFmt.money(net.accountsBalance)} − Cartão: ${NumFmt.money(net.cardDebt)}`);
 }
 
 function renderFinanceAccountsList() {
