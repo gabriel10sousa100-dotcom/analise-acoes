@@ -6884,7 +6884,10 @@ function getFinanceAccountBalance(accountId) {
     if (tx.accountId === accountId) {
       if (tx.type === 'expense' || tx.type === 'transfer') balance -= amt;
       else if (tx.type === 'income') balance += amt;
-      else if (tx.type === 'investment') balance += (tx.investmentDirection === 'redemption' ? amt : -amt);
+      else if (tx.type === 'investment') {
+        if (tx.investmentDirection === 'redemption') balance += amt;
+        else if (tx.investmentDirection === 'contribution') balance -= amt;
+      }
     }
     if (tx.type === 'transfer' && tx.transferAccountId === accountId) balance += amt;
   });
@@ -6990,17 +6993,43 @@ function getFinanceInvestmentBalance() {
   return (AppState.financeTransactions || []).reduce((sum, tx) => {
     if (tx.type !== 'investment') return sum;
     const amt = Number(tx.amount) || 0;
-    return sum + (tx.investmentDirection === 'contribution' ? amt : -amt);
+    // Explicito nos dois sentidos (em vez de so checar 'contribution' e
+    // assumir resgate pra qualquer outra coisa) - um investmentDirection
+    // malformado/ausente nao inverte o sinal silenciosamente, so nao conta.
+    if (tx.investmentDirection === 'contribution') return sum + amt;
+    if (tx.investmentDirection === 'redemption') return sum - amt;
+    return sum;
   }, 0);
 }
 
-// Patrimonio Liquido = Investimentos em renda variavel (Minha Carteira,
-// AppState.trades) + Investimentos em renda fixa (aportes/resgates
-// lancados no Controle Financeiro) + Saldo em contas - Divida de cartao
-// (inclui parcelas futuras ja comprometidas, decisao de produto
+// Valor de MERCADO (cotacao atual x quantidade) da carteira de acoes/FIIs -
+// mesma logica de precificacao usada em renderPortfolioView() (fallback
+// stockMap.close -> P/VP*100 pra FII -> preco medio se nada mais disponivel).
+// Usar isso em vez de p.cost (preco medio pago) e o que faz o Patrimonio
+// Liquido bater com o que "Patrimonio Atual" da aba Minha Carteira mostra -
+// cost e so o que foi investido, nao o que a carteira vale hoje.
+function getPortfolioMarketValue() {
+  return getConsolidatedPortfolio().reduce((sum, pos) => {
+    const sym = pos.symbol;
+    const mapItem = AppState.stockMap[sym];
+    const fundFii = B3_FII_DB[sym];
+    let currentPrice = mapItem?.close || pos.avgPrice;
+    if (!currentPrice || currentPrice === pos.avgPrice) {
+      if (mapItem?.close) currentPrice = mapItem.close;
+      else if (fundFii && fundFii.pvp) currentPrice = 100.0 * fundFii.pvp;
+    }
+    return sum + (pos.quantity * currentPrice);
+  }, 0);
+}
+
+// Patrimonio Liquido = Investimentos em renda variavel (Minha Carteira, a
+// valor de MERCADO - nao o preco medio pago) + Investimentos em renda fixa
+// (saldo acumulado de aportes/resgates lancados no Controle Financeiro,
+// somando TODOS os meses, nao so o mes ativo) + Saldo em contas - Divida de
+// cartao (inclui parcelas futuras ja comprometidas, decisao de produto
 // documentada: conta como "ja gasto", nao so a fatura do mes).
 function getNetWorthSnapshot() {
-  const stockInvestments = getConsolidatedPortfolio().reduce((sum, p) => sum + p.cost, 0);
+  const stockInvestments = getPortfolioMarketValue();
   const fixedIncomeInvestments = getFinanceInvestmentBalance();
   const investments = stockInvestments + fixedIncomeInvestments;
   const accountsBalance = (AppState.financeAccounts || [])
@@ -7572,13 +7601,17 @@ function renderPortfolioCharts(assetLabels, assetValues, sectorMap) {
 // TAB: CONTROLE FINANCEIRO (DIA A DIA)
 // ================================================================
 
-function renderFinanceView() {
+async function renderFinanceView() {
   const monthLabel = document.getElementById('finance-active-month-label');
   if (monthLabel) {
     const [y, m] = AppState.financeActiveMonth.split('-').map(Number);
     const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     monthLabel.textContent = `${monthNames[m - 1]} ${y}`;
   }
+  // Garante stockMap atualizado pra o Patrimonio Liquido usar cotacao de
+  // mercado real, nao a que por acaso ja estava em cache de uma visita
+  // anterior a outra aba (mesmo padrao de renderPortfolioView).
+  await StockAPI.getFullB3List();
   populateFinanceAccountAndCategorySelects();
   renderFinanceKpis();
   renderFinanceAccountsList();
