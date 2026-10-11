@@ -944,7 +944,10 @@
         <!-- GRAFICOS -->
         <div class="grid grid-2" style="margin-bottom: 20px;">
           <div class="card">
-            <div class="card-title">Despesas por Categoria (Mês Atual)</div>
+            <div class="card-header">
+              <div class="card-title" id="finance-category-chart-title">Despesas por Categoria</div>
+              <button class="btn btn-secondary btn-sm" onclick="toggleFinanceCategoryChartMode()" id="finance-category-chart-toggle-btn">🔄 Ver Receitas</button>
+            </div>
             <div style="height: 260px; position: relative;">
               <canvas id="finance-category-chart"></canvas>
             </div>
@@ -4095,6 +4098,7 @@ const AppState = {
   financeActiveMonth: new Date().toISOString().slice(0, 7),
   financeFilters: { type: 'all', accountId: 'all', categoryId: 'all', day: null },
   financeShowCalendar: false,
+  financeCategoryChartMode: 'expense',
   financeAccountChartInstance: null,
   financeCategoryChartInstance: null,
   financeTrendChartInstance: null,
@@ -7181,17 +7185,20 @@ function getFinanceMonthSummary(monthStr) {
   const txs = (AppState.financeTransactions || []).filter(tx => getEffectiveMonth(tx) === monthStr && !tx.ignored);
   let income = 0, expense = 0;
   const byCategory = {};
+  const byCategoryIncome = {};
   txs.forEach(tx => {
     const amt = Number(tx.amount) || 0;
-    if (tx.type === 'income') income += amt;
-    else if (tx.type === 'expense') {
+    const cat = (AppState.financeCategories || []).find(c => c.id === tx.categoryId);
+    const label = cat ? `${cat.icon} ${cat.name}` : 'Outros';
+    if (tx.type === 'income') {
+      income += amt;
+      byCategoryIncome[label] = (byCategoryIncome[label] || 0) + amt;
+    } else if (tx.type === 'expense') {
       expense += amt;
-      const cat = (AppState.financeCategories || []).find(c => c.id === tx.categoryId);
-      const label = cat ? `${cat.icon} ${cat.name}` : 'Outros';
       byCategory[label] = (byCategory[label] || 0) + amt;
     }
   });
-  return { income, expense, balance: income - expense, byCategory };
+  return { income, expense, balance: income - expense, byCategory, byCategoryIncome };
 }
 
 function getCardCurrentOpenCycle(cardAccountId) {
@@ -8128,12 +8135,24 @@ function renderFinanceCalendar() {
   container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">${cellsHtml}</div>`;
 }
 
+function toggleFinanceCategoryChartMode() {
+  AppState.financeCategoryChartMode = AppState.financeCategoryChartMode === 'expense' ? 'income' : 'expense';
+  renderFinanceCategoryChart();
+}
+
 function renderFinanceCategoryChart() {
   const canvas = document.getElementById('finance-category-chart');
   if (!canvas || typeof Chart === 'undefined') return;
+  const isIncome = AppState.financeCategoryChartMode === 'income';
+  const titleEl = document.getElementById('finance-category-chart-title');
+  const toggleBtn = document.getElementById('finance-category-chart-toggle-btn');
+  if (titleEl) titleEl.textContent = isIncome ? 'Receitas por Categoria' : 'Despesas por Categoria';
+  if (toggleBtn) toggleBtn.textContent = isIncome ? '🔄 Ver Despesas' : '🔄 Ver Receitas';
+
   const summary = getFinanceMonthSummary(AppState.financeActiveMonth);
-  const labels = Object.keys(summary.byCategory);
-  const values = Object.values(summary.byCategory);
+  const byCategory = isIncome ? summary.byCategoryIncome : summary.byCategory;
+  const labels = Object.keys(byCategory);
+  const values = Object.values(byCategory);
 
   if (AppState.financeCategoryChartInstance) { AppState.financeCategoryChartInstance.destroy(); AppState.financeCategoryChartInstance = null; }
   if (labels.length === 0) return;
