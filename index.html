@@ -2162,6 +2162,12 @@
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Observações (Opcional)</label>
           <input type="text" class="input-field" id="finance-tx-notes" style="width: 100%;">
         </div>
+        <div style="background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 10px 12px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer;" title="O lançamento continua afetando o saldo da conta, só sai do cálculo de Receita/Despesa do mês">
+            <input type="checkbox" id="finance-tx-ignored">
+            🙈 Ignorar (não contar em receita/despesa)
+          </label>
+        </div>
         <div style="display: flex; gap: 10px; margin-top: 10px;">
           <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeFinanceTransactionModal()">Cancelar</button>
           <button type="button" class="btn btn-secondary" id="finance-tx-delete-btn" style="color: var(--red); display: none;" onclick="handleDeleteCurrentFinanceTransaction()">Excluir</button>
@@ -4089,6 +4095,7 @@ const AppState = {
   financeActiveMonth: new Date().toISOString().slice(0, 7),
   financeFilters: { type: 'all', accountId: 'all', categoryId: 'all', day: null },
   financeShowCalendar: false,
+  financeNetWorthEditingInvestment: false,
   financeAccountChartInstance: null,
   financeCategoryChartInstance: null,
   financeTrendChartInstance: null,
@@ -4098,7 +4105,8 @@ const AppState = {
   financeGoals: JSON.parse(localStorage.getItem('b3_finance_goals') || '[]'),
   financeFixedCosts: JSON.parse(localStorage.getItem('b3_finance_fixed_costs') || '[]'),
   triggeredFixedCostAlerts: JSON.parse(localStorage.getItem('b3_triggered_fixedcost_alerts') || '[]'),
-  financeChangeLog: JSON.parse(localStorage.getItem('b3_finance_changelog') || '[]')
+  financeChangeLog: JSON.parse(localStorage.getItem('b3_finance_changelog') || '[]'),
+  financeInvestmentOverride: JSON.parse(localStorage.getItem('b3_finance_investment_override') || 'null')
 };
 
 // Migracao one-time: custos fixos marcados como pagos antes da mudanca para
@@ -7118,7 +7126,7 @@ function logFinanceChange(action, entityType, description) {
 }
 
 const FINANCE_LOG_ACTION_ICON = { create: '➕', update: '✏️', delete: '🗑️', import: '📥' };
-const FINANCE_LOG_ENTITY_LABEL = { transacao: 'Lançamento', conta: 'Conta', categoria: 'Categoria', meta: 'Meta', custo_fixo: 'Custo Fixo', fatura: 'Fatura' };
+const FINANCE_LOG_ENTITY_LABEL = { transacao: 'Lançamento', conta: 'Conta', categoria: 'Categoria', meta: 'Meta', custo_fixo: 'Custo Fixo', fatura: 'Fatura', patrimonio: 'Patrimônio' };
 
 function openFinanceHistoryModal() {
   renderFinanceHistoryList();
@@ -7298,9 +7306,15 @@ function getPortfolioMarketValue() {
 // somando TODOS os meses, nao so o mes ativo) + Saldo em contas - Divida de
 // cartao (inclui parcelas futuras ja comprometidas, decisao de produto
 // documentada: conta como "ja gasto", nao so a fatura do mes).
+// fixedIncomeInvestments usa financeInvestmentOverride quando definido (nao
+// null) - ajuste manual direto pro usuario corrigir o valor sem precisar
+// lancar uma transacao fake so pra bater o numero (ex: depois de reorganizar
+// contas e o saldo calculado via lancamentos ficar desatualizado).
 function getNetWorthSnapshot() {
   const stockInvestments = getPortfolioMarketValue();
-  const fixedIncomeInvestments = getFinanceInvestmentBalance();
+  const fixedIncomeInvestments = AppState.financeInvestmentOverride != null
+    ? Number(AppState.financeInvestmentOverride)
+    : getFinanceInvestmentBalance();
   const investments = stockInvestments + fixedIncomeInvestments;
   const accountsBalance = (AppState.financeAccounts || [])
     .filter(a => a.type !== 'credit_card' && !a.archived)
@@ -7945,7 +7959,53 @@ function renderFinanceKpis() {
     balEl.style.color = summary.balance >= 0 ? 'var(--green)' : 'var(--red)';
   }
   set('finance-stat-networth', NumFmt.money(net.total));
-  set('finance-networth-breakdown', `Minha Carteira: ${NumFmt.money(net.stockInvestments)} + Investimentos: ${NumFmt.money(net.fixedIncomeInvestments)} + Saldo Total em Contas: ${NumFmt.money(net.accountsBalance)} − Cartão: ${NumFmt.money(net.cardDebt)}`);
+  renderFinanceNetWorthBreakdown(net);
+}
+
+// Renderiza como innerHTML (nao textContent, por isso separado do helper
+// `set` acima) pra poder incluir o botao de ajuste manual do valor de
+// Investimentos. Alternado por AppState.financeNetWorthEditingInvestment
+// entre o texto normal e um input inline, mesmo padrao de editar-no-lugar
+// ja usado em "Gerenciar Categorias".
+function renderFinanceNetWorthBreakdown(net) {
+  const el = document.getElementById('finance-networth-breakdown');
+  if (!el) return;
+  const overridden = AppState.financeInvestmentOverride != null;
+
+  if (AppState.financeNetWorthEditingInvestment) {
+    el.innerHTML = `
+      <span style="display:inline-flex; align-items:center; gap:6px;">
+        Investimentos:
+        <input type="number" step="0.01" id="finance-investment-override-input" class="input-field" value="${overridden ? Number(AppState.financeInvestmentOverride) : Number(net.fixedIncomeInvestments).toFixed(2)}" style="width:110px; padding:2px 6px; font-size:11px;">
+        <button class="btn btn-icon btn-sm" style="width:20px; height:20px; font-size:11px;" onclick="handleSaveFinanceInvestmentOverride()" title="Salvar">💾</button>
+        <button class="btn btn-icon btn-sm" style="width:20px; height:20px; font-size:11px;" onclick="AppState.financeNetWorthEditingInvestment = false; renderFinanceKpis();" title="Cancelar">✕</button>
+      </span>`;
+    document.getElementById('finance-investment-override-input')?.focus();
+    return;
+  }
+
+  el.innerHTML = `Minha Carteira: ${NumFmt.money(net.stockInvestments)} + Investimentos: ${NumFmt.money(net.fixedIncomeInvestments)}${overridden ? ' <span title="Valor ajustado manualmente, não vem dos lançamentos">✏️</span>' : ''} <button class="btn btn-icon btn-sm" style="width:16px; height:16px; font-size:9px; vertical-align:middle;" onclick="AppState.financeNetWorthEditingInvestment = true; renderFinanceKpis();" title="Ajustar valor de Investimentos manualmente">✏️</button>${overridden ? ` <a href="#" style="font-size:10px;" onclick="event.preventDefault(); handleResetFinanceInvestmentOverride();">(usar cálculo automático)</a>` : ''} + Saldo Total em Contas: ${NumFmt.money(net.accountsBalance)} − Cartão: ${NumFmt.money(net.cardDebt)}`;
+}
+
+function handleSaveFinanceInvestmentOverride() {
+  const input = document.getElementById('finance-investment-override-input');
+  if (!input) return;
+  const value = parseFloat(input.value);
+  if (isNaN(value)) { showToast('Digite um valor válido.', 'error'); return; }
+  AppState.financeInvestmentOverride = value;
+  localStorage.setItem('b3_finance_investment_override', JSON.stringify(value));
+  logFinanceChange('update', 'patrimonio', `Valor de Investimentos ajustado manualmente para ${NumFmt.money(value)}`);
+  AppState.financeNetWorthEditingInvestment = false;
+  renderFinanceKpis();
+  showToast('Valor de Investimentos atualizado.', 'success');
+}
+
+function handleResetFinanceInvestmentOverride() {
+  AppState.financeInvestmentOverride = null;
+  localStorage.removeItem('b3_finance_investment_override');
+  logFinanceChange('update', 'patrimonio', 'Valor de Investimentos voltou a ser calculado automaticamente');
+  renderFinanceKpis();
+  showToast('Valor de Investimentos agora é calculado automaticamente.', 'info');
 }
 
 function renderFinanceAccountsList() {
@@ -8581,6 +8641,7 @@ function openFinanceTransactionModal(editId = '') {
   document.getElementById('finance-tags-datalist').innerHTML = [...allTags].sort().map(tag => `<option value="${tag}">`).join('');
 
   document.getElementById('finance-tx-notes').value = tx ? (tx.notes || '') : '';
+  document.getElementById('finance-tx-ignored').checked = !!(tx && tx.ignored);
   document.getElementById('finance-tx-is-installment').checked = false;
   document.getElementById('finance-tx-is-installment').disabled = !!tx;
   document.getElementById('finance-tx-installment-count').value = 2;
@@ -8642,6 +8703,7 @@ function handleSaveFinanceTransaction(e) {
   const goalDirection = goalId ? document.getElementById('finance-tx-goal-direction').value : null;
   const tags = document.getElementById('finance-tx-tags').value.split(',').map(t => t.trim()).filter(Boolean);
   const notes = document.getElementById('finance-tx-notes').value.trim();
+  const ignored = document.getElementById('finance-tx-ignored').checked;
 
   if (!description || isNaN(amount) || amount <= 0 || !date || !accountId) {
     showToast('Preencha os campos corretamente.', 'error');
@@ -8660,12 +8722,12 @@ function handleSaveFinanceTransaction(e) {
       const baseDesc = description.replace(/\s*\(\d+\/\d+\)$/, '');
       AppState.financeTransactions = AppState.financeTransactions.map(t => {
         if (t.installmentGroupId !== existing.installmentGroupId) return t;
-        return { ...t, description: `${baseDesc} (${t.installmentNumber}/${t.installmentTotal})`, categoryId: categoryId || t.categoryId, notes, tags, goalId, goalDirection };
+        return { ...t, description: `${baseDesc} (${t.installmentNumber}/${t.installmentTotal})`, categoryId: categoryId || t.categoryId, notes, tags, goalId, goalDirection, ignored };
       });
-      logFinanceChange('update', 'transacao', `Parcelas de "${baseDesc}" atualizadas`);
+      logFinanceChange('update', 'transacao', `Parcelas de "${baseDesc}" atualizadas${ignored ? ' (ignoradas)' : ''}`);
     } else {
-      AppState.financeTransactions[idx] = { ...existing, type, description, amount, date, accountId, categoryId, transferAccountId, investmentDirection, notes, tags, goalId, goalDirection };
-      logFinanceChange('update', 'transacao', `Lançamento "${description}" (${NumFmt.money(amount)}) editado`);
+      AppState.financeTransactions[idx] = { ...existing, type, description, amount, date, accountId, categoryId, transferAccountId, investmentDirection, notes, tags, goalId, goalDirection, ignored };
+      logFinanceChange('update', 'transacao', `Lançamento "${description}" (${NumFmt.money(amount)}) editado${ignored ? ' (ignorado)' : ''}`);
     }
   } else {
     const isInstallmentChecked = document.getElementById('finance-tx-is-installment').checked;
@@ -8675,9 +8737,9 @@ function handleSaveFinanceTransaction(e) {
 
     if (isCardExpense) {
       const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description, categoryId, notes, tags });
-      newTxs.forEach(t => { t.goalId = goalId; t.goalDirection = goalDirection; });
+      newTxs.forEach(t => { t.goalId = goalId; t.goalDirection = goalDirection; t.ignored = ignored; });
       AppState.financeTransactions.unshift(...newTxs);
-      logFinanceChange('create', 'transacao', `Compra parcelada "${description}" em ${installmentCount}x (${NumFmt.money(amount)}) lançada`);
+      logFinanceChange('create', 'transacao', `Compra parcelada "${description}" em ${installmentCount}x (${NumFmt.money(amount)}) lançada${ignored ? ' (ignorada)' : ''}`);
     } else {
       AppState.financeTransactions.unshift({
         id: 'ftx_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
@@ -8685,9 +8747,9 @@ function handleSaveFinanceTransaction(e) {
         notes, tags, source: 'manual', importId: null, originalAccountLabel: null,
         transferAccountId, investmentDirection, goalId, goalDirection,
         isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-        fixedCostId: null, ignored: false
+        fixedCostId: null, ignored
       });
-      logFinanceChange('create', 'transacao', `Lançamento "${description}" (${NumFmt.money(amount)}) lançado`);
+      logFinanceChange('create', 'transacao', `Lançamento "${description}" (${NumFmt.money(amount)}) lançado${ignored ? ' (ignorado)' : ''}`);
     }
   }
 
@@ -13105,6 +13167,7 @@ function clearAllCache() {
     localStorage.removeItem('b3_finance_goals');
     localStorage.removeItem('b3_finance_fixed_costs');
     localStorage.removeItem('b3_finance_changelog');
+    localStorage.removeItem('b3_finance_investment_override');
     AppState.favorites = [...DEFAULT_FAVORITES];
     AppState.trades = [...DEFAULT_USER_TRADES];
     AppState.portfolioDividends = [];
@@ -13114,6 +13177,7 @@ function clearAllCache() {
     AppState.financeGoals = [];
     AppState.financeFixedCosts = [];
     AppState.financeChangeLog = [];
+    AppState.financeInvestmentOverride = null;
     syncAutomatedDividends();
     showToast('Dados restaurados para os padrões.', 'info');
     renderFavoritesView();
@@ -13501,7 +13565,8 @@ function buildBackupPayload() {
     financeTransactions: AppState.financeTransactions || [],
     financeGoals: AppState.financeGoals || [],
     financeFixedCosts: AppState.financeFixedCosts || [],
-    financeChangeLog: AppState.financeChangeLog || []
+    financeChangeLog: AppState.financeChangeLog || [],
+    financeInvestmentOverride: AppState.financeInvestmentOverride
   };
 }
 
@@ -13522,6 +13587,7 @@ function applyBackupPayload(data) {
   if (data.financeGoals) { AppState.financeGoals = data.financeGoals; localStorage.setItem('b3_finance_goals', JSON.stringify(data.financeGoals)); }
   if (data.financeFixedCosts) { AppState.financeFixedCosts = data.financeFixedCosts; localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(data.financeFixedCosts)); }
   if (data.financeChangeLog) { AppState.financeChangeLog = data.financeChangeLog; localStorage.setItem('b3_finance_changelog', JSON.stringify(data.financeChangeLog)); }
+  if ('financeInvestmentOverride' in data) { AppState.financeInvestmentOverride = data.financeInvestmentOverride; localStorage.setItem('b3_finance_investment_override', JSON.stringify(data.financeInvestmentOverride)); }
 }
 
 async function pushToCloud() {
