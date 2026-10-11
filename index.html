@@ -887,6 +887,15 @@
           </div>
         </div>
 
+        <!-- CONTAS -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <div class="card-title">Minhas Contas</div>
+            <button class="btn btn-success btn-sm" onclick="openFinanceAccountModal()">+ Nova Conta</button>
+          </div>
+          <div class="grid grid-4" id="finance-accounts-grid" style="margin-top: 4px;"></div>
+        </div>
+
         <!-- FILTROS -->
         <div class="card" style="margin-bottom: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
@@ -904,15 +913,6 @@
               <button class="btn btn-secondary btn-sm" onclick="openFinanceCategoryModal()">⚙️ Categorias</button>
             </div>
           </div>
-        </div>
-
-        <!-- CONTAS -->
-        <div class="card" style="margin-bottom: 20px;">
-          <div class="card-header">
-            <div class="card-title">Minhas Contas</div>
-            <button class="btn btn-success btn-sm" onclick="openFinanceAccountModal()">+ Nova Conta</button>
-          </div>
-          <div class="grid grid-4" id="finance-accounts-grid" style="margin-top: 4px;"></div>
         </div>
 
         <!-- LANCAMENTOS -->
@@ -2152,6 +2152,11 @@
           </div>
         </div>
         <div>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;" title="Marcação livre dentro da categoria - ex: categoria Serviços, tag 'corte de cabelo'">🏷️ Tags (Opcional, separadas por vírgula)</label>
+          <input type="text" class="input-field" id="finance-tx-tags" list="finance-tags-datalist" placeholder="ex: corte de cabelo, presente" style="width: 100%;">
+          <datalist id="finance-tags-datalist"></datalist>
+        </div>
+        <div>
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Observações (Opcional)</label>
           <input type="text" class="input-field" id="finance-tx-notes" style="width: 100%;">
         </div>
@@ -2239,7 +2244,7 @@
       <button class="modal-close" onclick="closeFinanceCategoryModal()">✕</button>
     </div>
     <div style="display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;">
-      <input type="text" class="input-field" id="finance-cat-new-icon" placeholder="🏷️" maxlength="2" style="width: 50px; text-align: center;">
+      <input type="text" class="input-field" id="finance-cat-new-icon" placeholder="🏷️" maxlength="8" style="width: 50px; text-align: center;">
       <input type="text" class="input-field" id="finance-cat-new-name" placeholder="Nome da nova categoria" style="flex: 1; min-width: 160px;">
       <label style="display:flex; align-items:center; gap:4px; font-size:11px;"><input type="checkbox" id="finance-cat-new-expense" checked> Despesa</label>
       <label style="display:flex; align-items:center; gap:4px; font-size:11px;"><input type="checkbox" id="finance-cat-new-income"> Receita</label>
@@ -2282,7 +2287,7 @@
       <input type="hidden" id="finance-goal-edit-id" value="">
       <div style="display: flex; flex-direction: column; gap: 14px;">
         <div style="display: grid; grid-template-columns: 56px 1fr; gap: 10px;">
-          <input type="text" class="input-field" id="finance-goal-icon" value="🎯" maxlength="2" style="text-align:center;">
+          <input type="text" class="input-field" id="finance-goal-icon" value="🎯" maxlength="8" style="text-align:center;">
           <input type="text" class="input-field" id="finance-goal-name" placeholder="ex: Viagem, Reserva de Emergência" required style="width: 100%;">
         </div>
         <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
@@ -3950,6 +3955,7 @@ const DEFAULT_FINANCE_CATEGORIES = [
   { id: 'cat_viagem', name: 'Viagem', icon: '✈️', color: CHART_COLOR_PALETTE[6], appliesTo: ['expense'], isCustom: false, archived: false },
   { id: 'cat_assinatura', name: 'Assinatura', icon: '📱', color: CHART_COLOR_PALETTE[7], appliesTo: ['expense'], isCustom: false, archived: false },
   { id: 'cat_outros', name: 'Outros', icon: '📦', color: CHART_COLOR_PALETTE[8], appliesTo: ['expense', 'income'], isCustom: false, archived: false },
+  { id: 'cat_salario', name: 'Salário', icon: '💼', color: CHART_COLOR_PALETTE[4], appliesTo: ['income'], isCustom: false, archived: false },
   { id: 'cat_renda_extra', name: 'Renda extra', icon: '💰', color: CHART_COLOR_PALETTE[0], appliesTo: ['income'], isCustom: false, archived: false },
   { id: 'cat_educacao', name: 'Educação', icon: '🎓', color: CHART_COLOR_PALETTE[1], appliesTo: ['expense'], isCustom: false, archived: false },
   { id: 'cat_lazer', name: 'Lazer', icon: '🎮', color: CHART_COLOR_PALETTE[2], appliesTo: ['expense'], isCustom: false, archived: false },
@@ -7742,7 +7748,26 @@ function renderPortfolioCharts(assetLabels, assetValues, sectorMap) {
 // TAB: CONTROLE FINANCEIRO (DIA A DIA)
 // ================================================================
 
+// Categorias novas adicionadas ao DEFAULT_FINANCE_CATEGORIES depois que o
+// usuario ja tinha AppState.financeCategories salvo no localStorage nao
+// aparecem sozinhas (o seed so e usado quando o array esta vazio). Essa
+// checagem idempotente garante que elas entrem tambem pra quem ja usava
+// a aba antes - roda toda vez que a aba abre, sem custo (so compara nomes).
+function ensureDefaultFinanceCategoriesPresent() {
+  const existingNames = new Set((AppState.financeCategories || []).map(c => c.name.toLowerCase()));
+  let dirty = false;
+  DEFAULT_FINANCE_CATEGORIES.forEach(seed => {
+    if (!existingNames.has(seed.name.toLowerCase())) {
+      AppState.financeCategories.push({ ...seed });
+      existingNames.add(seed.name.toLowerCase());
+      dirty = true;
+    }
+  });
+  if (dirty) localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
+}
+
 async function renderFinanceView() {
+  ensureDefaultFinanceCategoriesPresent();
   const monthLabel = document.getElementById('finance-active-month-label');
   if (monthLabel) {
     const [y, m] = AppState.financeActiveMonth.split('-').map(Number);
@@ -7866,7 +7891,7 @@ function renderFinanceTransactionsList() {
     return `
       <tr class="fav-table-row" style="cursor:pointer;" onclick="openFinanceTransactionModal('${tx.id}')" title="Clique para editar">
         <td class="text-mono" style="font-size:12px;">${NumFmt.date(tx.date)}</td>
-        <td>${tx.description} ${installmentBadge}</td>
+        <td>${tx.description} ${installmentBadge} ${(tx.tags || []).map(tag => `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);">🏷️ ${tag}</span>`).join(' ')}</td>
         <td style="font-size:12px; color:var(--text-sub);">${cat ? cat.icon + ' ' + cat.name : '—'}</td>
         <td style="font-size:12px; color:var(--text-sub);">${acc ? (acc.icon || '') + ' ' + acc.name : 'Conta removida'}${tx.type === 'transfer' ? ' → ' + destAccName : ''}</td>
         <td class="text-right text-mono" style="font-weight:700; color:${amountColor};">${amountSign}${NumFmt.money(tx.amount)}</td>
@@ -8420,6 +8445,11 @@ function openFinanceTransactionModal(editId = '') {
   document.getElementById('finance-tx-goal-direction').value = tx && tx.goalDirection ? tx.goalDirection : 'add';
   document.getElementById('finance-tx-goal-direction-box').style.display = goalSel.value ? 'block' : 'none';
 
+  document.getElementById('finance-tx-tags').value = tx && tx.tags ? tx.tags.join(', ') : '';
+  const allTags = new Set();
+  (AppState.financeTransactions || []).forEach(t => (t.tags || []).forEach(tag => allTags.add(tag)));
+  document.getElementById('finance-tags-datalist').innerHTML = [...allTags].sort().map(tag => `<option value="${tag}">`).join('');
+
   document.getElementById('finance-tx-notes').value = tx ? (tx.notes || '') : '';
   document.getElementById('finance-tx-is-installment').checked = false;
   document.getElementById('finance-tx-is-installment').disabled = !!tx;
@@ -8480,6 +8510,7 @@ function handleSaveFinanceTransaction(e) {
   const investmentDirection = type === 'investment' ? document.getElementById('finance-tx-investment-direction').value : null;
   const goalId = document.getElementById('finance-tx-goal').value || null;
   const goalDirection = goalId ? document.getElementById('finance-tx-goal-direction').value : null;
+  const tags = document.getElementById('finance-tx-tags').value.split(',').map(t => t.trim()).filter(Boolean);
   const notes = document.getElementById('finance-tx-notes').value.trim();
 
   if (!description || isNaN(amount) || amount <= 0 || !date || !accountId) {
@@ -8499,10 +8530,10 @@ function handleSaveFinanceTransaction(e) {
       const baseDesc = description.replace(/\s*\(\d+\/\d+\)$/, '');
       AppState.financeTransactions = AppState.financeTransactions.map(t => {
         if (t.installmentGroupId !== existing.installmentGroupId) return t;
-        return { ...t, description: `${baseDesc} (${t.installmentNumber}/${t.installmentTotal})`, categoryId: categoryId || t.categoryId, notes, goalId, goalDirection };
+        return { ...t, description: `${baseDesc} (${t.installmentNumber}/${t.installmentTotal})`, categoryId: categoryId || t.categoryId, notes, tags, goalId, goalDirection };
       });
     } else {
-      AppState.financeTransactions[idx] = { ...existing, type, description, amount, date, accountId, categoryId, transferAccountId, investmentDirection, notes, goalId, goalDirection };
+      AppState.financeTransactions[idx] = { ...existing, type, description, amount, date, accountId, categoryId, transferAccountId, investmentDirection, notes, tags, goalId, goalDirection };
     }
   } else {
     const isInstallmentChecked = document.getElementById('finance-tx-is-installment').checked;
@@ -8511,14 +8542,14 @@ function handleSaveFinanceTransaction(e) {
     const isCardExpense = type === 'expense' && acc && acc.type === 'credit_card';
 
     if (isCardExpense) {
-      const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description, categoryId, notes, tags: [] });
+      const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description, categoryId, notes, tags });
       newTxs.forEach(t => { t.goalId = goalId; t.goalDirection = goalDirection; });
       AppState.financeTransactions.unshift(...newTxs);
     } else {
       AppState.financeTransactions.unshift({
         id: 'ftx_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
         type, description, amount, date, accountId, categoryId,
-        notes, tags: [], source: 'manual', importId: null, originalAccountLabel: null,
+        notes, tags, source: 'manual', importId: null, originalAccountLabel: null,
         transferAccountId, investmentDirection, goalId, goalDirection,
         isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
         fixedCostId: null
@@ -8736,7 +8767,7 @@ function renderFinanceCategoryModalList() {
     if (c.id === editingId) {
       return `
         <div style="display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:var(--radius-md); background: rgba(15,107,76,0.06); border:1px solid rgba(15,107,76,0.25);">
-          <input type="text" class="input-field" id="finance-cat-edit-icon-${c.id}" value="${c.icon}" maxlength="2" style="width:44px; text-align:center; padding:4px;">
+          <input type="text" class="input-field" id="finance-cat-edit-icon-${c.id}" value="${c.icon}" maxlength="8" style="width:44px; text-align:center; padding:4px;">
           <input type="text" class="input-field" id="finance-cat-edit-name-${c.id}" value="${c.name}" style="flex:1; padding:4px 8px;">
           <button class="btn btn-icon btn-sm" style="color:var(--green);" onclick="handleSaveFinanceCategoryEdit('${c.id}')" title="Salvar">💾</button>
           <button class="btn btn-icon btn-sm" onclick="AppState.financeCategoryEditingId = null; renderFinanceCategoryModalList();" title="Cancelar">✕</button>
