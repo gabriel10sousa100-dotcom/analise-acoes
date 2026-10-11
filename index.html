@@ -898,9 +898,6 @@
               <button class="cat-btn" onclick="setFinanceFilter('type','investment', this)">📈 Investimento</button>
             </div>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-              <select class="select-field" id="finance-filter-account" onchange="setFinanceFilter('accountId', this.value)" style="width: 170px;">
-                <option value="all">Todas as Contas</option>
-              </select>
               <select class="select-field" id="finance-filter-category" onchange="setFinanceFilter('categoryId', this.value)" style="width: 170px;">
                 <option value="all">Todas as Categorias</option>
               </select>
@@ -922,7 +919,11 @@
         <div class="card" style="margin-bottom: 20px;">
           <div class="card-header">
             <div class="card-title">Lançamentos</div>
-            <div style="display:flex; gap:8px;">
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <label for="finance-tx-account-filter" style="font-size:11px; font-weight:700; color:var(--text-sub); text-transform:uppercase;">Conta:</label>
+              <select class="select-field" id="finance-tx-account-filter" onchange="setFinanceFilter('accountId', this.value)" style="width: 190px;">
+                <option value="all">Todas as Contas</option>
+              </select>
               <button class="btn btn-secondary btn-sm" id="finance-calendar-toggle-btn" onclick="toggleFinanceCalendar()">📅 Ver Calendário</button>
               <button class="btn btn-success btn-sm" onclick="openFinanceTransactionModal()">+ Novo Lançamento</button>
             </div>
@@ -2192,6 +2193,14 @@
           <div>
             <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Dia Vencimento</label>
             <input type="number" class="input-field" id="finance-acc-due-day" min="1" max="31" step="1" style="width: 100%;">
+          </div>
+        </div>
+        <div id="finance-acc-merge-box" style="display:none; background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 12px;">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 6px;">🔗 Mesclar com outra conta (ex: duplicata do mesmo banco)</label>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">Move todos os lançamentos desta conta para a conta escolhida e exclui esta. Útil quando a importação criou 2 contas pro mesmo banco.</p>
+          <div style="display:flex; gap:8px;">
+            <select class="select-field" id="finance-acc-merge-target" style="flex:1;"></select>
+            <button type="button" class="btn btn-secondary btn-sm" style="color:var(--red); white-space:nowrap;" onclick="handleMergeCurrentFinanceAccount()">Mesclar e Excluir Esta</button>
           </div>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 10px;">
@@ -7739,7 +7748,7 @@ async function renderFinanceView() {
 }
 
 function populateFinanceAccountAndCategorySelects() {
-  const accSel = document.getElementById('finance-filter-account');
+  const accSel = document.getElementById('finance-tx-account-filter');
   if (accSel) {
     const accounts = (AppState.financeAccounts || []).filter(a => !a.archived);
     accSel.innerHTML = `<option value="all">Todas as Contas</option>` + accounts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
@@ -8510,8 +8519,56 @@ function openFinanceAccountModal(editId = '') {
   document.getElementById('finance-acc-delete-btn').style.display = editId ? 'inline-flex' : 'none';
   document.getElementById('finance-acc-submit-btn').textContent = editId ? 'Salvar Alterações' : 'Salvar Conta';
 
+  const mergeBox = document.getElementById('finance-acc-merge-box');
+  if (editId) {
+    const otherAccounts = (AppState.financeAccounts || []).filter(a => a.id !== editId && !a.archived);
+    if (otherAccounts.length > 0) {
+      document.getElementById('finance-acc-merge-target').innerHTML = otherAccounts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
+      mergeBox.style.display = 'block';
+    } else {
+      mergeBox.style.display = 'none';
+    }
+  } else {
+    mergeBox.style.display = 'none';
+  }
+
   onFinanceAccountTypeChange();
   modal.classList.add('active');
+}
+
+// Move todos os lancamentos (accountId e transferAccountId) da conta sendo
+// editada pra conta escolhida, soma o saldo inicial das duas, e exclui a
+// conta de origem. Pensado pro caso comum de importacao criar 2 contas
+// pro mesmo banco (ex: Mobills exportando "Nubank - C.Corrente" num
+// periodo e "Nubank - C.Corrente 00181298" noutro, pro mesmo banco real).
+function handleMergeCurrentFinanceAccount() {
+  const sourceId = document.getElementById('finance-acc-edit-id').value;
+  const targetId = document.getElementById('finance-acc-merge-target').value;
+  if (!sourceId || !targetId || sourceId === targetId) return;
+
+  const source = AppState.financeAccounts.find(a => a.id === sourceId);
+  const target = AppState.financeAccounts.find(a => a.id === targetId);
+  if (!source || !target) return;
+
+  const txCount = (AppState.financeTransactions || []).filter(t => t.accountId === sourceId || t.transferAccountId === sourceId).length;
+  if (!confirm(`Mesclar "${source.name}" em "${target.name}"?\n\n${txCount} lançamento(s) serão movidos e a conta "${source.name}" será excluída. Essa ação não pode ser desfeita.`)) return;
+
+  AppState.financeTransactions.forEach(t => {
+    if (t.accountId === sourceId) t.accountId = targetId;
+    if (t.transferAccountId === sourceId) t.transferAccountId = targetId;
+  });
+
+  // Soma os saldos iniciais (cada um representava dinheiro real na mesma
+  // conta do banco) - mantem o saldo total correto apos a mesclagem.
+  target.initialBalance = (Number(target.initialBalance) || 0) + (Number(source.initialBalance) || 0);
+
+  AppState.financeAccounts = AppState.financeAccounts.filter(a => a.id !== sourceId);
+
+  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  closeFinanceAccountModal();
+  renderFinanceView();
+  showToast(`"${source.name}" mesclada em "${target.name}" (${txCount} lançamento(s) movidos).`, 'success');
 }
 
 function closeFinanceAccountModal() {
