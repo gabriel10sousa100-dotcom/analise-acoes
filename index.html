@@ -847,6 +847,7 @@
           <div style="display: flex; gap: 8px; align-items: center;">
             <button class="btn btn-secondary btn-sm" onclick="openFinanceImportModal()">📥 Importar CSV do Mobills</button>
             <button class="btn btn-secondary btn-sm" onclick="openNubankImportModal()">📥 Importar Extrato do Nubank</button>
+            <button class="btn btn-secondary btn-sm" onclick="openFinanceHistoryModal()">🕒 Histórico</button>
             <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(-1)" title="Mês anterior">◀</button>
             <span class="status-pill good" id="finance-active-month-label" style="min-width: 140px; text-align: center;">—</span>
             <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(1)" title="Próximo mês">▶</button>
@@ -2292,6 +2293,25 @@
       <div id="nubank-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
     </div>
     <div id="nubank-import-preview" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: HISTÓRICO DE MODIFICAÇÕES           -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="finance-history-modal">
+  <div class="modal-box modal-lg" style="max-width: 680px;">
+    <div class="modal-header">
+      <div class="modal-title">🕒 Histórico de Modificações</div>
+      <button class="modal-close" onclick="closeFinanceHistoryModal()">✕</button>
+    </div>
+    <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+      Registro de criação/edição/exclusão de lançamentos, contas, categorias, metas, custos fixos e faturas no Controle Financeiro (mais recente primeiro, limitado às últimas 300 ações).
+    </p>
+    <div id="finance-history-list" style="max-height: 420px; overflow-y: auto;"></div>
+    <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+      <button type="button" class="btn btn-secondary btn-sm" style="color:var(--red);" onclick="handleClearFinanceHistory()">🗑️ Limpar Histórico</button>
+    </div>
   </div>
 </div>
 
@@ -4077,7 +4097,8 @@ const AppState = {
   financeCategoryEditingId: null,
   financeGoals: JSON.parse(localStorage.getItem('b3_finance_goals') || '[]'),
   financeFixedCosts: JSON.parse(localStorage.getItem('b3_finance_fixed_costs') || '[]'),
-  triggeredFixedCostAlerts: JSON.parse(localStorage.getItem('b3_triggered_fixedcost_alerts') || '[]')
+  triggeredFixedCostAlerts: JSON.parse(localStorage.getItem('b3_triggered_fixedcost_alerts') || '[]'),
+  financeChangeLog: JSON.parse(localStorage.getItem('b3_finance_changelog') || '[]')
 };
 
 // Migracao one-time: custos fixos marcados como pagos antes da mudanca para
@@ -7081,6 +7102,66 @@ function getFinanceAccountBalance(accountId) {
   return balance;
 }
 
+// Historico de modificacoes do Controle Financeiro (criacao/edicao/exclusao
+// de lancamento, conta, categoria, meta, custo fixo e fatura). Capado em 300
+// entradas pra nao crescer sem limite no localStorage - e so um log de
+// auditoria, nao dado que precisa ser preservado indefinidamente.
+function logFinanceChange(action, entityType, description) {
+  AppState.financeChangeLog = AppState.financeChangeLog || [];
+  AppState.financeChangeLog.unshift({
+    id: 'flog_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
+    timestamp: new Date().toISOString(),
+    action, entityType, description
+  });
+  if (AppState.financeChangeLog.length > 300) AppState.financeChangeLog.length = 300;
+  localStorage.setItem('b3_finance_changelog', JSON.stringify(AppState.financeChangeLog));
+}
+
+const FINANCE_LOG_ACTION_ICON = { create: '➕', update: '✏️', delete: '🗑️', import: '📥' };
+const FINANCE_LOG_ENTITY_LABEL = { transacao: 'Lançamento', conta: 'Conta', categoria: 'Categoria', meta: 'Meta', custo_fixo: 'Custo Fixo', fatura: 'Fatura' };
+
+function openFinanceHistoryModal() {
+  renderFinanceHistoryList();
+  document.getElementById('finance-history-modal').classList.add('active');
+}
+
+function closeFinanceHistoryModal() {
+  const modal = document.getElementById('finance-history-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function renderFinanceHistoryList() {
+  const container = document.getElementById('finance-history-list');
+  if (!container) return;
+  const log = AppState.financeChangeLog || [];
+  if (log.length === 0) {
+    container.innerHTML = `<div class="state-box"><div class="state-icon">🕒</div><div class="state-title">Nenhuma modificação registrada ainda</div><div class="state-desc">Ações no Controle Financeiro (lançamentos, contas, categorias, metas, custos fixos) aparecem aqui.</div></div>`;
+    return;
+  }
+  container.innerHTML = `
+    <table class="custom-table compact">
+      <thead><tr><th>Quando</th><th>Ação</th><th>Tipo</th><th>Descrição</th></tr></thead>
+      <tbody>
+        ${log.map(entry => `
+          <tr class="fav-table-row">
+            <td class="text-mono" style="font-size:11.5px; white-space:nowrap; color:var(--text-sub);">${new Date(entry.timestamp).toLocaleString('pt-BR')}</td>
+            <td style="font-size:12px;">${FINANCE_LOG_ACTION_ICON[entry.action] || ''}</td>
+            <td style="font-size:12px; color:var(--text-sub);">${FINANCE_LOG_ENTITY_LABEL[entry.entityType] || entry.entityType}</td>
+            <td style="font-size:12.5px;">${entry.description}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+}
+
+function handleClearFinanceHistory() {
+  if ((AppState.financeChangeLog || []).length === 0) return;
+  if (!confirm('Limpar todo o histórico de modificações? Essa ação não pode ser desfeita.')) return;
+  AppState.financeChangeLog = [];
+  localStorage.setItem('b3_finance_changelog', JSON.stringify(AppState.financeChangeLog));
+  renderFinanceHistoryList();
+}
+
 // Mes "efetivo" de um lancamento pra fins de agregacao mensal: compra de
 // cartao conta no mes da FATURA (invoiceMonth), nao no mes da compra.
 function getEffectiveMonth(tx) {
@@ -7159,6 +7240,7 @@ function markCardInvoiceAsPaid(cardAccountId, invoiceMonth) {
   if (!card) return;
   if (!card.paidInvoiceMonths.includes(invoiceMonth)) card.paidInvoiceMonths.push(invoiceMonth);
   localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  logFinanceChange('update', 'fatura', `Fatura de ${invoiceMonth} do cartão "${card.name}" marcada como paga`);
   renderFinanceView();
 }
 
@@ -7167,6 +7249,7 @@ function unmarkCardInvoiceAsPaid(cardAccountId, invoiceMonth) {
   if (!card) return;
   card.paidInvoiceMonths = card.paidInvoiceMonths.filter(m => m !== invoiceMonth);
   localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  logFinanceChange('update', 'fatura', `Pagamento da fatura de ${invoiceMonth} do cartão "${card.name}" desfeito`);
   renderFinanceView();
 }
 
@@ -7971,6 +8054,7 @@ function toggleFinanceTransactionIgnored(id) {
   if (!tx) return;
   tx.ignored = !tx.ignored;
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  logFinanceChange('update', 'transacao', `Lançamento "${tx.description}" marcado como ${tx.ignored ? 'ignorado' : 'incluído'}`);
   renderFinanceView();
   showToast(tx.ignored ? 'Lançamento ignorado: não conta mais em receita/despesa.' : 'Lançamento voltou a contar em receita/despesa.', 'info');
 }
@@ -8246,11 +8330,13 @@ function handleSaveFinanceGoal(e) {
     const idx = AppState.financeGoals.findIndex(g => g.id === editId);
     if (idx === -1) return;
     AppState.financeGoals[idx] = { ...AppState.financeGoals[idx], icon, name, targetAmount, initialAmount, deadline };
+    logFinanceChange('update', 'meta', `Meta "${name}" atualizada`);
   } else {
     AppState.financeGoals.unshift({
       id: 'fgoal_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
       icon, name, targetAmount, initialAmount, deadline, createdAt: new Date().toISOString(), archived: false
     });
+    logFinanceChange('create', 'meta', `Meta "${name}" criada (alvo ${NumFmt.money(targetAmount)})`);
   }
 
   localStorage.setItem('b3_finance_goals', JSON.stringify(AppState.financeGoals));
@@ -8267,6 +8353,7 @@ function handleDeleteCurrentFinanceGoal() {
   if (!confirm(`Excluir a meta "${goal.name}"?`)) return;
   AppState.financeGoals = AppState.financeGoals.filter(g => g.id !== editId);
   localStorage.setItem('b3_finance_goals', JSON.stringify(AppState.financeGoals));
+  logFinanceChange('delete', 'meta', `Meta "${goal.name}" excluída`);
   closeFinanceGoalModal();
   renderFinanceGoalsSection();
   showToast('Meta excluída.', 'info');
@@ -8336,6 +8423,7 @@ function markFinanceFixedCostPaid(id) {
   fc.paidMonths.push(AppState.financeActiveMonth);
 
   localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
+  logFinanceChange('update', 'custo_fixo', `Custo fixo "${fc.description}" marcado como pago em ${AppState.financeActiveMonth}`);
   renderFinanceFixedCostsSection();
   showToast(`${fc.description} marcado como pago.`, 'success');
 }
@@ -8345,6 +8433,7 @@ function unmarkFinanceFixedCostPaid(id) {
   if (!fc) return;
   fc.paidMonths = (fc.paidMonths || []).filter(m => m !== AppState.financeActiveMonth);
   localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
+  logFinanceChange('update', 'custo_fixo', `Pagamento de "${fc.description}" desfeito em ${AppState.financeActiveMonth}`);
   renderFinanceFixedCostsSection();
   showToast('Pagamento desfeito.', 'info');
 }
@@ -8398,11 +8487,13 @@ function handleSaveFinanceFixedCost(e) {
     const idx = AppState.financeFixedCosts.findIndex(f => f.id === editId);
     if (idx === -1) return;
     AppState.financeFixedCosts[idx] = { ...AppState.financeFixedCosts[idx], description, amount, dueDay, categoryId, accountId };
+    logFinanceChange('update', 'custo_fixo', `Custo fixo "${description}" atualizado`);
   } else {
     AppState.financeFixedCosts.unshift({
       id: 'ffix_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
       description, amount, dueDay, categoryId, accountId, active: true, createdAt: new Date().toISOString(), paidMonths: []
     });
+    logFinanceChange('create', 'custo_fixo', `Custo fixo "${description}" criado (${NumFmt.money(amount)}, vence dia ${dueDay})`);
   }
 
   localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
@@ -8419,6 +8510,7 @@ function handleDeleteCurrentFinanceFixedCost() {
   if (!confirm(`Excluir o custo fixo "${fc.description}"? Lançamentos já gerados por ele não serão apagados.`)) return;
   AppState.financeFixedCosts = AppState.financeFixedCosts.filter(f => f.id !== editId);
   localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
+  logFinanceChange('delete', 'custo_fixo', `Custo fixo "${fc.description}" excluído`);
   closeFinanceFixedCostModal();
   renderFinanceFixedCostsSection();
   showToast('Custo fixo excluído.', 'info');
@@ -8570,8 +8662,10 @@ function handleSaveFinanceTransaction(e) {
         if (t.installmentGroupId !== existing.installmentGroupId) return t;
         return { ...t, description: `${baseDesc} (${t.installmentNumber}/${t.installmentTotal})`, categoryId: categoryId || t.categoryId, notes, tags, goalId, goalDirection };
       });
+      logFinanceChange('update', 'transacao', `Parcelas de "${baseDesc}" atualizadas`);
     } else {
       AppState.financeTransactions[idx] = { ...existing, type, description, amount, date, accountId, categoryId, transferAccountId, investmentDirection, notes, tags, goalId, goalDirection };
+      logFinanceChange('update', 'transacao', `Lançamento "${description}" (${NumFmt.money(amount)}) editado`);
     }
   } else {
     const isInstallmentChecked = document.getElementById('finance-tx-is-installment').checked;
@@ -8583,6 +8677,7 @@ function handleSaveFinanceTransaction(e) {
       const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description, categoryId, notes, tags });
       newTxs.forEach(t => { t.goalId = goalId; t.goalDirection = goalDirection; });
       AppState.financeTransactions.unshift(...newTxs);
+      logFinanceChange('create', 'transacao', `Compra parcelada "${description}" em ${installmentCount}x (${NumFmt.money(amount)}) lançada`);
     } else {
       AppState.financeTransactions.unshift({
         id: 'ftx_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
@@ -8592,6 +8687,7 @@ function handleSaveFinanceTransaction(e) {
         isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
         fixedCostId: null, ignored: false
       });
+      logFinanceChange('create', 'transacao', `Lançamento "${description}" (${NumFmt.money(amount)}) lançado`);
     }
   }
 
@@ -8612,15 +8708,19 @@ function handleDeleteFinanceTransaction(id) {
   if (!confirm(`Excluir o lançamento "${tx.description}" (${NumFmt.money(tx.amount)})?`)) return;
   AppState.financeTransactions = AppState.financeTransactions.filter(t => t.id !== id);
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  logFinanceChange('delete', 'transacao', `Lançamento "${tx.description}" (${NumFmt.money(tx.amount)}) excluído`);
   renderFinanceView();
   showToast('Lançamento excluído.', 'info');
 }
 
 function handleDeleteFinanceInstallmentGroup(groupId) {
-  const count = (AppState.financeTransactions || []).filter(t => t.installmentGroupId === groupId).length;
+  const groupTxs = (AppState.financeTransactions || []).filter(t => t.installmentGroupId === groupId);
+  const count = groupTxs.length;
   if (!confirm(`Excluir as ${count} parcelas dessa compra inteira?`)) return;
+  const baseDesc = (groupTxs[0]?.description || '').replace(/\s*\(\d+\/\d+\)$/, '');
   AppState.financeTransactions = AppState.financeTransactions.filter(t => t.installmentGroupId !== groupId);
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  logFinanceChange('delete', 'transacao', `Compra parcelada "${baseDesc}" (${count} parcelas) excluída`);
   renderFinanceView();
   showToast('Compra parcelada excluída.', 'info');
 }
@@ -8692,6 +8792,7 @@ function handleMergeCurrentFinanceAccount() {
 
   localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  logFinanceChange('update', 'conta', `Conta "${source.name}" mesclada em "${target.name}" (${txCount} lançamento(s) movidos)`);
   closeFinanceAccountModal();
   renderFinanceView();
   showToast(`"${source.name}" mesclada em "${target.name}" (${txCount} lançamento(s) movidos).`, 'success');
@@ -8733,6 +8834,7 @@ function handleSaveFinanceAccount(e) {
       updated.initialBalance = initialBalance;
     }
     AppState.financeAccounts[idx] = updated;
+    logFinanceChange('update', 'conta', `Conta "${name}" atualizada`);
   } else {
     const isCard = type === 'credit_card';
     AppState.financeAccounts.unshift({
@@ -8746,6 +8848,7 @@ function handleSaveFinanceAccount(e) {
       dueDay: isCard ? (parseInt(document.getElementById('finance-acc-due-day').value) || 1) : null,
       paidInvoiceMonths: []
     });
+    logFinanceChange('create', 'conta', `Conta "${name}" criada`);
   }
 
   localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
@@ -8762,6 +8865,7 @@ function handleArchiveCurrentFinanceAccount() {
   if (!confirm(`Arquivar a conta "${acc.name}"? Ela some das listas, mas o histórico de lançamentos é mantido.`)) return;
   acc.archived = true;
   localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  logFinanceChange('update', 'conta', `Conta "${acc.name}" arquivada`);
   closeFinanceAccountModal();
   renderFinanceView();
   showToast('Conta arquivada.', 'info');
@@ -8777,6 +8881,7 @@ function handleDeleteCurrentFinanceAccount() {
   if (!confirm(`Excluir a conta "${acc.name}"? Essa ação não pode ser desfeita.`)) return;
   AppState.financeAccounts = AppState.financeAccounts.filter(a => a.id !== editId);
   localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  logFinanceChange('delete', 'conta', `Conta "${acc.name}" excluída`);
   closeFinanceAccountModal();
   renderFinanceView();
   showToast('Conta excluída.', 'info');
@@ -8834,6 +8939,7 @@ function handleSaveFinanceCategoryEdit(id) {
   cat.icon = icon;
   cat.name = name;
   localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
+  logFinanceChange('update', 'categoria', `Categoria renomeada para "${name}"`);
   AppState.financeCategoryEditingId = null;
   renderFinanceCategoryModalList();
   populateFinanceAccountAndCategorySelects();
@@ -8854,6 +8960,7 @@ function handleAddFinanceCategory() {
     appliesTo, isCustom: true, archived: false
   });
   localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
+  logFinanceChange('create', 'categoria', `Categoria "${name}" criada`);
   document.getElementById('finance-cat-new-name').value = '';
   document.getElementById('finance-cat-new-icon').value = '';
   renderFinanceCategoryModalList();
@@ -8862,11 +8969,13 @@ function handleAddFinanceCategory() {
 }
 
 function handleDeleteFinanceCategory(id) {
+  const cat = (AppState.financeCategories || []).find(c => c.id === id);
   const inUse = (AppState.financeTransactions || []).some(t => t.categoryId === id);
   if (inUse) { showToast('Categoria em uso. Arquive em vez de excluir.', 'error'); return; }
   if (!confirm('Excluir essa categoria?')) return;
   AppState.financeCategories = AppState.financeCategories.filter(c => c.id !== id);
   localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
+  logFinanceChange('delete', 'categoria', `Categoria "${cat ? cat.name : id}" excluída`);
   renderFinanceCategoryModalList();
   populateFinanceAccountAndCategorySelects();
 }
@@ -8876,6 +8985,7 @@ function toggleArchiveFinanceCategory(id) {
   if (!cat) return;
   cat.archived = !cat.archived;
   localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
+  logFinanceChange('update', 'categoria', `Categoria "${cat.name}" ${cat.archived ? 'arquivada' : 'reativada'}`);
   renderFinanceCategoryModalList();
   populateFinanceAccountAndCategorySelects();
 }
@@ -9173,6 +9283,7 @@ function handleConfirmMobillsImport() {
   localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
 
+  if (imported > 0) logFinanceChange('import', 'transacao', `${imported} lançamento(s) importados do Mobills`);
   AppState.financeImportStaging = null;
   closeFinanceImportModal();
   renderFinanceView();
@@ -9406,6 +9517,7 @@ function handleConfirmNubankImport() {
   localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
 
+  if (imported > 0) logFinanceChange('import', 'transacao', `${imported} lançamento(s) importados do extrato Nubank`);
   AppState.nubankImportStaging = null;
   closeNubankImportModal();
   renderFinanceView();
@@ -12992,6 +13104,7 @@ function clearAllCache() {
     localStorage.removeItem('b3_finance_transactions');
     localStorage.removeItem('b3_finance_goals');
     localStorage.removeItem('b3_finance_fixed_costs');
+    localStorage.removeItem('b3_finance_changelog');
     AppState.favorites = [...DEFAULT_FAVORITES];
     AppState.trades = [...DEFAULT_USER_TRADES];
     AppState.portfolioDividends = [];
@@ -13000,6 +13113,7 @@ function clearAllCache() {
     AppState.financeTransactions = [];
     AppState.financeGoals = [];
     AppState.financeFixedCosts = [];
+    AppState.financeChangeLog = [];
     syncAutomatedDividends();
     showToast('Dados restaurados para os padrões.', 'info');
     renderFavoritesView();
@@ -13386,7 +13500,8 @@ function buildBackupPayload() {
     financeCategories: AppState.financeCategories || [],
     financeTransactions: AppState.financeTransactions || [],
     financeGoals: AppState.financeGoals || [],
-    financeFixedCosts: AppState.financeFixedCosts || []
+    financeFixedCosts: AppState.financeFixedCosts || [],
+    financeChangeLog: AppState.financeChangeLog || []
   };
 }
 
@@ -13406,6 +13521,7 @@ function applyBackupPayload(data) {
   if (data.financeTransactions) { AppState.financeTransactions = data.financeTransactions; localStorage.setItem('b3_finance_transactions', JSON.stringify(data.financeTransactions)); }
   if (data.financeGoals) { AppState.financeGoals = data.financeGoals; localStorage.setItem('b3_finance_goals', JSON.stringify(data.financeGoals)); }
   if (data.financeFixedCosts) { AppState.financeFixedCosts = data.financeFixedCosts; localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(data.financeFixedCosts)); }
+  if (data.financeChangeLog) { AppState.financeChangeLog = data.financeChangeLog; localStorage.setItem('b3_finance_changelog', JSON.stringify(data.financeChangeLog)); }
 }
 
 async function pushToCloud() {
@@ -13672,6 +13788,7 @@ async function initApp() {
       closeFinanceCategoryModal();
       closeFinanceImportModal();
       closeNubankImportModal();
+      closeFinanceHistoryModal();
       closeFinanceGoalModal();
       closeFinanceFixedCostModal();
     }
