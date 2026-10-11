@@ -846,6 +846,7 @@
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <button class="btn btn-secondary btn-sm" onclick="openFinanceImportModal()">📥 Importar CSV do Mobills</button>
+            <button class="btn btn-secondary btn-sm" onclick="openNubankImportModal()">📥 Importar Extrato do Nubank</button>
             <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(-1)" title="Mês anterior">◀</button>
             <span class="status-pill good" id="finance-active-month-label" style="min-width: 140px; text-align: center;">—</span>
             <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(1)" title="Próximo mês">▶</button>
@@ -2271,6 +2272,26 @@
       <div id="finance-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
     </div>
     <div id="finance-import-preview" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: IMPORTAR EXTRATO NATIVO DO NUBANK   -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="finance-import-nubank-modal">
+  <div class="modal-box modal-lg" style="max-width: 680px;">
+    <div class="modal-header">
+      <div class="modal-title">📥 Importar Extrato do Nubank</div>
+      <button class="modal-close" onclick="closeNubankImportModal()">✕</button>
+    </div>
+    <div id="nubank-import-step-file">
+      <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+        Selecione o CSV de extrato exportado direto do app/site do Nubank (colunas Data,Valor,Identificador,Descrição). Esse formato não tem categoria nem nome de conta - você escolhe a conta na próxima tela e tudo entra como "Outros" pra você recategorizar depois. Nada é gravado até confirmar.
+      </p>
+      <input type="file" accept=".csv,text/csv" id="nubank-import-file-input" class="input-field" onchange="handleNubankFileSelected(event)" style="width: 100%;">
+      <div id="nubank-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
+    </div>
+    <div id="nubank-import-preview" style="display:none;"></div>
   </div>
 </div>
 
@@ -4052,6 +4073,7 @@ const AppState = {
   financeCategoryChartInstance: null,
   financeTrendChartInstance: null,
   financeImportStaging: null,
+  nubankImportStaging: null,
   financeCategoryEditingId: null,
   financeGoals: JSON.parse(localStorage.getItem('b3_finance_goals') || '[]'),
   financeFixedCosts: JSON.parse(localStorage.getItem('b3_finance_fixed_costs') || '[]'),
@@ -9141,6 +9163,227 @@ function handleConfirmMobillsImport() {
   showToast(`${imported} lançamento(s) importados do Mobills (${skippedTransfer} transferência(s) ignorada(s), ${skippedDuplicate} duplicado(s) ignorado(s)).`, 'success');
 }
 
+// ---------- IMPORTAR EXTRATO NATIVO DO NUBANK ----------
+// Formato diferente do Mobills: delimitador virgula (nao ponto-e-virgula),
+// valor com PONTO decimal (nao virgula - ja vem pronto pro parseFloat),
+// um Identificador UUID por linha (dedupe muito mais confiavel que o hash
+// composto usado no importador do Mobills), SEM coluna de Conta (o
+// extrato e sempre de UMA conta so, escolhida manualmente na tela de
+// preview) e SEM coluna de Categoria (tudo entra como "Outros" - sem
+// Categoria/Subcategoria no arquivo, categorizar automaticamente seria
+// chute sobre o nome do estabelecimento, que e exatamente o tipo de
+// suposicao que ja deu problema antes nesse projeto).
+
+function parseNubankCsvRow(line) {
+  const cells = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else inQuotes = false; }
+      else cur += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { cells.push(cur); cur = ''; }
+      else cur += c;
+    }
+  }
+  cells.push(cur);
+  return cells;
+}
+
+// So os 3 primeiros campos sao fixos (Data, Valor, Identificador) - o
+// resto da linha, mesmo com virgulas dentro (raro mas possivel em nome
+// de estabelecimento), e tudo Descricao.
+function parseNubankCsv(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+  let headerIdx = lines.findIndex(l => l.toLowerCase().replace(/"/g, '').startsWith('data,valor,identificador'));
+  if (headerIdx === -1) headerIdx = 0;
+  const result = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const cells = parseNubankCsvRow(lines[i]);
+    if (cells.length < 4) continue;
+    const date = parseMobillsDate(cells[0]);
+    const amount = parseFloat(cells[1]);
+    const identifier = (cells[2] || '').trim();
+    const description = cells.slice(3).join(',').trim();
+    if (!date || isNaN(amount) || !identifier || !description) continue;
+    result.push({ date, amount, identifier, description });
+  }
+  return result;
+}
+
+const NUBANK_INVESTMENT_KEYWORDS = ['aplicação rdb', 'aplicacao rdb', 'resgate rdb', 'tesouro direto'];
+
+function classifyNubankRow(row) {
+  const descLower = row.description.toLowerCase();
+  return { isInvestment: NUBANK_INVESTMENT_KEYWORDS.some(k => descLower.includes(k)) };
+}
+
+function buildNubankImportStaging(rows) {
+  let investmentCount = 0, minDate = null, maxDate = null;
+  rows.forEach(row => {
+    if (classifyNubankRow(row).isInvestment) investmentCount++;
+    if (!minDate || row.date < minDate) minDate = row.date;
+    if (!maxDate || row.date > maxDate) maxDate = row.date;
+  });
+  return {
+    rows, investmentCount, minDate, maxDate,
+    markInvestments: true,
+    accountMapping: { mode: 'create', existingId: null }
+  };
+}
+
+function openNubankImportModal() {
+  AppState.nubankImportStaging = null;
+  document.getElementById('nubank-import-step-file').style.display = 'block';
+  document.getElementById('nubank-import-preview').style.display = 'none';
+  document.getElementById('nubank-import-preview').innerHTML = '';
+  document.getElementById('nubank-import-file-input').value = '';
+  document.getElementById('nubank-import-file-error').textContent = '';
+  document.getElementById('finance-import-nubank-modal').classList.add('active');
+}
+
+function closeNubankImportModal() {
+  const modal = document.getElementById('finance-import-nubank-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function handleNubankFileSelected(event) {
+  const file = event.target.files[0];
+  const errorEl = document.getElementById('nubank-import-file-error');
+  errorEl.textContent = '';
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = detectAndDecodeText(e.target.result);
+      const rows = parseNubankCsv(text);
+      if (rows.length === 0) {
+        errorEl.textContent = 'Não encontrei lançamentos nesse arquivo. Confira se é o extrato CSV exportado direto do Nubank.';
+        return;
+      }
+      AppState.nubankImportStaging = buildNubankImportStaging(rows);
+      document.getElementById('nubank-import-step-file').style.display = 'none';
+      document.getElementById('nubank-import-preview').style.display = 'block';
+      renderNubankImportPreview();
+    } catch (err) {
+      errorEl.textContent = 'Erro ao ler o arquivo: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function setNubankAccountMapping(value) {
+  const staging = AppState.nubankImportStaging;
+  if (!staging) return;
+  staging.accountMapping = value === '__create__' ? { mode: 'create', existingId: null } : { mode: 'existing', existingId: value };
+  renderNubankImportPreview();
+}
+
+function renderNubankImportPreview() {
+  const staging = AppState.nubankImportStaging;
+  const container = document.getElementById('nubank-import-preview');
+  if (!staging || !container) return;
+
+  const existingAccounts = (AppState.financeAccounts || []).filter(a => !a.archived);
+  const optionsHtml = existingAccounts.map(a => `<option value="${a.id}" ${staging.accountMapping.existingId === a.id ? 'selected' : ''}>${a.icon || ''} ${a.name}</option>`).join('');
+
+  container.innerHTML = `
+    <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:12px;">
+      ${staging.rows.length} lançamentos lidos, de ${NumFmt.date(staging.minDate)} a ${NumFmt.date(staging.maxDate)}.
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block; font-size:11px; font-weight:700; color:var(--text-sub); text-transform:uppercase; margin-bottom:5px;">Conta de destino</label>
+      <select class="select-field" style="width:100%; margin-bottom:8px;" onchange="setNubankAccountMapping(this.value)">
+        <option value="__create__" ${staging.accountMapping.mode === 'create' ? 'selected' : ''}>+ Criar nova conta</option>
+        ${optionsHtml}
+      </select>
+      ${staging.accountMapping.mode === 'create' ? `
+      <input type="text" class="input-field" id="nubank-import-new-account-name" value="Nubank" placeholder="Nome da nova conta" style="width:100%;">
+      ` : ''}
+    </div>
+    <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin-bottom:14px; cursor:pointer;">
+      <input type="checkbox" id="nubank-import-mark-investments" ${staging.markInvestments ? 'checked' : ''} onchange="AppState.nubankImportStaging.markInvestments = this.checked; renderNubankImportPreview();">
+      Marcar ${staging.investmentCount} lançamento(s) com "RDB"/"Tesouro Direto" como Aporte/Resgate de Investimento (não como despesa/receita)
+    </label>
+    <div style="background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px; font-size:12.5px;">
+      Sem coluna de categoria nesse formato: tudo entra em <strong>"Outros"</strong> (exceto o que for marcado como investimento acima). Você pode recategorizar clicando em cada lançamento depois.
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeNubankImportModal()">Cancelar</button>
+      <button type="button" class="btn btn-success" style="flex:1;" onclick="handleConfirmNubankImport()">Importar ${staging.rows.length} Lançamentos</button>
+    </div>
+  `;
+}
+
+function handleConfirmNubankImport() {
+  const staging = AppState.nubankImportStaging;
+  if (!staging) return;
+
+  let accountId;
+  if (staging.accountMapping.mode === 'existing' && staging.accountMapping.existingId) {
+    accountId = staging.accountMapping.existingId;
+  } else {
+    const name = (document.getElementById('nubank-import-new-account-name')?.value || 'Nubank').trim() || 'Nubank';
+    const newAcc = {
+      id: 'facc_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
+      name, type: 'checking', icon: '🏦',
+      color: CHART_COLOR_PALETTE[AppState.financeAccounts.length % CHART_COLOR_PALETTE.length],
+      initialBalance: 0, initialBalanceDate: new Date().toISOString().slice(0, 10),
+      archived: false, createdAt: new Date().toISOString(),
+      creditLimit: null, closingDay: null, dueDay: null, paidInvoiceMonths: []
+    };
+    AppState.financeAccounts.push(newAcc);
+    accountId = newAcc.id;
+  }
+
+  const outrosCategory = (AppState.financeCategories || []).find(c => c.name.toLowerCase() === 'outros');
+  const outrosCategoryId = outrosCategory ? outrosCategory.id : null;
+
+  const existingImportIds = new Set((AppState.financeTransactions || []).filter(t => t.importId).map(t => t.importId));
+  let imported = 0, skippedDuplicate = 0;
+  const newTxs = [];
+
+  staging.rows.forEach(row => {
+    const importId = 'nubank_' + row.identifier;
+    if (existingImportIds.has(importId)) { skippedDuplicate++; return; }
+    existingImportIds.add(importId);
+
+    const { isInvestment } = classifyNubankRow(row);
+    const amount = Math.abs(row.amount);
+    let type, categoryId = null, investmentDirection = null;
+    if (staging.markInvestments && isInvestment) {
+      type = 'investment';
+      investmentDirection = row.amount >= 0 ? 'redemption' : 'contribution';
+    } else {
+      type = row.amount >= 0 ? 'income' : 'expense';
+      categoryId = outrosCategoryId;
+    }
+
+    newTxs.push({
+      id: 'ftx_' + Date.now() + '_' + imported + '_' + Math.floor(Math.random() * 100000),
+      type, description: row.description, amount, date: row.date, accountId, categoryId,
+      notes: '', tags: [], source: 'import', importId, originalAccountLabel: 'Nubank (extrato nativo)',
+      transferAccountId: null, investmentDirection,
+      isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
+      fixedCostId: null, goalId: null, goalDirection: null
+    });
+    imported++;
+  });
+
+  AppState.financeTransactions.unshift(...newTxs);
+  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+
+  AppState.nubankImportStaging = null;
+  closeNubankImportModal();
+  renderFinanceView();
+  showToast(`${imported} lançamento(s) importados do extrato Nubank (${skippedDuplicate} duplicado(s) ignorado(s)).`, 'success');
+}
+
 // ==========================================
 // CALCULADORA DE REBALANCEAMENTO & PRÓXIMO APORTE
 // ==========================================
@@ -13400,6 +13643,7 @@ async function initApp() {
       closeFinanceAccountModal();
       closeFinanceCategoryModal();
       closeFinanceImportModal();
+      closeNubankImportModal();
       closeFinanceGoalModal();
       closeFinanceFixedCostModal();
     }
