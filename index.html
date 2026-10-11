@@ -2126,6 +2126,21 @@
             <option value="redemption">📉 Resgate (entrou na conta)</option>
           </select>
         </div>
+        <div style="display: grid; grid-template-columns: 1fr 140px; gap: 10px;">
+          <div>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">🎯 Vincular a um Objetivo (Opcional)</label>
+            <select class="select-field" id="finance-tx-goal" style="width: 100%;" onchange="document.getElementById('finance-tx-goal-direction-box').style.display = this.value ? 'block' : 'none';">
+              <option value="">Nenhum</option>
+            </select>
+          </div>
+          <div id="finance-tx-goal-direction-box" style="display:none;">
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Efeito</label>
+            <select class="select-field" id="finance-tx-goal-direction" style="width: 100%;">
+              <option value="add">+ Soma</option>
+              <option value="subtract">− Subtrai</option>
+            </select>
+          </div>
+        </div>
         <div id="finance-tx-installment-box" style="display:none; background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 12px;">
           <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; margin-bottom: 8px;">
             <input type="checkbox" id="finance-tx-is-installment" onchange="document.getElementById('finance-tx-installment-count-box').style.display = this.checked ? 'block' : 'none';">
@@ -2276,10 +2291,11 @@
             <input type="number" class="input-field" id="finance-goal-target" min="0.01" step="0.01" required style="width: 100%;">
           </div>
           <div>
-            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Já Acumulado (R$)</label>
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;" title="Valor base - some ao vincular lançamentos a essa meta">Valor Inicial (R$)</label>
             <input type="number" class="input-field" id="finance-goal-current" min="0" step="0.01" value="0" style="width: 100%;">
           </div>
         </div>
+        <div style="font-size: 11px; color: var(--text-muted);" id="finance-goal-linked-note"></div>
         <div>
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Prazo (Opcional)</label>
           <input type="date" class="input-field" id="finance-goal-deadline" style="width: 100%;">
@@ -6990,7 +7006,9 @@ function generateInstallments(purchase) {
       installmentNumber: i,
       installmentTotal: n,
       invoiceMonth: addMonthsToYYYYMM(baseCycle, i - 1),
-      fixedCostId: null
+      fixedCostId: null,
+      goalId: null,
+      goalDirection: null
     });
   }
   return result;
@@ -8056,6 +8074,25 @@ function renderFinanceCardsSection() {
 
 // ---------- OBJETIVOS (METAS) ----------
 
+// Progresso da meta = valor inicial (base manual, ex: "ja tinha R$500
+// guardados antes de usar o app") + soma assinada dos lancamentos
+// vinculados a ela (goalId + goalDirection 'add'/'subtract'). Computado,
+// nunca um numero mutavel persistido - mesmo principio ja usado em saldo
+// de conta e status de custo fixo, pra nao dessincronizar se um
+// lancamento vinculado for editado/excluido depois.
+// goal.initialAmount e o campo atual; goal.currentAmount e mantido como
+// fallback de leitura pra metas criadas antes dessa mudanca (salvas com
+// o nome de campo antigo).
+function getGoalCurrentAmount(goal) {
+  const base = goal.initialAmount != null ? Number(goal.initialAmount) : (Number(goal.currentAmount) || 0);
+  const linked = (AppState.financeTransactions || []).reduce((sum, tx) => {
+    if (tx.goalId !== goal.id) return sum;
+    const amt = Number(tx.amount) || 0;
+    return sum + (tx.goalDirection === 'subtract' ? -amt : amt);
+  }, 0);
+  return base + linked;
+}
+
 function renderFinanceGoalsSection() {
   const grid = document.getElementById('finance-goals-grid');
   if (!grid) return;
@@ -8065,7 +8102,8 @@ function renderFinanceGoalsSection() {
     return;
   }
   grid.innerHTML = goals.map(g => {
-    const pct = g.targetAmount > 0 ? Math.min(100, (g.currentAmount / g.targetAmount) * 100) : 0;
+    const current = getGoalCurrentAmount(g);
+    const pct = g.targetAmount > 0 ? Math.min(100, (current / g.targetAmount) * 100) : 0;
     const barColor = pct >= 100 ? 'var(--green)' : 'var(--accent)';
     let deadlineHtml = '';
     if (g.deadline) {
@@ -8075,7 +8113,7 @@ function renderFinanceGoalsSection() {
     return `
       <div class="stat-card" style="cursor:pointer;" onclick="openFinanceGoalModal('${g.id}')">
         <span class="stat-label">${g.icon || '🎯'} ${g.name}</span>
-        <div class="stat-val" style="font-size:16px;">${NumFmt.money(g.currentAmount)} <span style="font-size:11px; color:var(--text-sub); font-weight:400;">/ ${NumFmt.money(g.targetAmount)}</span></div>
+        <div class="stat-val" style="font-size:16px;">${NumFmt.money(current)} <span style="font-size:11px; color:var(--text-sub); font-weight:400;">/ ${NumFmt.money(g.targetAmount)}</span></div>
         <div style="background:rgba(0,0,0,0.06); border-radius:100px; height:6px; margin-top:6px; overflow:hidden;">
           <div style="width:${pct}%; height:100%; background:${barColor};"></div>
         </div>
@@ -8094,10 +8132,18 @@ function openFinanceGoalModal(editId = '') {
   document.getElementById('finance-goal-icon').value = goal ? goal.icon : '🎯';
   document.getElementById('finance-goal-name').value = goal ? goal.name : '';
   document.getElementById('finance-goal-target').value = goal ? goal.targetAmount : '';
-  document.getElementById('finance-goal-current').value = goal ? goal.currentAmount : 0;
+  document.getElementById('finance-goal-current').value = goal ? (goal.initialAmount != null ? goal.initialAmount : goal.currentAmount) : 0;
   document.getElementById('finance-goal-deadline').value = goal ? (goal.deadline || '') : '';
   document.getElementById('finance-goal-delete-btn').style.display = editId ? 'inline-flex' : 'none';
   document.getElementById('finance-goal-submit-btn').textContent = editId ? 'Salvar Alterações' : 'Salvar Meta';
+
+  const noteEl = document.getElementById('finance-goal-linked-note');
+  if (noteEl) {
+    const linkedCount = goal ? (AppState.financeTransactions || []).filter(t => t.goalId === editId).length : 0;
+    noteEl.textContent = linkedCount > 0
+      ? `Progresso atual (${NumFmt.money(getGoalCurrentAmount(goal))}) = Valor Inicial acima + ${linkedCount} lançamento(s) vinculado(s). Vincule lançamentos a esta meta pelo modal de lançamento.`
+      : 'Vincule um lançamento a essa meta pelo modal de "Novo Lançamento" pra somar automaticamente aqui.';
+  }
 
   modal.classList.add('active');
 }
@@ -8113,7 +8159,7 @@ function handleSaveFinanceGoal(e) {
   const icon = document.getElementById('finance-goal-icon').value.trim() || '🎯';
   const name = document.getElementById('finance-goal-name').value.trim();
   const targetAmount = parseFloat(document.getElementById('finance-goal-target').value);
-  const currentAmount = parseFloat(document.getElementById('finance-goal-current').value) || 0;
+  const initialAmount = parseFloat(document.getElementById('finance-goal-current').value) || 0;
   const deadline = document.getElementById('finance-goal-deadline').value || null;
 
   if (!name || isNaN(targetAmount) || targetAmount <= 0) { showToast('Preencha os campos corretamente.', 'error'); return; }
@@ -8121,11 +8167,11 @@ function handleSaveFinanceGoal(e) {
   if (editId) {
     const idx = AppState.financeGoals.findIndex(g => g.id === editId);
     if (idx === -1) return;
-    AppState.financeGoals[idx] = { ...AppState.financeGoals[idx], icon, name, targetAmount, currentAmount, deadline };
+    AppState.financeGoals[idx] = { ...AppState.financeGoals[idx], icon, name, targetAmount, initialAmount, deadline };
   } else {
     AppState.financeGoals.unshift({
       id: 'fgoal_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-      icon, name, targetAmount, currentAmount, deadline, createdAt: new Date().toISOString(), archived: false
+      icon, name, targetAmount, initialAmount, deadline, createdAt: new Date().toISOString(), archived: false
     });
   }
 
@@ -8220,7 +8266,7 @@ function markFinanceFixedCostPaid(id) {
     notes: '', tags: [], source: 'manual', importId: null, originalAccountLabel: null,
     transferAccountId: null, investmentDirection: null,
     isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-    fixedCostId: fc.id
+    fixedCostId: fc.id, goalId: null, goalDirection: null
   });
 
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
@@ -8366,6 +8412,14 @@ function openFinanceTransactionModal(editId = '') {
   accSel.disabled = isInstallmentTx;
   if (tx && tx.transferAccountId) transferSel.value = tx.transferAccountId;
   if (tx && tx.investmentDirection) document.getElementById('finance-tx-investment-direction').value = tx.investmentDirection;
+
+  const goalSel = document.getElementById('finance-tx-goal');
+  const goals = (AppState.financeGoals || []).filter(g => !g.archived);
+  goalSel.innerHTML = `<option value="">Nenhum</option>` + goals.map(g => `<option value="${g.id}">${g.icon || '🎯'} ${g.name}</option>`).join('');
+  goalSel.value = tx && tx.goalId ? tx.goalId : '';
+  document.getElementById('finance-tx-goal-direction').value = tx && tx.goalDirection ? tx.goalDirection : 'add';
+  document.getElementById('finance-tx-goal-direction-box').style.display = goalSel.value ? 'block' : 'none';
+
   document.getElementById('finance-tx-notes').value = tx ? (tx.notes || '') : '';
   document.getElementById('finance-tx-is-installment').checked = false;
   document.getElementById('finance-tx-is-installment').disabled = !!tx;
@@ -8424,6 +8478,8 @@ function handleSaveFinanceTransaction(e) {
   const categoryId = (type === 'expense' || type === 'income') ? document.getElementById('finance-tx-category').value : null;
   const transferAccountId = type === 'transfer' ? document.getElementById('finance-tx-transfer-account').value : null;
   const investmentDirection = type === 'investment' ? document.getElementById('finance-tx-investment-direction').value : null;
+  const goalId = document.getElementById('finance-tx-goal').value || null;
+  const goalDirection = goalId ? document.getElementById('finance-tx-goal-direction').value : null;
   const notes = document.getElementById('finance-tx-notes').value.trim();
 
   if (!description || isNaN(amount) || amount <= 0 || !date || !accountId) {
@@ -8443,10 +8499,10 @@ function handleSaveFinanceTransaction(e) {
       const baseDesc = description.replace(/\s*\(\d+\/\d+\)$/, '');
       AppState.financeTransactions = AppState.financeTransactions.map(t => {
         if (t.installmentGroupId !== existing.installmentGroupId) return t;
-        return { ...t, description: `${baseDesc} (${t.installmentNumber}/${t.installmentTotal})`, categoryId: categoryId || t.categoryId, notes };
+        return { ...t, description: `${baseDesc} (${t.installmentNumber}/${t.installmentTotal})`, categoryId: categoryId || t.categoryId, notes, goalId, goalDirection };
       });
     } else {
-      AppState.financeTransactions[idx] = { ...existing, type, description, amount, date, accountId, categoryId, transferAccountId, investmentDirection, notes };
+      AppState.financeTransactions[idx] = { ...existing, type, description, amount, date, accountId, categoryId, transferAccountId, investmentDirection, notes, goalId, goalDirection };
     }
   } else {
     const isInstallmentChecked = document.getElementById('finance-tx-is-installment').checked;
@@ -8456,13 +8512,14 @@ function handleSaveFinanceTransaction(e) {
 
     if (isCardExpense) {
       const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description, categoryId, notes, tags: [] });
+      newTxs.forEach(t => { t.goalId = goalId; t.goalDirection = goalDirection; });
       AppState.financeTransactions.unshift(...newTxs);
     } else {
       AppState.financeTransactions.unshift({
         id: 'ftx_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
         type, description, amount, date, accountId, categoryId,
         notes, tags: [], source: 'manual', importId: null, originalAccountLabel: null,
-        transferAccountId, investmentDirection,
+        transferAccountId, investmentDirection, goalId, goalDirection,
         isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
         fixedCostId: null
       });
@@ -9037,7 +9094,7 @@ function handleConfirmMobillsImport() {
       notes: '', tags: row.tags ? [row.tags] : [], source: 'import', importId, originalAccountLabel: row.account,
       transferAccountId: null, investmentDirection,
       isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-      fixedCostId: null
+      fixedCostId: null, goalId: null, goalDirection: null
     });
     imported++;
   });
