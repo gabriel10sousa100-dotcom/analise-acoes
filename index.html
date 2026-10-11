@@ -4080,6 +4080,23 @@ const AppState = {
   triggeredFixedCostAlerts: JSON.parse(localStorage.getItem('b3_triggered_fixedcost_alerts') || '[]')
 };
 
+// Migracao one-time: custos fixos marcados como pagos antes da mudanca para
+// "so marcacao" (sem lancamento) tinham o status derivado de um lancamento
+// com fixedCostId. Preenche paidMonths a partir desses lancamentos antigos
+// pra nao "destachar" visualmente o que o usuario ja tinha marcado como pago.
+(function migrateFixedCostPaidMonths() {
+  let dirty = false;
+  (AppState.financeFixedCosts || []).forEach(fc => {
+    if (Array.isArray(fc.paidMonths)) return;
+    const months = (AppState.financeTransactions || [])
+      .filter(t => t.fixedCostId === fc.id)
+      .map(t => getEffectiveMonth(t));
+    fc.paidMonths = [...new Set(months)];
+    dirty = true;
+  });
+  if (dirty) localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
+})();
+
 // ==========================================
 // FORMATTERS & UTILITIES
 // ==========================================
@@ -7036,7 +7053,8 @@ function generateInstallments(purchase) {
       invoiceMonth: addMonthsToYYYYMM(baseCycle, i - 1),
       fixedCostId: null,
       goalId: null,
-      goalDirection: null
+      goalDirection: null,
+      ignored: false
     });
   }
   return result;
@@ -7073,7 +7091,7 @@ function getEffectiveMonth(tx) {
 // Resumo do mes: Receita/Despesa/Saldo somam SO income/expense (transfer e
 // investment nunca entram aqui - sao movimentacao, nao ganho/gasto real).
 function getFinanceMonthSummary(monthStr) {
-  const txs = (AppState.financeTransactions || []).filter(tx => getEffectiveMonth(tx) === monthStr);
+  const txs = (AppState.financeTransactions || []).filter(tx => getEffectiveMonth(tx) === monthStr && !tx.ignored);
   let income = 0, expense = 0;
   const byCategory = {};
   txs.forEach(tx => {
@@ -7910,18 +7928,22 @@ function renderFinanceTransactionsList() {
       ? `<span class="badge badge-flat" style="cursor:pointer; font-size:10px;" onclick="event.stopPropagation(); toggleFinanceInstallmentGroup('${tx.installmentGroupId}')">${tx.installmentNumber}/${tx.installmentTotal} 🔽</span>`
       : '';
     const destAccName = tx.type === 'transfer' ? ((AppState.financeAccounts || []).find(a => a.id === tx.transferAccountId)?.name || 'Conta removida') : '';
+    const ignoredBadge = tx.ignored ? `<span class="badge badge-flat" style="font-size:9.5px; color:var(--text-sub);">🙈 Ignorado</span>` : '';
     return `
-      <tr class="fav-table-row" style="cursor:pointer;" onclick="openFinanceTransactionModal('${tx.id}')" title="Clique para editar">
+      <tr class="fav-table-row" style="cursor:pointer; ${tx.ignored ? 'opacity:0.55;' : ''}" onclick="openFinanceTransactionModal('${tx.id}')" title="Clique para editar">
         <td class="text-mono" style="font-size:12px;">${NumFmt.date(tx.date)}</td>
-        <td>${tx.description} ${installmentBadge} ${(tx.tags || []).map(tag => `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);">🏷️ ${tag}</span>`).join(' ')}</td>
+        <td>${tx.description} ${installmentBadge} ${ignoredBadge} ${(tx.tags || []).map(tag => `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);">🏷️ ${tag}</span>`).join(' ')}</td>
         <td style="font-size:12px; color:var(--text-sub);">${cat ? cat.icon + ' ' + cat.name : '—'}</td>
         <td style="font-size:12px; color:var(--text-sub);">${acc ? (acc.icon || '') + ' ' + acc.name : 'Conta removida'}${tx.type === 'transfer' ? ' → ' + destAccName : ''}</td>
         <td class="text-right text-mono" style="font-weight:700; color:${amountColor};">${amountSign}${NumFmt.money(tx.amount)}</td>
         <td><span class="badge badge-flat" style="font-size:10px;">${typeLabels[tx.type] || tx.type}</span></td>
+        <td class="text-center">
+          <button class="btn btn-secondary btn-sm" style="font-size:10px;" onclick="event.stopPropagation(); toggleFinanceTransactionIgnored('${tx.id}')" title="${tx.ignored ? 'Voltar a contar em receita/despesa' : 'Não contar em receita/despesa (ex: Pix entre contas próprias)'}">${tx.ignored ? '👁️ Incluir' : '🙈 Ignorar'}</button>
+        </td>
       </tr>
       ${tx.installmentTotal > 1 ? `
       <tr class="sub-trades-row" id="finance-inst-group-${tx.installmentGroupId}-${tx.id}" style="display:none;">
-        <td colspan="6" class="sub-trades-cell">
+        <td colspan="7" class="sub-trades-cell">
           <div class="sub-trades-box">
             <div class="sub-trades-header">Parcelas de "${tx.description.replace(/\s*\(\d+\/\d+\)$/, '')}"
               <button class="btn btn-secondary btn-sm" style="color:var(--red); margin-left:8px;" onclick="handleDeleteFinanceInstallmentGroup('${tx.installmentGroupId}')">Excluir compra parcelada inteira</button>
@@ -7939,9 +7961,18 @@ function renderFinanceTransactionsList() {
 
   container.innerHTML = `
     <table class="custom-table compact">
-      <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Conta</th><th class="text-right">Valor</th><th>Tipo</th></tr></thead>
+      <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Conta</th><th class="text-right">Valor</th><th>Tipo</th><th class="text-center">Ignorar</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>`;
+}
+
+function toggleFinanceTransactionIgnored(id) {
+  const tx = (AppState.financeTransactions || []).find(t => t.id === id);
+  if (!tx) return;
+  tx.ignored = !tx.ignored;
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  renderFinanceView();
+  showToast(tx.ignored ? 'Lançamento ignorado: não conta mais em receita/despesa.' : 'Lançamento voltou a contar em receita/despesa.', 'info');
 }
 
 function toggleFinanceCalendar() {
@@ -7978,7 +8009,7 @@ function renderFinanceCalendar() {
 
   const byDay = {};
   (AppState.financeTransactions || []).forEach(tx => {
-    if ((tx.date || '').slice(0, 7) !== AppState.financeActiveMonth) return;
+    if ((tx.date || '').slice(0, 7) !== AppState.financeActiveMonth || tx.ignored) return;
     if (!byDay[tx.date]) byDay[tx.date] = { income: 0, expense: 0 };
     if (tx.type === 'income') byDay[tx.date].income += Number(tx.amount) || 0;
     else if (tx.type === 'expense') byDay[tx.date].expense += Number(tx.amount) || 0;
@@ -8242,15 +8273,14 @@ function handleDeleteCurrentFinanceGoal() {
 }
 
 // ---------- CUSTOS FIXOS ----------
-// Status de "pago no mes" e sempre DERIVADO de existir um lancamento com
-// fixedCostId apontando pra esse custo fixo nesse mes - sem array de
-// "meses pagos" separado pra nao dessincronizar se o usuario excluir o
-// lancamento manualmente depois. Recebe o mes como parametro (nao so o mes
-// ativo da UI) porque o lembrete de vencimento em checkAlerts() precisa
-// checar o mes CALENDARIO real (hoje), independente de qual mes o usuario
-// esta navegando na tela do Controle Financeiro.
+// Status de "pago no mes" e so uma marcacao (fc.paidMonths), NAO gera
+// lancamento/movimentacao - marcar como pago aqui e so um checklist visual,
+// nao afeta saldo de conta nem entra em receita/despesa. Recebe o mes como
+// parametro (nao so o mes ativo da UI) porque o lembrete de vencimento em
+// checkAlerts() precisa checar o mes CALENDARIO real (hoje), independente de
+// qual mes o usuario esta navegando na tela do Controle Financeiro.
 function isFixedCostPaidForMonth(fc, monthStr) {
-  return (AppState.financeTransactions || []).some(t => t.fixedCostId === fc.id && getEffectiveMonth(t) === monthStr);
+  return (fc.paidMonths || []).includes(monthStr);
 }
 function isFixedCostPaidThisMonth(fc) {
   return isFixedCostPaidForMonth(fc, AppState.financeActiveMonth);
@@ -8302,34 +8332,20 @@ function renderFinanceFixedCostsSection() {
 function markFinanceFixedCostPaid(id) {
   const fc = (AppState.financeFixedCosts || []).find(f => f.id === id);
   if (!fc || isFixedCostPaidThisMonth(fc)) return;
-  const [y, m] = AppState.financeActiveMonth.split('-').map(Number);
-  const day = String(Math.min(fc.dueDay, daysInMonth(y, m))).padStart(2, '0');
-  const date = `${AppState.financeActiveMonth}-${day}`;
+  fc.paidMonths = fc.paidMonths || [];
+  fc.paidMonths.push(AppState.financeActiveMonth);
 
-  AppState.financeTransactions.unshift({
-    id: 'ftx_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-    type: 'expense', description: fc.description, amount: fc.amount, date,
-    accountId: fc.accountId, categoryId: fc.categoryId,
-    notes: '', tags: [], source: 'manual', importId: null, originalAccountLabel: null,
-    transferAccountId: null, investmentDirection: null,
-    isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-    fixedCostId: fc.id, goalId: null, goalDirection: null
-  });
-
-  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
-  renderFinanceView();
+  localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
+  renderFinanceFixedCostsSection();
   showToast(`${fc.description} marcado como pago.`, 'success');
 }
 
 function unmarkFinanceFixedCostPaid(id) {
   const fc = (AppState.financeFixedCosts || []).find(f => f.id === id);
   if (!fc) return;
-  const linkedTx = (AppState.financeTransactions || []).find(t => t.fixedCostId === fc.id && getEffectiveMonth(t) === AppState.financeActiveMonth);
-  if (!linkedTx) return;
-  if (!confirm(`Desfazer o pagamento de "${fc.description}" neste mês? Isso remove o lançamento gerado.`)) return;
-  AppState.financeTransactions = AppState.financeTransactions.filter(t => t.id !== linkedTx.id);
-  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
-  renderFinanceView();
+  fc.paidMonths = (fc.paidMonths || []).filter(m => m !== AppState.financeActiveMonth);
+  localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
+  renderFinanceFixedCostsSection();
   showToast('Pagamento desfeito.', 'info');
 }
 
@@ -8385,7 +8401,7 @@ function handleSaveFinanceFixedCost(e) {
   } else {
     AppState.financeFixedCosts.unshift({
       id: 'ffix_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-      description, amount, dueDay, categoryId, accountId, active: true, createdAt: new Date().toISOString()
+      description, amount, dueDay, categoryId, accountId, active: true, createdAt: new Date().toISOString(), paidMonths: []
     });
   }
 
@@ -8574,7 +8590,7 @@ function handleSaveFinanceTransaction(e) {
         notes, tags, source: 'manual', importId: null, originalAccountLabel: null,
         transferAccountId, investmentDirection, goalId, goalDirection,
         isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-        fixedCostId: null
+        fixedCostId: null, ignored: false
       });
     }
   }
@@ -9147,7 +9163,7 @@ function handleConfirmMobillsImport() {
       notes: '', tags: row.tags ? [row.tags] : [], source: 'import', importId, originalAccountLabel: row.account,
       transferAccountId: null, investmentDirection,
       isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-      fixedCostId: null, goalId: null, goalDirection: null
+      fixedCostId: null, goalId: null, goalDirection: null, ignored: false
     });
     imported++;
   });
@@ -9369,7 +9385,7 @@ function handleConfirmNubankImport() {
       notes: '', tags: [], source: 'import', importId, originalAccountLabel: 'Nubank (extrato nativo)',
       transferAccountId: null, investmentDirection,
       isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-      fixedCostId: null, goalId: null, goalDirection: null
+      fixedCostId: null, goalId: null, goalDirection: null, ignored: false
     });
     imported++;
   });
