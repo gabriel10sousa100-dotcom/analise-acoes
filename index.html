@@ -2273,7 +2273,7 @@
       <button class="modal-close" onclick="closeFinanceCategoryModal()">✕</button>
     </div>
     <div style="display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;">
-      <input type="text" class="input-field" id="finance-cat-new-icon" placeholder="🏷️" maxlength="8" style="width: 50px; text-align: center;">
+      <input type="text" class="input-field" id="finance-cat-new-icon" placeholder="🏷️" maxlength="8" style="width: 50px; text-align: center;" onfocus="openEmojiPicker('finance-cat-new-icon', this)" title="Clique para escolher um emoji">
       <input type="text" class="input-field" id="finance-cat-new-name" placeholder="Nome da nova categoria" style="flex: 1; min-width: 160px;">
       <label style="display:flex; align-items:center; gap:4px; font-size:11px;"><input type="checkbox" id="finance-cat-new-expense" checked> Despesa</label>
       <label style="display:flex; align-items:center; gap:4px; font-size:11px;"><input type="checkbox" id="finance-cat-new-income"> Receita</label>
@@ -2368,7 +2368,7 @@
       <input type="hidden" id="finance-goal-edit-id" value="">
       <div style="display: flex; flex-direction: column; gap: 14px;">
         <div style="display: grid; grid-template-columns: 56px 1fr; gap: 10px;">
-          <input type="text" class="input-field" id="finance-goal-icon" value="🎯" maxlength="8" style="text-align:center;">
+          <input type="text" class="input-field" id="finance-goal-icon" value="🎯" maxlength="8" style="text-align:center;" onfocus="openEmojiPicker('finance-goal-icon', this)" title="Clique para escolher um emoji">
           <input type="text" class="input-field" id="finance-goal-name" placeholder="ex: Viagem, Reserva de Emergência" required style="width: 100%;">
         </div>
         <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
@@ -2795,6 +2795,15 @@
 
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toast-root"></div>
+
+<!-- ================================================================ -->
+<!-- SELETOR DE EMOJI (popover compartilhado por todos os campos de    -->
+<!-- icone do Controle Financeiro - categoria nova/edicao, meta)       -->
+<!-- ================================================================ -->
+<div id="emoji-picker-popover" style="display:none; position:fixed; z-index:2000; background:var(--card-elevated); border:1px solid var(--border-active); border-radius:var(--radius-md); box-shadow:0 12px 30px rgba(28,25,20,0.22); padding:10px; width:260px;">
+  <input type="text" id="emoji-picker-search" class="input-field" placeholder="🔎 Buscar emoji (ex: carro, comida)" style="width:100%; margin-bottom:8px; box-sizing:border-box;" oninput="renderEmojiPickerGrid()">
+  <div id="emoji-picker-grid" style="display:grid; grid-template-columns:repeat(8,1fr); gap:2px; max-height:220px; overflow-y:auto;"></div>
+</div>
 
 <!-- ================================================================ -->
 <!-- JAVASCRIPT LOGIC ENGINE                                          -->
@@ -5600,6 +5609,110 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.remove(), 300);
   }, 3500);
 }
+
+// ---------- SELETOR DE EMOJI (campos de icone do Controle Financeiro) ----------
+// Lista curada (nao o unicode inteiro) com palavras-chave em PT-BR pra busca -
+// cobre o que realmente aparece em categoria/meta financeira, sem precisar de
+// biblioteca externa de emoji picker.
+const EMOJI_PICKER_LIST = [
+  { e: '💰', k: 'dinheiro saco moeda money' }, { e: '💵', k: 'dinheiro nota cedula cash' },
+  { e: '💳', k: 'cartao credito debito' }, { e: '🏦', k: 'banco conta' },
+  { e: '📈', k: 'investimento alta grafico aporte' }, { e: '📉', k: 'investimento baixa grafico' },
+  { e: '💎', k: 'patrimonio diamante valor' }, { e: '🐷', k: 'poupanca porquinho economia' },
+  { e: '🪙', k: 'moeda dinheiro' }, { e: '💸', k: 'gasto despesa dinheiro voando' },
+  { e: '📊', k: 'grafico relatorio dados' }, { e: '🧾', k: 'nota fiscal recibo conta boleto' },
+  { e: '🛍️', k: 'compras shopping sacola' }, { e: '🛒', k: 'mercado supermercado carrinho' },
+  { e: '🍔', k: 'comida lanche hamburguer alimentacao' }, { e: '🍕', k: 'comida pizza alimentacao' },
+  { e: '🍗', k: 'comida frango alimentacao' }, { e: '🌭', k: 'comida cachorro quente lanche' },
+  { e: '🥗', k: 'comida salada saudavel' }, { e: '🍱', k: 'comida marmita almoco' },
+  { e: '🍜', k: 'comida macarrao' }, { e: '🍣', k: 'comida sushi japones' },
+  { e: '☕', k: 'cafe bebida' }, { e: '🍺', k: 'cerveja bebida bar' },
+  { e: '🍷', k: 'vinho bebida' }, { e: '🥤', k: 'bebida refrigerante suco' },
+  { e: '🍰', k: 'bolo doce sobremesa' }, { e: '🧁', k: 'doce sobremesa cupcake' },
+  { e: '🍎', k: 'fruta alimentacao saudavel' },
+  { e: '🚗', k: 'carro transporte veiculo' }, { e: '🚕', k: 'taxi uber transporte' },
+  { e: '🚌', k: 'onibus transporte publico' }, { e: '🚆', k: 'trem metro transporte' },
+  { e: '🚲', k: 'bicicleta transporte' }, { e: '🛵', k: 'moto transporte' },
+  { e: '⛽', k: 'combustivel gasolina posto' }, { e: '🅿️', k: 'estacionamento' },
+  { e: '✈️', k: 'viagem avião passagem' }, { e: '🚢', k: 'viagem navio cruzeiro' },
+  { e: '🏠', k: 'casa aluguel moradia' }, { e: '🏡', k: 'casa moradia' },
+  { e: '🔧', k: 'manutencao conserto ferramenta' }, { e: '🛋️', k: 'movel sofa casa' },
+  { e: '🛏️', k: 'cama quarto casa' }, { e: '🚿', k: 'banho agua casa' },
+  { e: '🧹', k: 'limpeza faxina casa' }, { e: '💡', k: 'luz energia eletrica conta' },
+  { e: '🔑', k: 'chave casa aluguel' }, { e: '🔥', k: 'gas fogo conta' },
+  { e: '💊', k: 'remedio farmacia saude' }, { e: '🏥', k: 'hospital saude medico' },
+  { e: '🩺', k: 'medico consulta saude' }, { e: '💉', k: 'vacina saude' },
+  { e: '🦷', k: 'dentista saude' }, { e: '🧴', k: 'higiene cosmetico' },
+  { e: '🏋️', k: 'academia exercicio saude' }, { e: '🧘', k: 'bem estar saude' },
+  { e: '🎓', k: 'educacao faculdade formatura' }, { e: '📚', k: 'livro estudo educacao curso' },
+  { e: '✏️', k: 'estudo material escolar' }, { e: '🏫', k: 'escola educacao' },
+  { e: '💻', k: 'computador notebook tecnologia trabalho' }, { e: '🖥️', k: 'computador tecnologia' },
+  { e: '📱', k: 'celular telefone tecnologia assinatura' }, { e: '🖨️', k: 'impressora tecnologia' },
+  { e: '🎮', k: 'jogo videogame lazer' }, { e: '🎬', k: 'cinema filme lazer streaming' },
+  { e: '🎵', k: 'musica streaming lazer' }, { e: '🎨', k: 'arte hobby lazer' },
+  { e: '⚽', k: 'esporte futebol lazer' }, { e: '🏖️', k: 'praia lazer ferias' },
+  { e: '🎡', k: 'parque diversao lazer' }, { e: '🎉', k: 'festa comemoracao lazer' },
+  { e: '🎁', k: 'presente lazer' }, { e: '📷', k: 'foto hobby lazer' },
+  { e: '🐕', k: 'cachorro pet animal' }, { e: '🐈', k: 'gato pet animal' },
+  { e: '🐾', k: 'pet animal' },
+  { e: '👕', k: 'roupa vestuario' }, { e: '👗', k: 'roupa vestuario' },
+  { e: '👟', k: 'calcado tenis vestuario' }, { e: '👜', k: 'bolsa acessorio' },
+  { e: '💇', k: 'cabelo corte salao servico' }, { e: '💅', k: 'unha manicure servico' },
+  { e: '💼', k: 'trabalho salario negocio' }, { e: '📌', k: 'fixo lembrete custo fixo' },
+  { e: '🏷️', k: 'categoria etiqueta tag outros' }, { e: '🔁', k: 'transferencia repeticao recorrente' },
+  { e: '🎯', k: 'meta objetivo alvo' }, { e: '📅', k: 'data calendario vencimento' },
+  { e: '⚙️', k: 'configuracao ajuste servico' }, { e: '🔒', k: 'seguranca seguro' },
+  { e: '🧰', k: 'ferramenta manutencao servico' }, { e: '❤️', k: 'saude doacao amor' },
+  { e: '⭐', k: 'favorito destaque' }, { e: '👶', k: 'bebe filho crianca' },
+  { e: '📦', k: 'caixa entrega outros pacote' }
+];
+
+let emojiPickerTargetInputId = null;
+
+function openEmojiPicker(inputId, anchorEl) {
+  emojiPickerTargetInputId = inputId;
+  const popover = document.getElementById('emoji-picker-popover');
+  const el = anchorEl || document.getElementById(inputId);
+  const rect = el.getBoundingClientRect();
+  const popoverWidth = 260;
+  let left = rect.left;
+  if (left + popoverWidth > window.innerWidth - 10) left = window.innerWidth - popoverWidth - 10;
+  popover.style.top = (rect.bottom + 4) + 'px';
+  popover.style.left = Math.max(10, left) + 'px';
+  popover.style.display = 'block';
+  document.getElementById('emoji-picker-search').value = '';
+  renderEmojiPickerGrid();
+}
+
+function closeEmojiPicker() {
+  const popover = document.getElementById('emoji-picker-popover');
+  if (popover) popover.style.display = 'none';
+  emojiPickerTargetInputId = null;
+}
+
+function renderEmojiPickerGrid() {
+  const query = document.getElementById('emoji-picker-search').value.trim().toLowerCase();
+  const grid = document.getElementById('emoji-picker-grid');
+  const list = query ? EMOJI_PICKER_LIST.filter(item => item.k.includes(query)) : EMOJI_PICKER_LIST;
+  grid.innerHTML = list.length
+    ? list.map(item => `<button type="button" class="btn-icon" onmousedown="event.preventDefault(); selectEmojiPickerItem('${item.e}')" style="font-size:19px; background:none; border:none; cursor:pointer; padding:5px 0; border-radius:4px; line-height:1;" title="${item.k.split(' ')[0]}">${item.e}</button>`).join('')
+    : `<div style="grid-column: 1/-1; text-align:center; color:var(--text-muted); font-size:11px; padding:10px;">Nenhum emoji encontrado</div>`;
+}
+
+function selectEmojiPickerItem(emoji) {
+  if (emojiPickerTargetInputId) {
+    const input = document.getElementById(emojiPickerTargetInputId);
+    if (input) input.value = emoji;
+  }
+  closeEmojiPicker();
+}
+
+document.addEventListener('mousedown', (e) => {
+  const popover = document.getElementById('emoji-picker-popover');
+  if (!popover || popover.style.display !== 'block') return;
+  if (popover.contains(e.target) || e.target.id === emojiPickerTargetInputId) return;
+  closeEmojiPicker();
+});
 
 function isB3MarketOpen() {
   const now = new Date();
@@ -8603,6 +8716,7 @@ function openFinanceGoalModal(editId = '') {
 function closeFinanceGoalModal() {
   const modal = document.getElementById('finance-goal-modal');
   if (modal) modal.classList.remove('active');
+  closeEmojiPicker();
 }
 
 function handleSaveFinanceGoal(e) {
@@ -9314,6 +9428,7 @@ function openFinanceCategoryModal() {
 function closeFinanceCategoryModal() {
   const modal = document.getElementById('finance-category-modal');
   if (modal) modal.classList.remove('active');
+  closeEmojiPicker();
 }
 
 // Regra de categorizacao automatica: so bate por substring (case-insensitive)
@@ -9392,7 +9507,7 @@ function renderFinanceCategoryModalList() {
     if (c.id === editingId) {
       return `
         <div style="display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:var(--radius-md); background: rgba(15,107,76,0.06); border:1px solid rgba(15,107,76,0.25);">
-          <input type="text" class="input-field" id="finance-cat-edit-icon-${c.id}" value="${c.icon}" maxlength="8" style="width:44px; text-align:center; padding:4px;">
+          <input type="text" class="input-field" id="finance-cat-edit-icon-${c.id}" value="${c.icon}" maxlength="8" style="width:44px; text-align:center; padding:4px;" onfocus="openEmojiPicker('finance-cat-edit-icon-${c.id}', this)" title="Clique para escolher um emoji">
           <input type="text" class="input-field" id="finance-cat-edit-name-${c.id}" value="${c.name}" style="flex:1; padding:4px 8px;">
           <button class="btn btn-icon btn-sm" style="color:var(--green);" onclick="handleSaveFinanceCategoryEdit('${c.id}')" title="Salvar">💾</button>
           <button class="btn btn-icon btn-sm" onclick="AppState.financeCategoryEditingId = null; renderFinanceCategoryModalList();" title="Cancelar">✕</button>
@@ -14313,6 +14428,7 @@ async function initApp() {
       closeFinanceGoalModal();
       closeFinanceFixedCostModal();
       closeFinanceInvoiceModal();
+      closeEmojiPicker();
     }
   });
 
