@@ -2443,6 +2443,24 @@
 </div>
 
 <!-- ========================================== -->
+<!-- MODAL: VER FATURA DO CARTÃO                -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="finance-invoice-modal">
+  <div class="modal-box modal-lg" style="max-width: 680px;">
+    <div class="modal-header">
+      <div class="modal-title" id="finance-invoice-modal-title">🧾 Fatura</div>
+      <button class="modal-close" onclick="closeFinanceInvoiceModal()">✕</button>
+    </div>
+    <input type="hidden" id="finance-invoice-card-id" value="">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+      <label style="font-size:11px; font-weight:700; color:var(--text-sub); text-transform:uppercase;">Fatura de:</label>
+      <select class="select-field" id="finance-invoice-month-select" style="width:160px;" onchange="renderFinanceInvoiceModalContent()"></select>
+    </div>
+    <div id="finance-invoice-modal-content"></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
 <!-- MODAL: AUDITORIA E VALIDAÇÃO DE DADOS      -->
 <!-- ========================================== -->
 <div class="modal-overlay" id="audit-modal">
@@ -8393,7 +8411,10 @@ function renderFinanceCardsSection() {
       <div class="card" style="margin-bottom: 14px; border-left: 3px solid var(--accent);">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
           <strong>${card.icon || '💳'} ${card.name}</strong>
-          <span style="font-size:11px; color:var(--text-sub);">Fecha dia ${card.closingDay} · Vence dia ${card.dueDay}</span>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:11px; color:var(--text-sub);">Fecha dia ${card.closingDay} · Vence dia ${card.dueDay}</span>
+            <button class="btn btn-secondary btn-sm" onclick="openFinanceInvoiceModal('${card.id}')">👁️ Ver Fatura</button>
+          </div>
         </div>
         <div class="grid grid-4">
           <div class="stat-card">
@@ -8423,6 +8444,90 @@ function renderFinanceCardsSection() {
         </div>
       </div>`;
   }).join('');
+}
+
+// ---------- MODAL: VER FATURA ----------
+// getCardInvoiceForCycle ja devolve os lancamentos daquele ciclo
+// (tx.invoiceMonth === invoiceMonth), entao o modal so precisa listar
+// isso - nao duplica nenhuma logica de fatura ja existente nos cards.
+function openFinanceInvoiceModal(cardId, invoiceMonth) {
+  const card = (AppState.financeAccounts || []).find(a => a.id === cardId);
+  if (!card) return;
+  document.getElementById('finance-invoice-card-id').value = cardId;
+  document.getElementById('finance-invoice-modal-title').textContent = `🧾 Fatura - ${card.icon || '💳'} ${card.name}`;
+
+  const currentCycle = getCardCurrentOpenCycle(cardId);
+  const months = new Set((AppState.financeTransactions || [])
+    .filter(tx => tx.accountId === cardId && tx.invoiceMonth)
+    .map(tx => tx.invoiceMonth));
+  if (currentCycle) months.add(currentCycle);
+  const sortedMonths = [...months].sort();
+
+  const sel = document.getElementById('finance-invoice-month-select');
+  sel.innerHTML = sortedMonths.map(m => `<option value="${m}">${m}${m === currentCycle ? ' (aberta)' : ''}</option>`).join('');
+  sel.value = (invoiceMonth && sortedMonths.includes(invoiceMonth)) ? invoiceMonth : (currentCycle || sortedMonths[sortedMonths.length - 1] || '');
+
+  renderFinanceInvoiceModalContent();
+  document.getElementById('finance-invoice-modal').classList.add('active');
+}
+
+function closeFinanceInvoiceModal() {
+  const modal = document.getElementById('finance-invoice-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function renderFinanceInvoiceModalContent() {
+  const cardId = document.getElementById('finance-invoice-card-id').value;
+  const invoiceMonth = document.getElementById('finance-invoice-month-select').value;
+  const container = document.getElementById('finance-invoice-modal-content');
+  if (!cardId || !invoiceMonth || !container) return;
+
+  const invoice = getCardInvoiceForCycle(cardId, invoiceMonth);
+  const statusLabel = { open: '🔵 Em aberto', closed: invoice.isPaid ? '✅ Paga' : '🔴 Fechada, não paga', future: '⚪ Futura' }[invoice.status] || invoice.status;
+
+  const payActionHtml = invoice.status === 'closed'
+    ? (invoice.isPaid
+        ? `<button class="btn btn-secondary btn-sm" onclick="unmarkCardInvoiceAsPaid('${cardId}','${invoiceMonth}'); renderFinanceInvoiceModalContent();">Desfazer pagamento</button>`
+        : `<button class="btn btn-success btn-sm" onclick="markCardInvoiceAsPaid('${cardId}','${invoiceMonth}'); renderFinanceInvoiceModalContent();">Marcar como paga</button>`)
+    : '';
+
+  const rowsHtml = invoice.transactions.length === 0
+    ? `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); font-size:12px; padding:14px;">Nenhum lançamento nessa fatura.</td></tr>`
+    : [...invoice.transactions].sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(tx => {
+        const cat = (AppState.financeCategories || []).find(c => c.id === tx.categoryId);
+        const installmentBadge = tx.installmentTotal > 1 ? ` <span class="badge badge-flat" style="font-size:9px;">${tx.installmentNumber}/${tx.installmentTotal}</span>` : '';
+        return `
+          <tr>
+            <td class="text-mono" style="font-size:12px;">${NumFmt.date(tx.date)}</td>
+            <td>${tx.description}${installmentBadge}</td>
+            <td style="font-size:12px; color:var(--text-sub);">${cat ? cat.icon + ' ' + cat.name : '—'}</td>
+            <td class="text-right text-mono" style="font-weight:700;">${NumFmt.money(tx.amount)}</td>
+          </tr>`;
+      }).join('');
+
+  container.innerHTML = `
+    <div class="grid grid-3" style="margin-bottom:14px;">
+      <div class="stat-card">
+        <span class="stat-label">Total</span>
+        <div class="stat-val" style="font-size:18px;">${NumFmt.money(invoice.total)}</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Vencimento</span>
+        <div class="stat-val" style="font-size:18px;">${invoice.dueDate ? NumFmt.date(invoice.dueDate) : '—'}</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Status</span>
+        <div class="stat-val" style="font-size:15px;">${statusLabel}</div>
+      </div>
+    </div>
+    <div class="table-responsive" style="max-height:320px; overflow-y:auto;">
+      <table class="custom-table compact">
+        <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th class="text-right">Valor</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+    ${payActionHtml ? `<div style="margin-top:12px; text-align:right;">${payActionHtml}</div>` : ''}
+  `;
 }
 
 // ---------- OBJETIVOS (METAS) ----------
@@ -14187,6 +14292,7 @@ async function initApp() {
       closeFinanceHistoryModal();
       closeFinanceGoalModal();
       closeFinanceFixedCostModal();
+      closeFinanceInvoiceModal();
     }
   });
 
