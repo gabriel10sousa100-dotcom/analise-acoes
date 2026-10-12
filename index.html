@@ -2132,6 +2132,10 @@
             <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Conta de Destino</label>
             <select class="select-field" id="finance-tx-transfer-account" style="width: 100%;"></select>
           </div>
+          <div id="finance-tx-installment-inline-box" style="display:none;">
+            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Parcelado em</label>
+            <input type="number" class="input-field" id="finance-tx-installment-count" min="1" max="48" step="1" value="1" style="width: 100%;" oninput="onFinanceTransactionInstallmentCountChange()">
+          </div>
         </div>
         <div id="finance-tx-category-box">
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Categoria</label>
@@ -2168,16 +2172,6 @@
               <option value="add">+ Soma</option>
               <option value="subtract">− Subtrai</option>
             </select>
-          </div>
-        </div>
-        <div id="finance-tx-installment-box" style="display:none; background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 12px;">
-          <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; margin-bottom: 8px;">
-            <input type="checkbox" id="finance-tx-is-installment" onchange="onFinanceTransactionInstallmentToggle(this)">
-            Compra parcelada no cartão
-          </label>
-          <div id="finance-tx-installment-count-box" style="display:none;">
-            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Número de Parcelas</label>
-            <input type="number" class="input-field" id="finance-tx-installment-count" min="2" max="48" step="1" value="2" style="width: 100%;">
           </div>
         </div>
         <div>
@@ -8876,10 +8870,8 @@ function openFinanceTransactionModal(editId = '') {
 
   document.getElementById('finance-tx-notes').value = tx ? (tx.notes || '') : '';
   document.getElementById('finance-tx-ignored').checked = !!(tx && tx.ignored);
-  document.getElementById('finance-tx-is-installment').checked = false;
-  document.getElementById('finance-tx-is-installment').disabled = !!tx;
-  document.getElementById('finance-tx-installment-count').value = 2;
-  document.getElementById('finance-tx-installment-count-box').style.display = 'none';
+  document.getElementById('finance-tx-installment-count').value = isInstallmentTx ? tx.installmentTotal : 1;
+  document.getElementById('finance-tx-installment-count').disabled = isInstallmentTx;
   document.getElementById('finance-tx-is-split').checked = false;
   document.getElementById('finance-tx-split-rows').innerHTML = '';
   document.getElementById('finance-tx-split-box').style.display = 'none';
@@ -8890,7 +8882,6 @@ function openFinanceTransactionModal(editId = '') {
   onFinanceTransactionTypeChange();
   if (tx && tx.categoryId) document.getElementById('finance-tx-category').value = tx.categoryId;
   onFinanceTransactionAccountChange();
-  if (isInstallmentTx) document.getElementById('finance-tx-installment-box').style.display = 'none';
 
   modal.classList.add('active');
 }
@@ -8933,11 +8924,15 @@ function updateFinanceTxCategoryVisibility() {
   document.getElementById('finance-tx-category-box').style.display = ((type === 'expense' || type === 'income') && !isSplit) ? 'block' : 'none';
 }
 
-function onFinanceTransactionInstallmentToggle(checkbox) {
-  document.getElementById('finance-tx-installment-count-box').style.display = checkbox.checked ? 'block' : 'none';
-  if (checkbox.checked) {
+// "Parcelado em" e um numero sempre visivel quando a conta e cartao de
+// credito (nao mais um checkbox) - 1 (padrao) significa "a vista, nao e
+// parcela". Mutuamente exclusivo com divisao em categorias: subir pra >1
+// cancela a divisao em andamento.
+function onFinanceTransactionInstallmentCountChange() {
+  const count = parseInt(document.getElementById('finance-tx-installment-count').value) || 1;
+  if (count > 1) {
     const splitCheckbox = document.getElementById('finance-tx-is-split');
-    if (splitCheckbox.checked) { splitCheckbox.checked = false; onFinanceTransactionSplitToggle(); }
+    if (splitCheckbox && splitCheckbox.checked) { splitCheckbox.checked = false; onFinanceTransactionSplitToggle(); }
   }
 }
 
@@ -8946,8 +8941,8 @@ function onFinanceTransactionSplitToggle() {
   document.getElementById('finance-tx-split-box').style.display = checked ? 'block' : 'none';
   updateFinanceTxCategoryVisibility();
   if (checked) {
-    const instCheckbox = document.getElementById('finance-tx-is-installment');
-    if (instCheckbox.checked) { instCheckbox.checked = false; document.getElementById('finance-tx-installment-count-box').style.display = 'none'; }
+    const countInput = document.getElementById('finance-tx-installment-count');
+    if (countInput) countInput.value = 1;
     document.getElementById('finance-tx-split-rows').innerHTML = '';
     addFinanceTxSplitRow();
     addFinanceTxSplitRow();
@@ -8991,8 +8986,11 @@ function onFinanceTransactionAccountChange() {
   const accId = document.getElementById('finance-tx-account').value;
   const acc = (AppState.financeAccounts || []).find(a => a.id === accId);
   const isCard = !!(acc && acc.type === 'credit_card');
-  const editId = document.getElementById('finance-tx-edit-id').value;
-  document.getElementById('finance-tx-installment-box').style.display = (type === 'expense' && isCard && !editId) ? 'block' : 'none';
+  // Visivel tanto na criacao quanto na edicao - mudar a conta de um
+  // lancamento existente pra um cartao de credito precisa reaparecer aqui
+  // pra handleSaveFinanceTransaction recalcular isCardPurchase/invoiceMonth
+  // (sem isso a fatura do cartao nao reconhece o lancamento).
+  document.getElementById('finance-tx-installment-inline-box').style.display = (type === 'expense' && isCard) ? 'block' : 'none';
 }
 
 function handleSaveFinanceTransaction(e) {
@@ -9033,14 +9031,36 @@ function handleSaveFinanceTransaction(e) {
       });
       logFinanceChange('update', 'transacao', `Parcelas de "${baseDesc}" atualizadas${ignored ? ' (ignoradas)' : ''}`);
     } else {
-      AppState.financeTransactions[idx] = { ...existing, type, description, amount, date, accountId, categoryId, transferAccountId, investmentDirection, notes, tags, goalId, goalDirection, ignored };
-      logFinanceChange('update', 'transacao', `Lançamento "${description}" (${NumFmt.money(amount)}) editado${ignored ? ' (ignorado)' : ''}`);
+      const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
+      const isCardExpense = type === 'expense' && acc && acc.type === 'credit_card';
+      const installmentCount = isCardExpense ? (parseInt(document.getElementById('finance-tx-installment-count').value) || 1) : 1;
+
+      if (installmentCount > 1) {
+        // Lancamento simples virou compra parcelada nessa edicao - 1 registro
+        // nao vira N sem recriar, entao remove o original e materializa as
+        // parcelas novas (mesmo padrao usado na criacao).
+        AppState.financeTransactions.splice(idx, 1);
+        const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description, categoryId, notes, tags });
+        newTxs.forEach(t => { t.goalId = goalId; t.goalDirection = goalDirection; t.ignored = ignored; });
+        AppState.financeTransactions.unshift(...newTxs);
+        logFinanceChange('update', 'transacao', `Lançamento "${description}" transformado em compra parcelada em ${installmentCount}x (${NumFmt.money(amount)})`);
+      } else {
+        // Recalcula isCardPurchase/invoiceMonth sempre que a conta muda - sem
+        // isso, trocar a conta de um lancamento comum pra um cartao de
+        // credito (ou vice-versa) deixa a fatura do cartao dessincronizada,
+        // porque o invoiceMonth antigo/nulo nunca bate com o ciclo real.
+        const invoiceMonth = isCardExpense ? getInvoiceCycleForDate(acc, date) : null;
+        AppState.financeTransactions[idx] = {
+          ...existing, type, description, amount, date, accountId, categoryId, transferAccountId, investmentDirection, notes, tags, goalId, goalDirection, ignored,
+          isCardPurchase: isCardExpense, invoiceMonth, installmentGroupId: null, installmentNumber: null, installmentTotal: null
+        };
+        logFinanceChange('update', 'transacao', `Lançamento "${description}" (${NumFmt.money(amount)}) editado${ignored ? ' (ignorado)' : ''}`);
+      }
     }
   } else {
-    const isInstallmentChecked = document.getElementById('finance-tx-is-installment').checked;
-    const installmentCount = isInstallmentChecked ? (parseInt(document.getElementById('finance-tx-installment-count').value) || 1) : 1;
     const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
     const isCardExpense = type === 'expense' && acc && acc.type === 'credit_card';
+    const installmentCount = isCardExpense ? (parseInt(document.getElementById('finance-tx-installment-count').value) || 1) : 1;
     const isSplitChecked = document.getElementById('finance-tx-is-split').checked;
 
     if (isSplitChecked) {
