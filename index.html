@@ -4337,6 +4337,27 @@ const AppState = {
 // nunca pendente) nem em parcela ja confirmada (date <= hoje, inclusive a
 // que foi confirmada via o modal de pagamento, que grava a data real do
 // pagamento).
+// Garante que toda despesa lancada numa conta do tipo cartao tenha fatura
+// (isCardPurchase + invoiceMonth), mesmo as que entraram por caminhos que
+// nao calculavam isso (importacao, edicao antiga, conta que virou cartao).
+// Cartao sem dia de fechamento configurado fica de fora - sem ele nao da
+// pra saber o ciclo.
+(function migrateMissingCardInvoiceMonths() {
+  const cards = new Map((AppState.financeAccounts || [])
+    .filter(a => a.type === 'credit_card' && a.closingDay)
+    .map(a => [a.id, a]));
+  if (cards.size === 0) return;
+  let dirty = false;
+  (AppState.financeTransactions || []).forEach(tx => {
+    const card = cards.get(tx.accountId);
+    if (!card || tx.type !== 'expense' || (tx.isCardPurchase && tx.invoiceMonth)) return;
+    tx.isCardPurchase = true;
+    tx.invoiceMonth = getInvoiceCycleForDate(card, tx.date);
+    dirty = true;
+  });
+  if (dirty) localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+})();
+
 (function migrateFutureInstallmentsToPending() {
   const todayStr = new Date().toISOString().slice(0, 10);
   let dirty = false;
@@ -8481,11 +8502,10 @@ function renderFinanceTransactionsList() {
     const splitBadge = tx.splitGroupId
       ? `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);" title="Parte de um lançamento dividido em mais de uma categoria">✂️ Dividido</span>`
       : '';
-    // So aparece quando a fatura e DIFERENTE do mes da compra (fechamento do
-    // cartao ja passou) - deixa claro por que essa compra nao entra na
-    // "Despesa do mes" aqui em cima, so na fatura indicada.
-    const invoiceBadge = (tx.isCardPurchase && tx.invoiceMonth && tx.invoiceMonth !== (tx.date || '').slice(0, 7))
-      ? `<span class="badge badge-flat" style="font-size:9.5px; color:var(--text-sub);" title="Essa compra entra na fatura desse mês, não no resumo do mês da compra">🧾 Fatura ${tx.invoiceMonth}</span>`
+    // Toda compra de cartao mostra a fatura em que entra, mesmo quando e o
+    // mesmo mes da compra.
+    const invoiceBadge = (tx.isCardPurchase && tx.invoiceMonth)
+      ? `<span class="badge badge-flat" style="font-size:9.5px; color:var(--text-sub);" title="Fatura em que essa compra entra">🧾 Fatura ${tx.invoiceMonth}</span>`
       : '';
     return `
       <tr class="fav-table-row" style="cursor:pointer; ${tx.ignored ? 'opacity:0.55;' : ''}" onclick="openFinanceTransactionModal('${tx.id}')" title="Clique para editar">
