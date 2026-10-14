@@ -9713,21 +9713,28 @@ function handleSaveFinanceAccount(e) {
     AppState.financeAccounts[idx] = updated;
     logFinanceChange('update', 'conta', convertingToCard ? `Conta "${name}" convertida pra Cartão de Crédito` : `Conta "${name}" atualizada`);
 
-    if (convertingToCard) {
-      // Recalcula a fatura de tudo que ja foi lancado nessa conta antes da
-      // conversao - sem isso, as compras antigas ficariam "orfas" (sem
-      // invoiceMonth, nunca aparecendo em nenhuma fatura) pra sempre.
+    if (isCardType) {
+      // Recalcula a fatura de tudo que ja foi lancado nessa conta a partir
+      // do fechamento/vencimento ATUAIS - cobre tanto converter uma conta
+      // existente pra cartao quanto corrigir o fechamento/vencimento de um
+      // cartao que ja existia com esses dados errados/incompletos (sem
+      // isso, so lancamentos NOVOS passavam a ter fatura certa; os antigos
+      // ficavam presos no calculo de quando foram lancados, mesmo depois
+      // de voce corrigir os dias do cartao).
       let txDirty = false;
       (AppState.financeTransactions || []).forEach(tx => {
         if (tx.accountId === editId && tx.type === 'expense') {
-          tx.isCardPurchase = true;
-          tx.invoiceMonth = getInvoiceCycleForDate(updated, tx.date);
-          txDirty = true;
+          const newInvoiceMonth = getInvoiceCycleForDate(updated, tx.date);
+          if (!tx.isCardPurchase || tx.invoiceMonth !== newInvoiceMonth) {
+            tx.isCardPurchase = true;
+            tx.invoiceMonth = newInvoiceMonth;
+            txDirty = true;
+          }
         }
       });
       if (txDirty) {
         localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
-        logFinanceChange('update', 'transacao', `Lançamentos de "${name}" recalculados pra fatura após conversão pra cartão`);
+        logFinanceChange('update', 'transacao', `Lançamentos de "${name}" recalculados pra fatura`);
       }
     }
   } else {
