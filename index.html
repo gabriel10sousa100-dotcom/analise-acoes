@@ -2004,13 +2004,13 @@
           <div class="card" style="border-color: rgba(15, 107, 76, 0.3); background: linear-gradient(135deg, rgba(15, 107, 76, 0.04), var(--card));">
             <div class="card-title" style="margin-bottom: 12px; color: var(--accent);">☁️ Sincronização em Nuvem</div>
             <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-              Sincronize sua carteira, favoritos e histórico entre dispositivos usando seu próprio projeto Firebase (Firestore + Login Google). Seus dados ficam no seu projeto, não em servidores da aplicação.
+              Sincronize Minha Carteira, favoritos, histórico e todo o Controle Financeiro (contas, lançamentos, categorias, metas, custos fixos) entre dispositivos usando seu próprio projeto Firebase (Firestore + Login Google). Seus dados ficam no seu projeto, não em servidores da aplicação.
             </p>
             <div style="margin-bottom: 10px;">
               <label style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 4px;">Configuração do Firebase (JSON)</label>
               <textarea class="input-field" id="cfg-firebase-config" rows="3" style="width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 11px; resize: vertical;" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea>
               <div style="font-size: 11px; color: var(--text-dim); margin-top: 6px;">
-                💡 Crie um projeto grátis em <a href="https://console.firebase.google.com" target="_blank" style="color: var(--accent); text-decoration: underline;">console.firebase.google.com</a>, habilite <strong>Authentication → Google</strong> e <strong>Firestore Database</strong>, e cole a "Configuração do SDK" aqui. Depois, restrinja as regras do Firestore para que cada usuário só leia/escreva seu próprio documento (<code>request.auth.uid == userId</code>).
+                💡 Já vem preenchido com o Firebase deste projeto (Firestore + regras de segurança já configuradas, cada usuário só acessa o próprio documento). Falta só 1 passo único: em <a href="https://console.firebase.google.com" target="_blank" style="color: var(--accent); text-decoration: underline;">console.firebase.google.com</a>, abra este projeto → <strong>Authentication → Sign-in method</strong> → habilite o provedor <strong>Google</strong>. Depois é só clicar em "Conectar com Google" abaixo. Prefere usar seu próprio projeto Firebase em vez deste? Cole a configuração do seu projeto aqui pra sobrescrever.
               </div>
             </div>
             <div style="display: flex; gap: 8px; margin-bottom: 12px;">
@@ -2024,9 +2024,9 @@
 
           <!-- DATA & CACHE -->
           <div class="card" style="grid-column: span 2;">
-            <div class="card-title" style="margin-bottom: 12px;">💾 Armazenamento & Backup da Carteira</div>
+            <div class="card-title" style="margin-bottom: 12px;">💾 Armazenamento & Backup (Carteira + Controle Financeiro)</div>
             <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5;">
-              Exporte todos os seus lançamentos da Minha Carteira, ações favoritas e preferências para um arquivo seguro no seu computador.
+              Exporte tudo num arquivo só: Minha Carteira, ações favoritas, preferências e todo o Controle Financeiro (contas, lançamentos, categorias, metas, custos fixos, histórico) para um arquivo seguro no seu computador.
             </p>
             <div id="data-freshness-status" style="font-size: 11.5px; color: var(--text-sub); background: rgba(0,0,0,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 14px;"></div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -4020,6 +4020,22 @@ const DEFAULT_FII_FAVORITES = [
 ];
 
 // INITIAL SAMPLE APORTES / TRADES (STORED PER INDIVIDUAL PURCHASE - MULTI-ASSET: STOCKS & FIIS)
+// Config do mesmo projeto Firebase que ja hospeda esse site (Firestore em
+// modo nativo, database "(default)", regras em firestore.rules restringindo
+// cada usuario a /b3_sync/{seu_uid}). apiKey de app web do Firebase NAO e
+// segredo - a seguranca real vem das regras do Firestore + exigir login,
+// nao de esconder essa chave. Usado como fallback: se o usuario colar a
+// propria config em Configuracoes, aquela tem prioridade (ver AppState.firebaseConfig).
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC7m9UKX5HPpGKelofJWmSiHOj07ouYlxo",
+  authDomain: "analise-de-acoes-531a3.firebaseapp.com",
+  projectId: "analise-de-acoes-531a3",
+  storageBucket: "analise-de-acoes-531a3.firebasestorage.app",
+  messagingSenderId: "324263476770",
+  appId: "1:324263476770:web:39ede886b609d95797547b",
+  measurementId: "G-E19BCDCRKQ"
+};
+
 const DEFAULT_USER_TRADES = [
   { id: "tr_1", symbol: "BBAS3", quantity: 100, price: 17.95, date: "2026-05-10", notes: "Banco do Brasil — Ação de Dividendos" },
   { id: "tr_2", symbol: "TAEE4", quantity: 100, price: 11.90, date: "2026-05-02", notes: "Taesa PN — Aporte Inicial 1" },
@@ -4126,7 +4142,7 @@ const AppState = {
   notificationsEnabled: localStorage.getItem('b3_notifications_enabled') === 'true',
   dividendAlertDays: parseInt(localStorage.getItem('b3_dividend_alert_days') || '3'),
   triggeredDividendAlerts: JSON.parse(localStorage.getItem('b3_triggered_div_alerts') || '[]'),
-  firebaseConfig: JSON.parse(localStorage.getItem('b3_firebase_config') || 'null'),
+  firebaseConfig: JSON.parse(localStorage.getItem('b3_firebase_config') || JSON.stringify(DEFAULT_FIREBASE_CONFIG)),
   cloudUser: null,
   lastDailyRefresh: localStorage.getItem('b3_last_daily_refresh') || null,
   liveFundamentals: JSON.parse(localStorage.getItem('b3_live_fundamentals') || '{}'),
