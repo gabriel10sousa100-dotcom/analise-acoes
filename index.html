@@ -2004,7 +2004,7 @@
           <div class="card" style="border-color: rgba(15, 107, 76, 0.3); background: linear-gradient(135deg, rgba(15, 107, 76, 0.04), var(--card));">
             <div class="card-title" style="margin-bottom: 12px; color: var(--accent);">☁️ Sincronização em Nuvem</div>
             <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-              Sincronize Minha Carteira, favoritos, histórico e todo o Controle Financeiro (contas, lançamentos, categorias, metas, custos fixos) entre dispositivos usando seu próprio projeto Firebase (Firestore + Login Google). Seus dados ficam no seu projeto, não em servidores da aplicação. Uma vez conectado, qualquer alteração é <strong>enviada automaticamente</strong> (poucos segundos depois) - só o "Baixar" continua manual, pra você decidir quando trazer os dados de outro aparelho sem arriscar perder algo que ainda não enviou.
+              Sincronize Minha Carteira, favoritos, histórico e todo o Controle Financeiro (contas, lançamentos, categorias, metas, custos fixos) entre dispositivos usando seu próprio projeto Firebase (Firestore + Login Google). Seus dados ficam no seu projeto, não em servidores da aplicação. Uma vez conectado, qualquer alteração é <strong>enviada automaticamente</strong> (poucos segundos depois), e ao abrir o app num aparelho ele <strong>busca sozinho</strong> dados mais novos da nuvem e atualiza a tela. O botão "Baixar" continua disponível pra forçar isso na hora, se precisar.
             </p>
             <div style="margin-bottom: 10px;">
               <label style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 4px;">Configuração do Firebase (JSON)</label>
@@ -13783,6 +13783,7 @@ function clearAllCache() {
     localStorage.removeItem('b3_finance_category_rules');
     localStorage.removeItem('b3_finance_networth_history');
     localStorage.removeItem('b3_triggered_unusual_spending_alerts');
+    localStorage.removeItem('b3_last_known_cloud_update');
     AppState.favorites = [...DEFAULT_FAVORITES];
     AppState.trades = [...DEFAULT_USER_TRADES];
     AppState.portfolioDividends = [];
@@ -14143,6 +14144,7 @@ function initFirebaseIfConfigured() {
     firebaseAuthRef.onAuthStateChanged(user => {
       AppState.cloudUser = user ? { uid: user.uid, email: user.email } : null;
       renderCloudSyncStatus();
+      if (user) checkAndAutoPullFromCloud();
     });
   } catch (e) {
     console.warn('Falha ao iniciar Firebase:', e);
@@ -14184,6 +14186,7 @@ async function signInWithGoogleForSync() {
 
 async function signOutCloudSync() {
   if (firebaseAuthRef) await firebaseAuthRef.signOut();
+  localStorage.removeItem('b3_last_known_cloud_update');
   showToast('Desconectado da nuvem.', 'info');
 }
 
@@ -14235,6 +14238,13 @@ function applyBackupPayload(data) {
   if (data.financeNetWorthHistory) { AppState.financeNetWorthHistory = data.financeNetWorthHistory; localStorage.setItem('b3_finance_networth_history', JSON.stringify(data.financeNetWorthHistory)); }
 }
 
+// Marcador LOCAL (nao faz parte do backup/payload) do ultimo updatedAt da
+// nuvem que esse aparelho ja aplicou - usado so pra decidir se vale a pena
+// baixar de novo (checkAndAutoPullFromCloud), nunca sincronizado.
+function recordLocalCloudSyncMarker(epochMs) {
+  localStorage.setItem('b3_last_known_cloud_update', String(epochMs));
+}
+
 // Nucleo compartilhado pelo envio manual (pushToCloud, com toasts) e pelo
 // auto-envio debounced (scheduleAutoCloudSync, silencioso - so atualiza o
 // status na tela via renderCloudSyncStatus).
@@ -14242,9 +14252,39 @@ async function writeCloudBackup() {
   const payload = buildBackupPayload();
   payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
   await firebaseDbRef.collection('b3_sync').doc(AppState.cloudUser.uid).set(payload);
+  // FieldValue.serverTimestamp() so resolve no servidor - Date.now() local e
+  // uma aproximacao boa o bastante pra decidir "esse aparelho ja tem o que
+  // acabou de mandar", mesmo com uma pequena diferenca de relogio.
+  recordLocalCloudSyncMarker(Date.now());
   AppState.lastAutoSyncAt = new Date();
   AppState.autoSyncError = null;
   renderCloudSyncStatus();
+}
+
+// Roda 1x quando o login resolve (nao fica checando o tempo todo) - o
+// usuario so usa 1 aparelho de cada vez, entao o que importa e "abri o app
+// aqui, tem algo mais novo na nuvem do que esse aparelho ja tem?". Sem
+// confirm() nem pergunta: baixa e recarrega direto se a nuvem for mais
+// nova, porque o risco de sobrescrever edicao concorrente e baixo nesse
+// padrao de uso (sem concorrencia real entre aparelhos).
+async function checkAndAutoPullFromCloud() {
+  if (!firebaseDbRef || !AppState.cloudUser) return;
+  try {
+    const doc = await firebaseDbRef.collection('b3_sync').doc(AppState.cloudUser.uid).get();
+    if (!doc.exists) return;
+    const data = doc.data();
+    const cloudUpdatedAtMs = data.updatedAt && typeof data.updatedAt.toMillis === 'function' ? data.updatedAt.toMillis() : null;
+    if (cloudUpdatedAtMs == null) return;
+    const localKnownMs = parseInt(localStorage.getItem('b3_last_known_cloud_update') || '0', 10);
+    if (cloudUpdatedAtMs <= localKnownMs) return;
+    applyBackupPayload(data);
+    recordLocalCloudSyncMarker(cloudUpdatedAtMs);
+    syncAutomatedDividends();
+    showToast('Dados atualizados automaticamente da nuvem.', 'info');
+    setTimeout(() => location.reload(), 800);
+  } catch (e) {
+    console.warn('Auto-baixar da nuvem falhou:', e);
+  }
 }
 
 async function pushToCloud() {
@@ -14274,7 +14314,10 @@ async function pullFromCloud() {
       showToast('Nenhum backup encontrado na nuvem para esta conta.', 'error');
       return;
     }
-    applyBackupPayload(doc.data());
+    const data = doc.data();
+    applyBackupPayload(data);
+    const cloudUpdatedAtMs = data.updatedAt && typeof data.updatedAt.toMillis === 'function' ? data.updatedAt.toMillis() : Date.now();
+    recordLocalCloudSyncMarker(cloudUpdatedAtMs);
     syncAutomatedDividends();
     showToast('Dados restaurados da nuvem! Recarregando...', 'success');
     setTimeout(() => location.reload(), 1000);
@@ -14303,7 +14346,7 @@ function renderCloudSyncStatus() {
     statusEl.innerHTML = `<span class="status-pill good">Conectado como ${AppState.cloudUser.email}</span>${syncNote}`;
     actionsEl.innerHTML = `
       <button class="btn btn-primary btn-sm" onclick="pushToCloud()">☁️⬆️ Enviar agora</button>
-      <button class="btn btn-secondary btn-sm" onclick="pullFromCloud()">☁️⬇️ Baixar</button>
+      <button class="btn btn-secondary btn-sm" onclick="pullFromCloud()">☁️⬇️ Forçar baixar agora</button>
       <button class="btn btn-secondary btn-sm" style="color: var(--red);" onclick="signOutCloudSync()">Desconectar</button>`;
   }
 }
