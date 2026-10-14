@@ -9295,17 +9295,23 @@ function openFinanceTransactionModal(editId = '') {
   const tx = editId ? (AppState.financeTransactions || []).find(t => t.id === editId) : null;
   const typeSel = document.getElementById('finance-tx-type');
   const isInstallmentTx = !!(tx && tx.installmentTotal > 1);
+  // Parcelado e editado como a compra inteira: valor TOTAL, data/conta da
+  // 1a parcela e n de parcelas - salvar regenera o grupo todo (ver
+  // handleSaveFinanceTransaction).
+  const group = isInstallmentTx
+    ? (AppState.financeTransactions || []).filter(t => t.installmentGroupId === tx.installmentGroupId).sort((a, b) => a.installmentNumber - b.installmentNumber)
+    : null;
+  const first = group ? group[0] : tx;
 
   document.getElementById('finance-tx-modal-title').textContent = editId ? '✏️ Editar Lançamento' : '➕ Novo Lançamento';
   typeSel.value = tx ? tx.type : 'expense';
   typeSel.disabled = isInstallmentTx;
   document.getElementById('finance-tx-description').value = tx ? tx.description.replace(/\s*\(\d+\/\d+\)$/, '') : '';
-  document.getElementById('finance-tx-amount').value = tx ? tx.amount : '';
-  document.getElementById('finance-tx-amount').disabled = isInstallmentTx;
-  document.getElementById('finance-tx-date').value = tx ? tx.date : new Date().toISOString().slice(0, 10);
-  document.getElementById('finance-tx-date').disabled = isInstallmentTx;
-  accSel.value = tx ? tx.accountId : accounts[0].id;
-  accSel.disabled = isInstallmentTx;
+  document.getElementById('finance-tx-amount').value = group
+    ? parseFloat(group.reduce((s, t) => s + (Number(t.amount) || 0), 0).toFixed(2))
+    : (tx ? tx.amount : '');
+  document.getElementById('finance-tx-date').value = first ? first.date : new Date().toISOString().slice(0, 10);
+  accSel.value = first ? first.accountId : accounts[0].id;
   if (tx && tx.transferAccountId) transferSel.value = tx.transferAccountId;
   if (tx && tx.investmentDirection) document.getElementById('finance-tx-investment-direction').value = tx.investmentDirection;
 
@@ -9324,7 +9330,6 @@ function openFinanceTransactionModal(editId = '') {
   document.getElementById('finance-tx-notes').value = tx ? (tx.notes || '') : '';
   document.getElementById('finance-tx-ignored').checked = !!(tx && tx.ignored);
   document.getElementById('finance-tx-installment-count').value = isInstallmentTx ? tx.installmentTotal : 1;
-  document.getElementById('finance-tx-installment-count').disabled = isInstallmentTx;
   document.getElementById('finance-tx-is-split').checked = false;
   document.getElementById('finance-tx-split-rows').innerHTML = '';
   document.getElementById('finance-tx-split-box').style.display = 'none';
@@ -9477,12 +9482,38 @@ function handleSaveFinanceTransaction(e) {
     if (idx === -1) return;
     const existing = AppState.financeTransactions[idx];
     if (existing.installmentTotal > 1) {
+      // Edita a compra parcelada inteira: regenera todas as parcelas com o
+      // valor total/data da compra/conta/n de parcelas do formulario.
       const baseDesc = description.replace(/\s*\(\d+\/\d+\)$/, '');
-      AppState.financeTransactions = AppState.financeTransactions.map(t => {
-        if (t.installmentGroupId !== existing.installmentGroupId) return t;
-        return { ...t, description: `${baseDesc} (${t.installmentNumber}/${t.installmentTotal})`, categoryId: categoryId || t.categoryId, notes, tags, goalId, goalDirection, ignored };
+      const groupId = existing.installmentGroupId;
+      const oldGroup = AppState.financeTransactions.filter(t => t.installmentGroupId === groupId);
+      const installmentCount = Math.max(1, parseInt(document.getElementById('finance-tx-installment-count').value) || 1);
+      const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
+      const newIsCard = !!(acc && acc.type === 'credit_card');
+
+      // Parcela de Pix ja confirmada como paga continua paga depois da edicao.
+      const confirmedNumbers = new Set(oldGroup
+        .filter(t => !t.isCardPurchase && !t.pending)
+        .map(t => t.installmentNumber));
+      const maxConfirmed = Math.max(0, ...confirmedNumbers);
+      if (!newIsCard && installmentCount < maxConfirmed) {
+        showToast(`A parcela ${maxConfirmed} já foi paga - não dá pra reduzir pra menos de ${maxConfirmed} parcelas.`, 'error');
+        return;
+      }
+
+      const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description: baseDesc, categoryId, notes, tags });
+      newTxs.forEach(t => {
+        t.goalId = goalId;
+        t.goalDirection = goalDirection;
+        t.ignored = ignored;
+        if (installmentCount > 1) t.installmentGroupId = groupId;
+        if (!newIsCard && (installmentCount === 1 || confirmedNumbers.has(t.installmentNumber))) t.pending = false;
       });
-      logFinanceChange('update', 'transacao', `Parcelas de "${baseDesc}" atualizadas${ignored ? ' (ignoradas)' : ''}`);
+
+      const insertAt = AppState.financeTransactions.findIndex(t => t.installmentGroupId === groupId);
+      AppState.financeTransactions = AppState.financeTransactions.filter(t => t.installmentGroupId !== groupId);
+      AppState.financeTransactions.splice(insertAt, 0, ...newTxs);
+      logFinanceChange('update', 'transacao', `Compra parcelada "${baseDesc}" editada: ${installmentCount}x, total ${NumFmt.money(amount)}${ignored ? ' (ignorada)' : ''}`);
     } else {
       const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
       const isCardExpense = type === 'expense' && acc && acc.type === 'credit_card';
