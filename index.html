@@ -7346,7 +7346,14 @@ function generateInstallments(purchase) {
   const result = [];
   for (let i = 1; i <= n; i++) {
     const amount = i < n ? perInstallment : parseFloat((totalAmount - perInstallment * (n - 1)).toFixed(2));
-    const installmentDate = isCard ? purchaseDate : addMonthsToDateStr(purchaseDate, i - 1);
+    // Cada parcela e datada no proprio mes dela (nao fixa na data da compra)
+    // - inclusive pra cartao: Lançamentos filtra pela data real (ver
+    // getFilteredFinanceTransactions), entao se todas as parcelas
+    // compartilhassem a data da compra, elas apareceriam amontoadas no mes
+    // em que o parcelamento foi criado em vez de cada uma no seu mes real.
+    // invoiceMonth (abaixo) continua calculado a partir da data ORIGINAL da
+    // compra - e o que importa pra fatura/ciclo do cartao, independente de date.
+    const installmentDate = addMonthsToDateStr(purchaseDate, i - 1);
     result.push({
       id: 'ftx_' + Date.now() + '_' + i + '_' + Math.floor(Math.random() * 1000),
       type: 'expense',
