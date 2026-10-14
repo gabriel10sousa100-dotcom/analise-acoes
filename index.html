@@ -2253,6 +2253,11 @@
             <input type="number" class="input-field" id="finance-acc-due-day" min="1" max="31" step="1" style="width: 100%;">
           </div>
         </div>
+        <div id="finance-acc-convert-box" style="display:none; background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 12px;">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 6px;">💳 Converter pra Cartão de Crédito</label>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">Pra contas criadas por importação de extrato (sempre nascem como Conta Corrente) que na verdade são um cartão. Recalcula a fatura de todas as compras já lançadas nela.</p>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="handleConvertFinanceAccountToCard()">Converter Esta Conta pra Cartão</button>
+        </div>
         <div id="finance-acc-merge-box" style="display:none; background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 12px;">
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 6px;">🔗 Mesclar com outra conta (ex: duplicata do mesmo banco)</label>
           <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">Move todos os lançamentos desta conta para a conta escolhida e exclui esta. Útil quando a importação criou 2 contas pro mesmo banco.</p>
@@ -9609,6 +9614,8 @@ function openFinanceAccountModal(editId = '') {
   document.getElementById('finance-acc-delete-btn').style.display = editId ? 'inline-flex' : 'none';
   document.getElementById('finance-acc-submit-btn').textContent = editId ? 'Salvar Alterações' : 'Salvar Conta';
 
+  document.getElementById('finance-acc-convert-box').style.display = (acc && acc.type !== 'credit_card') ? 'block' : 'none';
+
   const mergeBox = document.getElementById('finance-acc-merge-box');
   if (editId) {
     const otherAccounts = (AppState.financeAccounts || []).filter(a => a.id !== editId && !a.archived);
@@ -9674,6 +9681,20 @@ function onFinanceAccountTypeChange() {
   document.getElementById('finance-acc-initial-balance').parentElement.style.display = isCard ? 'none' : 'block';
 }
 
+// "Tipo" fica travado ao editar uma conta (ver openFinanceAccountModal) pra
+// evitar troca acidental, mas o <select> continua tendo seu valor lido
+// normalmente por handleSaveFinanceAccount (disabled so bloqueia input do
+// usuario, nao leitura via JS) - entao da pra forcar o valor aqui e deixar
+// o fluxo normal de salvar fazer o resto. Pensado pro caso de uma conta
+// criada via importacao de extrato (sempre nasce "Conta Corrente", nunca
+// cartao) que na verdade e um cartao de credito.
+function handleConvertFinanceAccountToCard() {
+  document.getElementById('finance-acc-type').value = 'credit_card';
+  onFinanceAccountTypeChange();
+  document.getElementById('finance-acc-convert-box').style.display = 'none';
+  showToast('Preencha limite/fechamento/vencimento e clique em "Salvar Alterações" pra confirmar.', 'info');
+}
+
 function handleSaveFinanceAccount(e) {
   e.preventDefault();
   const editId = document.getElementById('finance-acc-edit-id').value;
@@ -9685,7 +9706,13 @@ function handleSaveFinanceAccount(e) {
 
   const typeIcons = { checking: '🏦', savings: '🐷', cash: '💵', credit_card: '💳' };
 
-  const isCardType = (editId ? AppState.financeAccounts.find(a => a.id === editId)?.type : type) === 'credit_card';
+  // Le sempre o tipo ATUAL do formulario, nao o tipo antigo salvo - o
+  // <select> fica travado contra clique do usuario ao editar (ver
+  // openFinanceAccountModal), mas handleConvertFinanceAccountToCard pode
+  // forcar o valor dele via JS pra converter uma conta existente em cartao,
+  // entao a validacao e o salvamento precisam reagir a esse valor, nao ao
+  // tipo com que a conta foi criada.
+  const isCardType = type === 'credit_card';
   let closingDay, dueDay;
   if (isCardType) {
     closingDay = parseInt(document.getElementById('finance-acc-closing-day').value);
@@ -9704,16 +9731,41 @@ function handleSaveFinanceAccount(e) {
     const idx = AppState.financeAccounts.findIndex(a => a.id === editId);
     if (idx === -1) return;
     const existing = AppState.financeAccounts[idx];
+    const convertingToCard = isCardType && existing.type !== 'credit_card';
     const updated = { ...existing, name };
-    if (existing.type === 'credit_card') {
+    if (isCardType) {
+      updated.type = 'credit_card';
+      updated.icon = typeIcons.credit_card;
       updated.creditLimit = parseFloat(document.getElementById('finance-acc-credit-limit').value) || 0;
       updated.closingDay = closingDay;
       updated.dueDay = dueDay;
+      if (convertingToCard) {
+        updated.initialBalance = 0;
+        updated.paidInvoiceMonths = existing.paidInvoiceMonths || [];
+      }
     } else {
       updated.initialBalance = initialBalance;
     }
     AppState.financeAccounts[idx] = updated;
-    logFinanceChange('update', 'conta', `Conta "${name}" atualizada`);
+    logFinanceChange('update', 'conta', convertingToCard ? `Conta "${name}" convertida pra Cartão de Crédito` : `Conta "${name}" atualizada`);
+
+    if (convertingToCard) {
+      // Recalcula a fatura de tudo que ja foi lancado nessa conta antes da
+      // conversao - sem isso, as compras antigas ficariam "orfas" (sem
+      // invoiceMonth, nunca aparecendo em nenhuma fatura) pra sempre.
+      let txDirty = false;
+      (AppState.financeTransactions || []).forEach(tx => {
+        if (tx.accountId === editId && tx.type === 'expense') {
+          tx.isCardPurchase = true;
+          tx.invoiceMonth = getInvoiceCycleForDate(updated, tx.date);
+          txDirty = true;
+        }
+      });
+      if (txDirty) {
+        localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+        logFinanceChange('update', 'transacao', `Lançamentos de "${name}" recalculados pra fatura após conversão pra cartão`);
+      }
+    }
   } else {
     const isCard = type === 'credit_card';
     AppState.financeAccounts.unshift({
