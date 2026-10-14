@@ -7256,6 +7256,15 @@ function addMonthsToYYYYMM(yyyymm, n) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Soma n meses a uma data 'YYYY-MM-DD', mantendo o dia (clampado se o mes de
+// destino for mais curto - ex: dia 31 + 1 mes em abril vira dia 30).
+function addMonthsToDateStr(dateStr, n) {
+  const [y, m, day] = dateStr.split('-').map(Number);
+  const d = new Date(y, (m - 1) + n, 1);
+  const clampedDay = Math.min(day, daysInMonth(d.getFullYear(), d.getMonth() + 1));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
+}
+
 // Em qual ciclo de fatura (mes de FECHAMENTO, 'YYYY-MM') uma data cai, dado o
 // dia de fechamento do cartao. Compra EXATAMENTE no dia de fechamento ainda
 // entra nesse ciclo (comparacao e "day > effClosing", nao ">=").
@@ -7280,18 +7289,20 @@ function getInvoiceDueDate(cardAccount, invoiceMonth) {
   return `${dueMonth}-${String(dueDayClamped).padStart(2, '0')}`;
 }
 
-// Gera os N lancamentos (parcelas) de uma compra - sempre type:'expense'.
-// Usada tanto pra compras parceladas (N>1) quanto pra compra de cartao a
-// vista (N=1, sem installmentGroupId) - assim toda despesa no cartao,
-// parcelada ou nao, ja sai com invoiceMonth calculado e gravado uma unica
-// vez. Funcao pura: nao mexe em AppState nem localStorage, quem chama
+// Gera os N lancamentos (parcelas) de uma despesa - sempre type:'expense'.
+// Usada tanto pra compra de cartao (parcelada ou N=1 a vista, com
+// invoiceMonth calculado a partir do ciclo de fatura) quanto pra parcelamento
+// fora do cartao (ex: PIX futuro) - nesse caso nao ha fatura, entao quem
+// separa as parcelas em meses e a propria data, que avanca 1 mes por
+// parcela. Funcao pura: nao mexe em AppState nem localStorage, quem chama
 // persiste.
 function generateInstallments(purchase) {
   const { accountId, totalAmount, installmentCount, purchaseDate, description, categoryId, notes, tags } = purchase;
   const card = (AppState.financeAccounts || []).find(a => a.id === accountId);
+  const isCard = !!(card && card.type === 'credit_card');
   const n = Math.max(1, installmentCount || 1);
   const groupId = n > 1 ? ('insg_' + Date.now() + '_' + Math.floor(Math.random() * 1000)) : null;
-  const baseCycle = card ? getInvoiceCycleForDate(card, purchaseDate) : purchaseDate.slice(0, 7);
+  const baseCycle = isCard ? getInvoiceCycleForDate(card, purchaseDate) : purchaseDate.slice(0, 7);
   const perInstallment = Math.floor((totalAmount * 100) / n) / 100;
 
   const result = [];
@@ -7302,7 +7313,7 @@ function generateInstallments(purchase) {
       type: 'expense',
       description: n > 1 ? `${description} (${i}/${n})` : description,
       amount,
-      date: purchaseDate,
+      date: isCard ? purchaseDate : addMonthsToDateStr(purchaseDate, i - 1),
       accountId,
       categoryId,
       notes: notes || '',
@@ -7312,11 +7323,11 @@ function generateInstallments(purchase) {
       originalAccountLabel: null,
       transferAccountId: null,
       investmentDirection: null,
-      isCardPurchase: true,
+      isCardPurchase: isCard,
       installmentGroupId: groupId,
       installmentNumber: i,
       installmentTotal: n,
-      invoiceMonth: addMonthsToYYYYMM(baseCycle, i - 1),
+      invoiceMonth: isCard ? addMonthsToYYYYMM(baseCycle, i - 1) : null,
       fixedCostId: null,
       goalId: null,
       goalDirection: null,
@@ -8361,11 +8372,11 @@ function renderFinanceTransactionsList() {
         <td colspan="7" class="sub-trades-cell">
           <div class="sub-trades-box">
             <div class="sub-trades-header">Parcelas de "${tx.description.replace(/\s*\(\d+\/\d+\)$/, '')}"
-              <button class="btn btn-secondary btn-sm" style="color:var(--red); margin-left:8px;" onclick="handleDeleteFinanceInstallmentGroup('${tx.installmentGroupId}')">Excluir compra parcelada inteira</button>
+              <button class="btn btn-secondary btn-sm" style="color:var(--red); margin-left:8px;" onclick="handleDeleteFinanceInstallmentGroup('${tx.installmentGroupId}')">Excluir lançamento parcelado inteiro</button>
             </div>
             <table class="sub-trades-table">
               ${(AppState.financeTransactions || []).filter(t => t.installmentGroupId === tx.installmentGroupId).sort((a, b) => a.installmentNumber - b.installmentNumber).map(p => `
-                <tr><td>${p.installmentNumber}/${p.installmentTotal}</td><td>${p.invoiceMonth}</td><td class="text-right text-mono">${NumFmt.money(p.amount)}</td></tr>
+                <tr><td>${p.installmentNumber}/${p.installmentTotal}</td><td>${p.invoiceMonth || p.date.slice(0, 7)}</td><td class="text-right text-mono">${NumFmt.money(p.amount)}</td></tr>
               `).join('')}
             </table>
           </div>
@@ -9113,10 +9124,11 @@ function updateFinanceTxCategoryVisibility() {
   document.getElementById('finance-tx-category-box').style.display = ((type === 'expense' || type === 'income') && !isSplit) ? 'block' : 'none';
 }
 
-// "Parcelado em" e um numero sempre visivel quando a conta e cartao de
-// credito (nao mais um checkbox) - 1 (padrao) significa "a vista, nao e
-// parcela". Mutuamente exclusivo com divisao em categorias: subir pra >1
-// cancela a divisao em andamento.
+// "Parcelado em" e um numero sempre visivel em qualquer despesa (nao mais um
+// checkbox, e nao mais exclusivo de cartao de credito - serve tambem pra
+// parcelar um PIX/debito futuro em conta comum) - 1 (padrao) significa "a
+// vista, nao e parcela". Mutuamente exclusivo com divisao em categorias:
+// subir pra >1 cancela a divisao em andamento.
 function onFinanceTransactionInstallmentCountChange() {
   const count = parseInt(document.getElementById('finance-tx-installment-count').value) || 1;
   if (count > 1) {
@@ -9172,14 +9184,13 @@ function updateFinanceTxSplitRemaining() {
 
 function onFinanceTransactionAccountChange() {
   const type = document.getElementById('finance-tx-type').value;
-  const accId = document.getElementById('finance-tx-account').value;
-  const acc = (AppState.financeAccounts || []).find(a => a.id === accId);
-  const isCard = !!(acc && acc.type === 'credit_card');
-  // Visivel tanto na criacao quanto na edicao - mudar a conta de um
-  // lancamento existente pra um cartao de credito precisa reaparecer aqui
-  // pra handleSaveFinanceTransaction recalcular isCardPurchase/invoiceMonth
-  // (sem isso a fatura do cartao nao reconhece o lancamento).
-  document.getElementById('finance-tx-installment-inline-box').style.display = (type === 'expense' && isCard) ? 'block' : 'none';
+  // Visivel pra qualquer despesa, nao so cartao - parcelamento tambem serve
+  // pra compromissos futuros fora do cartao (ex: PIX de uma divida em N
+  // vezes). Continua recalculado na troca de conta: mudar de/pra cartao de
+  // credito precisa reaparecer aqui pra handleSaveFinanceTransaction
+  // recalcular isCardPurchase/invoiceMonth (sem isso a fatura do cartao nao
+  // reconhece o lancamento).
+  document.getElementById('finance-tx-installment-inline-box').style.display = (type === 'expense') ? 'block' : 'none';
 }
 
 function handleSaveFinanceTransaction(e) {
@@ -9222,17 +9233,18 @@ function handleSaveFinanceTransaction(e) {
     } else {
       const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
       const isCardExpense = type === 'expense' && acc && acc.type === 'credit_card';
-      const installmentCount = isCardExpense ? (parseInt(document.getElementById('finance-tx-installment-count').value) || 1) : 1;
+      const installmentCount = type === 'expense' ? (parseInt(document.getElementById('finance-tx-installment-count').value) || 1) : 1;
 
       if (installmentCount > 1) {
-        // Lancamento simples virou compra parcelada nessa edicao - 1 registro
-        // nao vira N sem recriar, entao remove o original e materializa as
-        // parcelas novas (mesmo padrao usado na criacao).
+        // Lancamento simples virou parcelado nessa edicao - 1 registro nao
+        // vira N sem recriar, entao remove o original e materializa as
+        // parcelas novas (mesmo padrao usado na criacao). Vale tanto pra
+        // cartao quanto pra parcelamento fora do cartao (ex: PIX futuro).
         AppState.financeTransactions.splice(idx, 1);
         const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description, categoryId, notes, tags });
         newTxs.forEach(t => { t.goalId = goalId; t.goalDirection = goalDirection; t.ignored = ignored; });
         AppState.financeTransactions.unshift(...newTxs);
-        logFinanceChange('update', 'transacao', `Lançamento "${description}" transformado em compra parcelada em ${installmentCount}x (${NumFmt.money(amount)})`);
+        logFinanceChange('update', 'transacao', `Lançamento "${description}" transformado em parcelado em ${installmentCount}x (${NumFmt.money(amount)})`);
       } else {
         // Recalcula isCardPurchase/invoiceMonth sempre que a conta muda - sem
         // isso, trocar a conta de um lancamento comum pra um cartao de
@@ -9249,7 +9261,7 @@ function handleSaveFinanceTransaction(e) {
   } else {
     const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
     const isCardExpense = type === 'expense' && acc && acc.type === 'credit_card';
-    const installmentCount = isCardExpense ? (parseInt(document.getElementById('finance-tx-installment-count').value) || 1) : 1;
+    const installmentCount = type === 'expense' ? (parseInt(document.getElementById('finance-tx-installment-count').value) || 1) : 1;
     const isSplitChecked = document.getElementById('finance-tx-is-split').checked;
 
     if (isSplitChecked) {
@@ -9277,11 +9289,13 @@ function handleSaveFinanceTransaction(e) {
       }));
       AppState.financeTransactions.unshift(...newTxs);
       logFinanceChange('create', 'transacao', `Lançamento "${description}" (${NumFmt.money(amount)}) dividido em ${newTxs.length} categorias${ignored ? ' (ignorado)' : ''}`);
-    } else if (isCardExpense) {
+    } else if (isCardExpense || installmentCount > 1) {
       const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description, categoryId, notes, tags });
       newTxs.forEach(t => { t.goalId = goalId; t.goalDirection = goalDirection; t.ignored = ignored; });
       AppState.financeTransactions.unshift(...newTxs);
-      logFinanceChange('create', 'transacao', `Compra parcelada "${description}" em ${installmentCount}x (${NumFmt.money(amount)}) lançada${ignored ? ' (ignorada)' : ''}`);
+      logFinanceChange('create', 'transacao', installmentCount > 1
+        ? `Lançamento parcelado "${description}" em ${installmentCount}x (${NumFmt.money(amount)}) lançado${ignored ? ' (ignorado)' : ''}`
+        : `Lançamento "${description}" (${NumFmt.money(amount)}) lançado${ignored ? ' (ignorado)' : ''}`);
     } else {
       AppState.financeTransactions.unshift({
         id: 'ftx_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
@@ -9320,13 +9334,13 @@ function handleDeleteFinanceTransaction(id) {
 function handleDeleteFinanceInstallmentGroup(groupId) {
   const groupTxs = (AppState.financeTransactions || []).filter(t => t.installmentGroupId === groupId);
   const count = groupTxs.length;
-  if (!confirm(`Excluir as ${count} parcelas dessa compra inteira?`)) return;
+  if (!confirm(`Excluir as ${count} parcelas desse lançamento inteiro?`)) return;
   const baseDesc = (groupTxs[0]?.description || '').replace(/\s*\(\d+\/\d+\)$/, '');
   AppState.financeTransactions = AppState.financeTransactions.filter(t => t.installmentGroupId !== groupId);
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
-  logFinanceChange('delete', 'transacao', `Compra parcelada "${baseDesc}" (${count} parcelas) excluída`);
+  logFinanceChange('delete', 'transacao', `Lançamento parcelado "${baseDesc}" (${count} parcelas) excluído`);
   renderFinanceView();
-  showToast('Compra parcelada excluída.', 'info');
+  showToast('Lançamento parcelado excluído.', 'info');
 }
 
 // ---------- MODAL: CONTA ----------
