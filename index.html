@@ -985,7 +985,7 @@
         <!-- PAGAMENTOS PROGRAMADOS (parcelas fora do cartao, ex: Pix futuro, ainda nao confirmadas) -->
         <div class="card" style="margin-bottom: 20px;">
           <div class="card-header">
-            <div class="card-title">📅 Pagamentos Programados</div>
+            <div class="card-title" id="finance-pending-payments-title">📅 Pagamentos Programados</div>
             <span class="status-pill" id="finance-pending-payments-total" style="font-size:12px;">Total: R$ 0,00</span>
           </div>
           <div class="table-responsive" id="finance-pending-payments-container" style="margin-top: 4px;"></div>
@@ -9062,11 +9062,20 @@ function renderFinanceFixedCostsSection() {
 // openConfirmPendingPaymentModal). Diferente de Custos Fixos: aqui a
 // parcela ja existe como lancamento real, so fica fora do saldo/resumo e
 // de Lançamentos ate ser confirmada.
+// So mostra as parcelas pendentes do MES ATIVO (AppState.financeActiveMonth)
+// - mesmo escopo que Lançamentos ja usa, navegado pelos mesmos botoes de
+// mes. Trocar pra novembro mostra so pendencias de novembro, dezembro so
+// as de dezembro, etc.
 function renderFinancePendingPaymentsSection() {
   const container = document.getElementById('finance-pending-payments-container');
   const totalEl = document.getElementById('finance-pending-payments-total');
+  const titleEl = document.getElementById('finance-pending-payments-title');
   if (!container) return;
-  const pending = (AppState.financeTransactions || []).filter(tx => tx.pending).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  if (titleEl) titleEl.textContent = `📅 Pagamentos Programados (${AppState.financeActiveMonth})`;
+
+  const pending = (AppState.financeTransactions || [])
+    .filter(tx => tx.pending && (tx.date || '').slice(0, 7) === AppState.financeActiveMonth)
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
   if (totalEl) {
     const total = pending.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
@@ -9074,7 +9083,7 @@ function renderFinancePendingPaymentsSection() {
   }
 
   if (pending.length === 0) {
-    container.innerHTML = `<div class="state-box"><div class="state-icon">📅</div><div class="state-title">Nenhum pagamento programado pendente</div><div class="state-desc">Parcelas de um lançamento parcelado fora do cartão (ex: Pix futuro combinado em N vezes) aparecem aqui até você confirmar que o pagamento foi feito de verdade.</div></div>`;
+    container.innerHTML = `<div class="state-box"><div class="state-icon">📅</div><div class="state-title">Nenhum pagamento programado pendente em ${AppState.financeActiveMonth}</div><div class="state-desc">Parcelas de um lançamento parcelado fora do cartão (ex: Pix futuro combinado em N vezes) aparecem aqui, no mês delas, até você confirmar que o pagamento foi feito de verdade. Navegue pelos meses acima pra ver as de outros meses.</div></div>`;
     return;
   }
 
