@@ -2461,6 +2461,10 @@
         <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Pago com qual conta?</label>
         <select class="select-field" id="finance-confirm-payment-account" style="width: 100%;"></select>
       </div>
+      <div>
+        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Data do pagamento</label>
+        <input type="date" class="input-field" id="finance-confirm-payment-date" style="width: 100%;">
+      </div>
       <div style="display: flex; gap: 10px; margin-top: 4px;">
         <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeConfirmPendingPaymentModal()">Cancelar</button>
         <button type="button" class="btn btn-success" style="flex: 1;" onclick="handleConfirmPendingPayment()">Confirmar Pagamento</button>
@@ -8314,12 +8318,19 @@ function renderFinanceAccountsList() {
 // Filtro de lancamentos do mes ativo (tipo/conta/categoria/dia) - extraido
 // pra ser reusado tanto pela lista na tela quanto pela exportacao CSV, sem
 // duplicar a logica de filtro em 2 lugares.
-// "Lancamento" e so o que ja aconteceu de fato - parcela pendente (Pix
-// futuro ainda nao confirmado) fica de fora daqui, so aparece no quadrante
-// Pagamentos Programados ate ser confirmada (ver openConfirmPendingPaymentModal).
+// "Lancamento" e so o que ja aconteceu de fato: usa a data REAL do
+// lancamento (nao getEffectiveMonth/invoiceMonth) - uma compra de cartao
+// deve aparecer aqui no mes em que ela aconteceu, mesmo que va cair na
+// fatura do mes seguinte (isso ja e como o calendario filtra). O resumo/
+// KPIs do mes continuam usando getEffectiveMonth, que e o calculo certo
+// pra "quanto vou pagar nessa fatura" - so a listagem crua de lancamentos
+// usa data real, pra nunca "sumir" uma compra so por causa do dia de
+// fechamento do cartao. Parcela pendente (Pix futuro ainda nao confirmado)
+// tambem fica de fora - so aparece no quadrante Pagamentos Programados ate
+// ser confirmada (ver openConfirmPendingPaymentModal).
 function getFilteredFinanceTransactions() {
   const f = AppState.financeFilters;
-  let txs = (AppState.financeTransactions || []).filter(tx => getEffectiveMonth(tx) === AppState.financeActiveMonth && !tx.pending);
+  let txs = (AppState.financeTransactions || []).filter(tx => (tx.date || '').slice(0, 7) === AppState.financeActiveMonth && !tx.pending);
   if (f.type !== 'all') txs = txs.filter(tx => tx.type === f.type);
   if (f.accountId !== 'all') txs = txs.filter(tx => tx.accountId === f.accountId || tx.transferAccountId === f.accountId);
   if (f.categoryId !== 'all') txs = txs.filter(tx => tx.categoryId === f.categoryId);
@@ -8406,10 +8417,16 @@ function renderFinanceTransactionsList() {
     const splitBadge = tx.splitGroupId
       ? `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);" title="Parte de um lançamento dividido em mais de uma categoria">✂️ Dividido</span>`
       : '';
+    // So aparece quando a fatura e DIFERENTE do mes da compra (fechamento do
+    // cartao ja passou) - deixa claro por que essa compra nao entra na
+    // "Despesa do mes" aqui em cima, so na fatura indicada.
+    const invoiceBadge = (tx.isCardPurchase && tx.invoiceMonth && tx.invoiceMonth !== (tx.date || '').slice(0, 7))
+      ? `<span class="badge badge-flat" style="font-size:9.5px; color:var(--text-sub);" title="Essa compra entra na fatura desse mês, não no resumo do mês da compra">🧾 Fatura ${tx.invoiceMonth}</span>`
+      : '';
     return `
       <tr class="fav-table-row" style="cursor:pointer; ${tx.ignored ? 'opacity:0.55;' : ''}" onclick="openFinanceTransactionModal('${tx.id}')" title="Clique para editar">
         <td class="text-mono" style="font-size:12px;">${NumFmt.date(tx.date)}</td>
-        <td>${tx.description} ${installmentBadge} ${splitBadge} ${ignoredBadge} ${(tx.tags || []).map(tag => `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);">🏷️ ${tag}</span>`).join(' ')}</td>
+        <td>${tx.description} ${installmentBadge} ${splitBadge} ${ignoredBadge} ${invoiceBadge} ${(tx.tags || []).map(tag => `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);">🏷️ ${tag}</span>`).join(' ')}</td>
         <td style="font-size:12px; color:var(--text-sub);">${cat ? cat.icon + ' ' + cat.name : '—'}</td>
         <td style="font-size:12px; color:var(--text-sub);">${acc ? (acc.icon || '') + ' ' + acc.name : 'Conta removida'}${tx.type === 'transfer' ? ' → ' + destAccName : ''}</td>
         <td class="text-right text-mono" style="font-weight:700; color:${amountColor};">${amountSign}${NumFmt.money(tx.amount)}</td>
@@ -8454,12 +8471,15 @@ function toggleFinanceTransactionIgnored(id) {
 }
 
 // ---------- MODAL: CONFIRMAR PAGAMENTO DE PARCELA PROGRAMADA ----------
-// Mesmo padrao do "marcar como pago" de Custos Fixos, com um passo a mais:
-// como uma parcela de Pix futuro (ver generateInstallments) e combinada
-// com antecedencia, a conta que de fato paga pode nao ser mais a que foi
-// escolhida na criacao do parcelamento - entao pergunta de novo na hora de
-// confirmar. So depois de confirmada ela deixa de ser "pending" e passa a
-// aparecer em Lançamentos (ver filtro em getFilteredFinanceTransactions).
+// Mesmo padrao do "marcar como pago" de Custos Fixos, com dois passos a
+// mais: como uma parcela de Pix futuro (ver generateInstallments) e
+// combinada com antecedencia, (1) a conta que de fato paga pode nao ser
+// mais a que foi escolhida na criacao do parcelamento, e (2) a data real
+// do pagamento pode nao bater com o vencimento original (pago adiantado/
+// atrasado) - "lancamento" e o que de fato aconteceu, entao a data exibida
+// em Lançamentos precisa refletir o pagamento real, nao so o planejado.
+// So depois de confirmada ela deixa de ser "pending" e passa a aparecer em
+// Lançamentos, no mes da data informada aqui (ver getFilteredFinanceTransactions).
 function openConfirmPendingPaymentModal(id) {
   const tx = (AppState.financeTransactions || []).find(t => t.id === id);
   if (!tx) return;
@@ -8470,6 +8490,8 @@ function openConfirmPendingPaymentModal(id) {
   const accounts = (AppState.financeAccounts || []).filter(a => !a.archived && a.type !== 'credit_card');
   accSel.innerHTML = accounts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
   accSel.value = accounts.some(a => a.id === tx.accountId) ? tx.accountId : (accounts[0]?.id || '');
+
+  document.getElementById('finance-confirm-payment-date').value = new Date().toISOString().slice(0, 10);
 
   document.getElementById('finance-confirm-payment-modal').classList.add('active');
 }
@@ -8482,14 +8504,16 @@ function closeConfirmPendingPaymentModal() {
 function handleConfirmPendingPayment() {
   const id = document.getElementById('finance-confirm-payment-tx-id').value;
   const accountId = document.getElementById('finance-confirm-payment-account').value;
+  const paymentDate = document.getElementById('finance-confirm-payment-date').value;
   const tx = (AppState.financeTransactions || []).find(t => t.id === id);
-  if (!tx || !accountId) { showToast('Selecione a conta usada no pagamento.', 'error'); return; }
+  if (!tx || !accountId || !paymentDate) { showToast('Selecione a conta e a data do pagamento.', 'error'); return; }
 
   tx.accountId = accountId;
+  tx.date = paymentDate;
   tx.pending = false;
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
   const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
-  logFinanceChange('update', 'transacao', `Pagamento de "${tx.description}" (${NumFmt.money(tx.amount)}) confirmado via ${acc ? acc.name : 'conta'}`);
+  logFinanceChange('update', 'transacao', `Pagamento de "${tx.description}" (${NumFmt.money(tx.amount)}) confirmado em ${NumFmt.date(paymentDate)} via ${acc ? acc.name : 'conta'}`);
   closeConfirmPendingPaymentModal();
   renderFinanceView();
   showToast('Pagamento confirmado! Já aparece em Lançamentos.', 'success');
@@ -9589,6 +9613,21 @@ function handleSaveFinanceAccount(e) {
 
   const typeIcons = { checking: '🏦', savings: '🐷', cash: '💵', credit_card: '💳' };
 
+  const isCardType = (editId ? AppState.financeAccounts.find(a => a.id === editId)?.type : type) === 'credit_card';
+  let closingDay, dueDay;
+  if (isCardType) {
+    closingDay = parseInt(document.getElementById('finance-acc-closing-day').value);
+    dueDay = parseInt(document.getElementById('finance-acc-due-day').value);
+    // Sem isso, dia de fechamento vazio virava "1" na marra - e com
+    // fechamento no dia 1, QUALQUER compra feita depois do dia 1 ja cai na
+    // fatura do mes seguinte, fazendo a compra "sumir" do mes atual em
+    // Lancamentos/resumo sem nenhum aviso (causa real de um bug reportado).
+    if (!closingDay || closingDay < 1 || closingDay > 31 || !dueDay || dueDay < 1 || dueDay > 31) {
+      showToast('Preencha o dia de fechamento e o dia de vencimento do cartão (1 a 31).', 'error');
+      return;
+    }
+  }
+
   if (editId) {
     const idx = AppState.financeAccounts.findIndex(a => a.id === editId);
     if (idx === -1) return;
@@ -9596,8 +9635,8 @@ function handleSaveFinanceAccount(e) {
     const updated = { ...existing, name };
     if (existing.type === 'credit_card') {
       updated.creditLimit = parseFloat(document.getElementById('finance-acc-credit-limit').value) || 0;
-      updated.closingDay = parseInt(document.getElementById('finance-acc-closing-day').value) || 1;
-      updated.dueDay = parseInt(document.getElementById('finance-acc-due-day').value) || 1;
+      updated.closingDay = closingDay;
+      updated.dueDay = dueDay;
     } else {
       updated.initialBalance = initialBalance;
     }
@@ -9612,8 +9651,8 @@ function handleSaveFinanceAccount(e) {
       initialBalanceDate: new Date().toISOString().slice(0, 10),
       archived: false, createdAt: new Date().toISOString(),
       creditLimit: isCard ? (parseFloat(document.getElementById('finance-acc-credit-limit').value) || 0) : null,
-      closingDay: isCard ? (parseInt(document.getElementById('finance-acc-closing-day').value) || 1) : null,
-      dueDay: isCard ? (parseInt(document.getElementById('finance-acc-due-day').value) || 1) : null,
+      closingDay: isCard ? closingDay : null,
+      dueDay: isCard ? dueDay : null,
       paidInvoiceMonths: []
     });
     logFinanceChange('create', 'conta', `Conta "${name}" criada`);
