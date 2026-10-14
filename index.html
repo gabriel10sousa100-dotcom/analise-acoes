@@ -4296,6 +4296,28 @@ const AppState = {
   if (dirty) localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
 })();
 
+// Migracao one-time: parcelas de um parcelamento fora do cartao (ex: Pix
+// futuro) criadas ANTES do campo "pending" existir nao tinham essa flag -
+// ficavam marcadas como ja realizadas mesmo tendo data futura, aparecendo
+// direto em Lançamentos em vez de ficar em Pagamentos Programados ate
+// confirmadas. Qualquer parcela assim (fora do cartao, parte de um grupo
+// parcelado, com data ainda no futuro e sem "pending" definido) e marcada
+// pendente agora. Nao mexe em parcela de cartao (sempre "ja comprometida",
+// nunca pendente) nem em parcela ja confirmada (date <= hoje, inclusive a
+// que foi confirmada via o modal de pagamento, que grava a data real do
+// pagamento).
+(function migrateFutureInstallmentsToPending() {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  let dirty = false;
+  (AppState.financeTransactions || []).forEach(tx => {
+    if (tx.installmentTotal > 1 && !tx.isCardPurchase && !tx.pending && tx.date > todayStr) {
+      tx.pending = true;
+      dirty = true;
+    }
+  });
+  if (dirty) localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+})();
+
 // ==========================================
 // FORMATTERS & UTILITIES
 // ==========================================
