@@ -4296,6 +4296,37 @@ const AppState = {
   if (dirty) localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
 })();
 
+// Migracao one-time: parcelamentos criados ANTES da correcao que faz cada
+// parcela avancar 1 mes de data (cartao, ver "Corrige parcelas de cartao
+// amontoadas") ficaram com TODAS as parcelas na mesma data (a da compra) -
+// so o invoiceMonth variava. Como Lançamentos agora filtra pela data real,
+// essas parcelas antigas apareciam todas empilhadas no mes em que o
+// parcelamento foi criado, em vez de uma por mes. Deteta grupo parcelado
+// onde todas as parcelas tem a MESMA data (assinatura do bug antigo) e
+// redistribui: parcela 1 mantem a data original, parcela N vira data
+// original + (N-1) meses - mesma formula que generateInstallments ja usa
+// pra parcelamento novo. Roda ANTES da migracao de "pending" abaixo, pra
+// essa ja enxergar a data corrigida.
+(function migrateStaleInstallmentDates() {
+  let dirty = false;
+  const groups = {};
+  (AppState.financeTransactions || []).forEach(tx => {
+    if (!tx.installmentGroupId) return;
+    (groups[tx.installmentGroupId] = groups[tx.installmentGroupId] || []).push(tx);
+  });
+  Object.values(groups).forEach(group => {
+    if (group.length <= 1) return;
+    const uniqueDates = new Set(group.map(t => t.date));
+    if (uniqueDates.size > 1) return;
+    const baseDate = (group.find(t => t.installmentNumber === 1) || group[0]).date;
+    group.forEach(t => {
+      const newDate = addMonthsToDateStr(baseDate, (t.installmentNumber || 1) - 1);
+      if (t.date !== newDate) { t.date = newDate; dirty = true; }
+    });
+  });
+  if (dirty) localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+})();
+
 // Migracao one-time: parcelas de um parcelamento fora do cartao (ex: Pix
 // futuro) criadas ANTES do campo "pending" existir nao tinham essa flag -
 // ficavam marcadas como ja realizadas mesmo tendo data futura, aparecendo
