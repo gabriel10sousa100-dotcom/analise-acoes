@@ -2004,7 +2004,7 @@
           <div class="card" style="border-color: rgba(15, 107, 76, 0.3); background: linear-gradient(135deg, rgba(15, 107, 76, 0.04), var(--card));">
             <div class="card-title" style="margin-bottom: 12px; color: var(--accent);">☁️ Sincronização em Nuvem</div>
             <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-              Sincronize Minha Carteira, favoritos, histórico e todo o Controle Financeiro (contas, lançamentos, categorias, metas, custos fixos) entre dispositivos usando seu próprio projeto Firebase (Firestore + Login Google). Seus dados ficam no seu projeto, não em servidores da aplicação.
+              Sincronize Minha Carteira, favoritos, histórico e todo o Controle Financeiro (contas, lançamentos, categorias, metas, custos fixos) entre dispositivos usando seu próprio projeto Firebase (Firestore + Login Google). Seus dados ficam no seu projeto, não em servidores da aplicação. Uma vez conectado, qualquer alteração é <strong>enviada automaticamente</strong> (poucos segundos depois) - só o "Baixar" continua manual, pra você decidir quando trazer os dados de outro aparelho sem arriscar perder algo que ainda não enviou.
             </p>
             <div style="margin-bottom: 10px;">
               <label style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 4px;">Configuração do Firebase (JSON)</label>
@@ -2812,6 +2812,63 @@
 /**
  * B3 ANALYZER ENGINE v2.3 — FAVORITOS, MINHA CARTEIRA, BARSI (REGRA 5 ANOS) & VALIDAÇÃO EXTERNA
  */
+
+// Declarados aqui (topo do script) de proposito, nao so la embaixo na secao
+// de Cloud Sync: o monkey-patch de localStorage.setItem (mais abaixo, perto
+// de AppState) agenda auto-envio pra nuvem e pode disparar MUITO cedo
+// (ex: durante uma migracao one-time que roda logo depois de AppState ser
+// definido) - se firebaseDbRef so existisse como `let` la embaixo, essa
+// chamada cairia na temporal dead zone e quebraria o carregamento do app
+// inteiro.
+let firebaseAuthRef = null, firebaseDbRef = null;
+
+// ---------- AUTO-ENVIO PRA NUVEM (DEBOUNCED) ----------
+// Intercepta localStorage.setItem pra agendar um envio silencioso ao
+// Firestore (sem toast de "enviando...", so atualiza o status na tela)
+// alguns segundos depois de qualquer escrita nas chaves que entram no
+// backup (buildBackupPayload, mais abaixo). Debounced: varias escritas em
+// sequencia (1 Salvar de lancamento ja costuma gerar mais de um
+// localStorage.setItem) viram 1 envio so. So dispara se ja estiver
+// conectado (AppState.cloudUser) - sem login, so no-op. "Baixar" continua
+// manual de proposito (auto-baixar enquanto o usuario edita em outro
+// aparelho arriscaria sobrescrever trabalho local nao salvo na nuvem ainda).
+//
+// Campo novo de Carteira/Controle Financeiro que entrar em
+// buildBackupPayload() precisa ser adicionado tambem nessa lista - mesmo
+// tipo de ponto de integracao "facil esquecer" ja documentado pros outros
+// (Escape key, clearAllCache, etc.) nesse projeto.
+const AUTO_CLOUD_SYNC_KEYS = new Set([
+  'b3_user_trades', 'b3_favorites', 'b3_fii_favorites', 'b3_portfolio_dividends',
+  'b3_comparator', 'b3_price_alerts', 'b3_ai_diagnosis_history', 'brapi_token',
+  'gemini_api_key', 'b3_ai_folder_files',
+  'b3_finance_accounts', 'b3_finance_categories', 'b3_finance_transactions',
+  'b3_finance_goals', 'b3_finance_fixed_costs', 'b3_finance_changelog',
+  'b3_finance_category_rules', 'b3_finance_networth_history'
+]);
+const AUTO_CLOUD_SYNC_DEBOUNCE_MS = 8000;
+let autoCloudSyncTimer = null;
+
+function scheduleAutoCloudSync() {
+  if (!AppState.cloudUser || !firebaseDbRef) return;
+  clearTimeout(autoCloudSyncTimer);
+  autoCloudSyncTimer = setTimeout(async () => {
+    try {
+      await writeCloudBackup();
+    } catch (e) {
+      console.warn('Auto-envio pra nuvem falhou:', e);
+      AppState.autoSyncError = e.message;
+      renderCloudSyncStatus();
+    }
+  }, AUTO_CLOUD_SYNC_DEBOUNCE_MS);
+}
+
+(function installAutoCloudSyncHook() {
+  const originalSetItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = function(key, value) {
+    originalSetItem(key, value);
+    if (AUTO_CLOUD_SYNC_KEYS.has(key)) scheduleAutoCloudSync();
+  };
+})();
 
 // CURATED AUDITED FUNDAMENTAL BASELINE (DRE, BALANÇOS CVM, CAPITAL SOCIAL & HISTÓRICO 5 ANOS)
 const B3_FUNDAMENTAL_DB = {
@@ -4144,6 +4201,8 @@ const AppState = {
   triggeredDividendAlerts: JSON.parse(localStorage.getItem('b3_triggered_div_alerts') || '[]'),
   firebaseConfig: JSON.parse(localStorage.getItem('b3_firebase_config') || JSON.stringify(DEFAULT_FIREBASE_CONFIG)),
   cloudUser: null,
+  lastAutoSyncAt: null,
+  autoSyncError: null,
   lastDailyRefresh: localStorage.getItem('b3_last_daily_refresh') || null,
   liveFundamentals: JSON.parse(localStorage.getItem('b3_live_fundamentals') || '{}'),
   currentSelic: JSON.parse(localStorage.getItem('b3_current_selic') || 'null'),
@@ -14073,7 +14132,7 @@ async function checkAlerts() {
 // ==========================================
 // CLOUD SYNC (FIREBASE - OPCIONAL, CONFIGURADO PELO USUÁRIO)
 // ==========================================
-let firebaseAuthRef = null, firebaseDbRef = null;
+// firebaseAuthRef/firebaseDbRef declarados no topo do script - ver comentario la.
 
 function initFirebaseIfConfigured() {
   if (!AppState.firebaseConfig || typeof firebase === 'undefined') return;
@@ -14176,6 +14235,18 @@ function applyBackupPayload(data) {
   if (data.financeNetWorthHistory) { AppState.financeNetWorthHistory = data.financeNetWorthHistory; localStorage.setItem('b3_finance_networth_history', JSON.stringify(data.financeNetWorthHistory)); }
 }
 
+// Nucleo compartilhado pelo envio manual (pushToCloud, com toasts) e pelo
+// auto-envio debounced (scheduleAutoCloudSync, silencioso - so atualiza o
+// status na tela via renderCloudSyncStatus).
+async function writeCloudBackup() {
+  const payload = buildBackupPayload();
+  payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+  await firebaseDbRef.collection('b3_sync').doc(AppState.cloudUser.uid).set(payload);
+  AppState.lastAutoSyncAt = new Date();
+  AppState.autoSyncError = null;
+  renderCloudSyncStatus();
+}
+
 async function pushToCloud() {
   if (!firebaseDbRef || !AppState.cloudUser) {
     showToast('Faça login com Google primeiro.', 'error');
@@ -14183,9 +14254,7 @@ async function pushToCloud() {
   }
   try {
     showToast('Enviando dados para a nuvem...', 'info');
-    const payload = buildBackupPayload();
-    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-    await firebaseDbRef.collection('b3_sync').doc(AppState.cloudUser.uid).set(payload);
+    await writeCloudBackup();
     showToast('Dados enviados para a nuvem com sucesso!', 'success');
   } catch (e) {
     showToast(`Erro ao sincronizar: ${e.message}`, 'error');
@@ -14226,9 +14295,14 @@ function renderCloudSyncStatus() {
     statusEl.innerHTML = '<span class="status-pill info">Configurado — desconectado</span>';
     actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" onclick="signInWithGoogleForSync()">🔐 Conectar com Google</button>`;
   } else {
-    statusEl.innerHTML = `<span class="status-pill good">Conectado como ${AppState.cloudUser.email}</span>`;
+    const syncNote = AppState.autoSyncError
+      ? `<div style="font-size:11px; color:var(--red); margin-top:4px;">⚠️ Auto-envio falhou: ${AppState.autoSyncError}</div>`
+      : AppState.lastAutoSyncAt
+        ? `<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">✓ Auto-enviado às ${AppState.lastAutoSyncAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>`
+        : `<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Envio automático ativo - qualquer alteração sobe sozinha em alguns segundos.</div>`;
+    statusEl.innerHTML = `<span class="status-pill good">Conectado como ${AppState.cloudUser.email}</span>${syncNote}`;
     actionsEl.innerHTML = `
-      <button class="btn btn-primary btn-sm" onclick="pushToCloud()">☁️⬆️ Enviar</button>
+      <button class="btn btn-primary btn-sm" onclick="pushToCloud()">☁️⬆️ Enviar agora</button>
       <button class="btn btn-secondary btn-sm" onclick="pullFromCloud()">☁️⬇️ Baixar</button>
       <button class="btn btn-secondary btn-sm" style="color: var(--red);" onclick="signOutCloudSync()">Desconectar</button>`;
   }
