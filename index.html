@@ -4278,6 +4278,7 @@ const AppState = {
   financeGoals: JSON.parse(localStorage.getItem('b3_finance_goals') || '[]'),
   financeFixedCosts: JSON.parse(localStorage.getItem('b3_finance_fixed_costs') || '[]'),
   triggeredFixedCostAlerts: JSON.parse(localStorage.getItem('b3_triggered_fixedcost_alerts') || '[]'),
+  triggeredDueAlerts: JSON.parse(localStorage.getItem('b3_triggered_due_alerts') || '[]'),
   financeChangeLog: JSON.parse(localStorage.getItem('b3_finance_changelog') || '[]'),
   financeCategoryRules: JSON.parse(localStorage.getItem('b3_finance_category_rules') || '[]'),
   financeNetWorthHistory: JSON.parse(localStorage.getItem('b3_finance_networth_history') || '[]'),
@@ -7641,9 +7642,16 @@ function getCardInvoiceForCycle(cardAccountId, invoiceMonth) {
   };
 }
 
-// Valor exibido na caixa do cartao e usado no Patrimonio Liquido.
-function getCardCurrentInvoiceTotal(cardAccountId) {
-  return getCardInvoiceForCycle(cardAccountId, getCardCurrentOpenCycle(cardAccountId)).total;
+// Valor exibido na caixa do cartao e usado no Patrimonio Liquido: fatura
+// aberta + fatura fechada (ciclo anterior) enquanto nao for marcada como
+// paga - sem isso o valor da fatura sumia no dia seguinte ao fechamento,
+// antes de ser pago.
+function getCardAmountDue(cardAccountId) {
+  const openCycle = getCardCurrentOpenCycle(cardAccountId);
+  const open = getCardInvoiceForCycle(cardAccountId, openCycle);
+  const prev = getCardInvoiceForCycle(cardAccountId, addMonthsToYYYYMM(openCycle, -1));
+  const closedUnpaid = prev.isPaid ? 0 : prev.total;
+  return { total: open.total + closedUnpaid, openCycle, openTotal: open.total, closedCycle: prev.invoiceMonth, closedUnpaid };
 }
 
 // Soma de parcelas futuras (ainda nao faturadas no ciclo atual) - sai de
@@ -7811,7 +7819,7 @@ function getNetWorthSnapshot() {
     .reduce((sum, a) => sum + getFinanceAccountBalance(a.id), 0);
   const cardDebt = (AppState.financeAccounts || [])
     .filter(a => a.type === 'credit_card' && !a.archived)
-    .reduce((sum, a) => sum + Math.abs(getCardCurrentInvoiceTotal(a.id)), 0);
+    .reduce((sum, a) => sum + Math.abs(getCardAmountDue(a.id).total), 0);
   return { investments, stockInvestments, fixedIncomeInvestments, accountsBalance, cardDebt, total: investments + accountsBalance - cardDebt };
 }
 
@@ -8486,10 +8494,14 @@ function renderFinanceAccountsList() {
       const usage = getCardLimitUsage(a.id);
       const pct = Math.min(100, Math.max(0, usage.pct));
       const barColor = usage.pct >= 90 ? 'var(--red)' : usage.pct >= 70 ? 'var(--yellow)' : 'var(--green)';
+      const due = getCardAmountDue(a.id);
+      const dueTitle = due.closedUnpaid
+        ? `Fatura fechada ${due.closedCycle} a pagar: ${NumFmt.money(due.closedUnpaid)} + fatura aberta ${due.openCycle}: ${NumFmt.money(due.openTotal)}`
+        : `Fatura aberta ${due.openCycle}`;
       return `
         <div class="stat-card" style="cursor:pointer;" onclick="openFinanceAccountModal('${a.id}')">
           <span class="stat-label">${a.icon || '💳'} ${a.name}</span>
-          <div class="stat-val" style="color: var(--red); font-size: 18px;">${NumFmt.money(getCardCurrentInvoiceTotal(a.id))}</div>
+          <div class="stat-val" style="color: var(--red); font-size: 18px;" title="${dueTitle}">${NumFmt.money(due.total)}</div>
           <div title="Usado ${NumFmt.money(usage.used)} · Disponível ${NumFmt.money(usage.available)} · Limite ${NumFmt.money(usage.limit)}" style="margin-top: 8px;">
             <div style="height: 8px; border-radius: 100px; background: rgba(0,0,0,0.08); overflow: hidden;">
               <div style="height: 100%; width: ${pct}%; background: ${barColor}; border-radius: 100px;"></div>
@@ -10524,6 +10536,8 @@ function handleConfirmMobillsImport() {
   const existingImportIds = new Set((AppState.financeTransactions || []).filter(t => t.importId).map(t => t.importId));
   let imported = 0, skippedTransfer = 0, skippedDuplicate = 0;
   const newTxs = [];
+  const matchedManualIds = new Set();
+  const matchedManual = [];
 
   staging.rows.forEach(row => {
     const { isInvestment, isTransferCandidate } = classifyMobillsRow(row);
@@ -10534,6 +10548,8 @@ function handleConfirmMobillsImport() {
     existingImportIds.add(importId);
 
     const accountId = accountIdByName[row.account];
+    const manualMatch = findManualMatchForImportRow(matchedManualIds, accountId, row.amount, row.date);
+    if (manualMatch) { matchedManual.push(manualMatch); return; }
     const amount = Math.abs(row.amount);
     let type, categoryId = null, investmentDirection = null;
     if (staging.markInvestments && isInvestment) {
@@ -10564,10 +10580,38 @@ function handleConfirmMobillsImport() {
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
 
   if (imported > 0) logFinanceChange('import', 'transacao', `${imported} lançamento(s) importados do Mobills`);
+  logImportManualMatches(matchedManual);
   AppState.financeImportStaging = null;
   closeFinanceImportModal();
   renderFinanceView();
-  showToast(`${imported} lançamento(s) importados do Mobills (${skippedTransfer} transferência(s) ignorada(s), ${skippedDuplicate} duplicado(s) ignorado(s)).`, 'success');
+  showToast(`${imported} lançamento(s) importados do Mobills (${skippedTransfer} transferência(s) ignorada(s), ${skippedDuplicate} duplicado(s) ignorado(s), ${matchedManual.length} já lançado(s) no app).`, 'success');
+}
+
+// Acha um lancamento feito no app (nao importado) que represente a mesma
+// movimentacao de uma linha do extrato: mesma conta, mesmo sentido do
+// dinheiro, mesmo valor e data ate 3 dias de diferenca (o banco pode
+// registrar num dia diferente do informado ao confirmar o pagamento).
+// usedIds evita casar duas linhas do extrato com o mesmo lancamento.
+function findManualMatchForImportRow(usedIds, accountId, signedAmount, date) {
+  if (!accountId) return null;
+  const amount = Math.abs(signedAmount);
+  const isOutflow = signedAmount < 0;
+  const dayMs = 86400000;
+  const rowTime = new Date(date + 'T00:00:00').getTime();
+  let best = null, bestDiff = Infinity;
+  (AppState.financeTransactions || []).forEach(tx => {
+    if (tx.source === 'import' || tx.pending || usedIds.has(tx.id)) return;
+    if (Math.abs((Number(tx.amount) || 0) - amount) >= 0.01) return;
+    const sameDirection = isOutflow
+      ? tx.accountId === accountId && (tx.type === 'expense' || tx.type === 'transfer' || (tx.type === 'investment' && tx.investmentDirection === 'contribution'))
+      : (tx.accountId === accountId && (tx.type === 'income' || (tx.type === 'investment' && tx.investmentDirection === 'redemption')))
+        || (tx.type === 'transfer' && tx.transferAccountId === accountId);
+    if (!sameDirection) return;
+    const diff = Math.abs(new Date((tx.date || '') + 'T00:00:00').getTime() - rowTime) / dayMs;
+    if (diff <= 3 && diff < bestDiff) { best = tx; bestDiff = diff; }
+  });
+  if (best) usedIds.add(best.id);
+  return best;
 }
 
 // ---------- IMPORTAR EXTRATO NATIVO DO NUBANK ----------
@@ -10765,11 +10809,16 @@ function handleConfirmNubankImport() {
   const existingImportIds = new Set((AppState.financeTransactions || []).filter(t => t.importId).map(t => t.importId));
   let imported = 0, skippedDuplicate = 0;
   const newTxs = [];
+  const matchedManualIds = new Set();
+  const matchedManual = [];
 
   staging.rows.forEach(row => {
     const importId = 'nubank_' + row.identifier;
     if (existingImportIds.has(importId)) { skippedDuplicate++; return; }
     existingImportIds.add(importId);
+
+    const manualMatch = findManualMatchForImportRow(matchedManualIds, accountId, row.amount, row.date);
+    if (manualMatch) { matchedManual.push(manualMatch); return; }
 
     const { isInvestment } = classifyNubankRow(row);
     const amount = Math.abs(row.amount);
@@ -10798,10 +10847,20 @@ function handleConfirmNubankImport() {
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
 
   if (imported > 0) logFinanceChange('import', 'transacao', `${imported} lançamento(s) importados do extrato Nubank`);
+  logImportManualMatches(matchedManual);
   AppState.nubankImportStaging = null;
   closeNubankImportModal();
   renderFinanceView();
-  showToast(`${imported} lançamento(s) importados do extrato Nubank (${skippedDuplicate} duplicado(s) ignorado(s)).`, 'success');
+  showToast(`${imported} lançamento(s) importados do extrato Nubank (${skippedDuplicate} duplicado(s) ignorado(s), ${matchedManual.length} já lançado(s) no app).`, 'success');
+}
+
+// Registra no Historico quais linhas do extrato nao entraram por ja
+// existirem como lancamento feito no app - se o casamento estiver errado
+// (duas compras iguais de verdade), da pra ver aqui e lancar a mao.
+function logImportManualMatches(matchedManual) {
+  matchedManual.forEach(tx => {
+    logFinanceChange('import', 'transacao', `Linha do extrato não importada: já existia "${tx.description}" (${NumFmt.money(tx.amount)}, ${NumFmt.date(tx.date)}) lançado no app`);
+  });
 }
 
 // ==========================================
@@ -14708,6 +14767,8 @@ async function checkAlerts() {
   }
   if (fcDirty) localStorage.setItem('b3_triggered_fixedcost_alerts', JSON.stringify(AppState.triggeredFixedCostAlerts));
 
+  checkFinanceDueAlerts(today, horizon);
+
   // Alerta de gasto incomum - compara a despesa de cada categoria no mes
   // CALENDARIO real contra a media dos 3 meses anteriores NESSA MESMA
   // categoria. So dispara se a categoria tem historico (media > 0), o gasto
@@ -14733,6 +14794,66 @@ async function checkAlerts() {
     spendDirty = true;
   }
   if (spendDirty) localStorage.setItem('b3_triggered_unusual_spending_alerts', JSON.stringify(AppState.triggeredUnusualSpendingAlerts));
+}
+
+// Avisos de vencimento alem do custo fixo "vencendo" acima: fatura de
+// cartao fechada e nao paga (vencendo ou vencida), parcela de Pagamentos
+// Programados (vencendo ou atrasada) e custo fixo ja vencido sem pagamento.
+// Cada aviso dispara uma vez (id guardado em triggeredDueAlerts); "vencida"
+// tem id proprio, entao avisa de novo quando passa do vencimento.
+function checkFinanceDueAlerts(today, horizon) {
+  const toStr = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const todayStr = toStr(today);
+  const horizonStr = toStr(horizon);
+  const fmt = s => NumFmt.date(s);
+  AppState.triggeredDueAlerts = AppState.triggeredDueAlerts || [];
+  let dirty = false;
+  const fire = (alertId, title, body, toastMsg, toastType) => {
+    if (AppState.triggeredDueAlerts.includes(alertId)) return;
+    notifyUser(title, body, `due-${alertId}`);
+    showToast(toastMsg, toastType);
+    AppState.triggeredDueAlerts.push(alertId);
+    dirty = true;
+  };
+
+  (AppState.financeAccounts || []).filter(a => a.type === 'credit_card' && !a.archived && a.closingDay).forEach(card => {
+    const closedCycle = addMonthsToYYYYMM(getCardCurrentOpenCycle(card.id), -1);
+    const invoice = getCardInvoiceForCycle(card.id, closedCycle);
+    if (invoice.isPaid || invoice.total <= 0 || !invoice.dueDate) return;
+    if (invoice.dueDate < todayStr) {
+      fire(`invoice-${card.id}-${closedCycle}-overdue`, `🔴 Fatura vencida: ${card.name}`,
+        `Fatura ${closedCycle} de ${NumFmt.money(invoice.total)} venceu em ${fmt(invoice.dueDate)} e não está marcada como paga.`,
+        `🔴 Fatura ${closedCycle} do ${card.name} vencida (${NumFmt.money(invoice.total)}).`, 'error');
+    } else if (invoice.dueDate <= horizonStr) {
+      fire(`invoice-${card.id}-${closedCycle}-soon`, `💳 Fatura vencendo: ${card.name}`,
+        `Fatura ${closedCycle} de ${NumFmt.money(invoice.total)} vence em ${fmt(invoice.dueDate)}.`,
+        `💳 Fatura do ${card.name} vence em ${fmt(invoice.dueDate)} (${NumFmt.money(invoice.total)}).`, 'warn');
+    }
+  });
+
+  (AppState.financeTransactions || []).filter(tx => tx.pending).forEach(tx => {
+    if (tx.date < todayStr) {
+      fire(`pending-${tx.id}-overdue`, `⚠️ Pagamento programado atrasado: ${tx.description}`,
+        `${NumFmt.money(tx.amount)} venceu em ${fmt(tx.date)} e ainda não foi confirmado.`,
+        `⚠️ ${tx.description} atrasado (${NumFmt.money(tx.amount)}, venceu ${fmt(tx.date)}).`, 'error');
+    } else if (tx.date <= horizonStr) {
+      fire(`pending-${tx.id}-soon`, `📅 Pagamento programado: ${tx.description}`,
+        `${NumFmt.money(tx.amount)} vence em ${fmt(tx.date)}.`,
+        `📅 ${tx.description} vence em ${fmt(tx.date)} (${NumFmt.money(tx.amount)}).`, 'warn');
+    }
+  });
+
+  const month = todayStr.slice(0, 7);
+  const [y, m] = month.split('-').map(Number);
+  (AppState.financeFixedCosts || []).filter(fc => fc.active && !isFixedCostPaidForMonth(fc, month)).forEach(fc => {
+    const dueStr = `${month}-${String(Math.min(fc.dueDay, daysInMonth(y, m))).padStart(2, '0')}`;
+    if (dueStr >= todayStr) return;
+    fire(`fixedcost-${fc.id}-${month}-overdue`, `🔴 Custo fixo vencido: ${fc.description}`,
+      `${NumFmt.money(fc.amount)} venceu em ${fmt(dueStr)} e não está marcado como pago.`,
+      `🔴 ${fc.description} vencido (${NumFmt.money(fc.amount)}).`, 'error');
+  });
+
+  if (dirty) localStorage.setItem('b3_triggered_due_alerts', JSON.stringify(AppState.triggeredDueAlerts));
 }
 
 // ==========================================
