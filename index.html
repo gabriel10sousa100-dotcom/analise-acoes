@@ -7641,6 +7641,11 @@ function getCardInvoiceForCycle(cardAccountId, invoiceMonth) {
   };
 }
 
+// Valor exibido na caixa do cartao e usado no Patrimonio Liquido.
+function getCardCurrentInvoiceTotal(cardAccountId) {
+  return getCardInvoiceForCycle(cardAccountId, getCardCurrentOpenCycle(cardAccountId)).total;
+}
+
 // Soma de parcelas futuras (ainda nao faturadas no ciclo atual) - sai de
 // graca por as parcelas ja estarem materializadas desde o lancamento.
 function getCardFutureCommitted(cardAccountId) {
@@ -7738,12 +7743,14 @@ function getNetWorthSnapshot() {
   const stockInvestments = getPortfolioMarketValue();
   const fixedIncomeInvestments = FINANCE_INVESTMENT_MANUAL_VALUE;
   const investments = stockInvestments + fixedIncomeInvestments;
+  // Mesmos valores das caixas de cada conta: saldo pras contas comuns e
+  // fatura atual pros cartoes (sempre subtraida).
   const accountsBalance = (AppState.financeAccounts || [])
-    .filter(a => a.type !== 'credit_card' && !a.archived)
+    .filter(a => ['checking', 'savings', 'cash'].includes(a.type) && !a.archived)
     .reduce((sum, a) => sum + getFinanceAccountBalance(a.id), 0);
   const cardDebt = (AppState.financeAccounts || [])
     .filter(a => a.type === 'credit_card' && !a.archived)
-    .reduce((sum, a) => sum + getCardLimitUsage(a.id).used, 0);
+    .reduce((sum, a) => sum + Math.abs(getCardCurrentInvoiceTotal(a.id)), 0);
   return { investments, stockInvestments, fixedIncomeInvestments, accountsBalance, cardDebt, total: investments + accountsBalance - cardDebt };
 }
 
@@ -8366,14 +8373,11 @@ function populateFinanceAccountAndCategorySelects() {
 }
 
 function renderFinanceKpis() {
-  const accountsBalance = (AppState.financeAccounts || [])
-    .filter(a => a.type !== 'credit_card' && !a.archived)
-    .reduce((sum, a) => sum + getFinanceAccountBalance(a.id), 0);
   const summary = getFinanceMonthSummary(AppState.financeActiveMonth);
   const net = getNetWorthSnapshot();
 
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  set('finance-stat-accounts-balance', NumFmt.money(accountsBalance));
+  set('finance-stat-accounts-balance', NumFmt.money(net.accountsBalance));
   set('finance-stat-income', NumFmt.money(summary.income));
   set('finance-stat-expense', NumFmt.money(summary.expense));
   const balEl = document.getElementById('finance-stat-month-balance');
@@ -8420,11 +8424,10 @@ function renderFinanceAccountsList() {
     if (a.type === 'credit_card') {
       const usage = getCardLimitUsage(a.id);
       const cycle = getCardCurrentOpenCycle(a.id);
-      const invoice = getCardInvoiceForCycle(a.id, cycle);
       return `
         <div class="stat-card" style="cursor:pointer;" onclick="openFinanceAccountModal('${a.id}')">
           <span class="stat-label">${a.icon || '💳'} ${a.name}</span>
-          <div class="stat-val" style="color: var(--red); font-size: 18px;">${NumFmt.money(invoice.total)}</div>
+          <div class="stat-val" style="color: var(--red); font-size: 18px;">${NumFmt.money(getCardCurrentInvoiceTotal(a.id))}</div>
           <div class="stat-meta">Fatura ${cycle} · Limite usado ${NumFmt.money(usage.used)} de ${NumFmt.money(usage.limit)}</div>
         </div>`;
     }
