@@ -2246,12 +2246,17 @@
           </div>
           <div>
             <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Dia Fechamento</label>
-            <input type="number" class="input-field" id="finance-acc-closing-day" min="1" max="31" step="1" style="width: 100%;">
+            <input type="number" class="input-field" id="finance-acc-closing-day" min="1" max="31" step="1" style="width: 100%;" oninput="refreshFinanceAccountAnchorFields()">
           </div>
           <div>
             <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Dia Vencimento</label>
             <input type="number" class="input-field" id="finance-acc-due-day" min="1" max="31" step="1" style="width: 100%;">
           </div>
+        </div>
+        <div id="finance-acc-anchor-box" style="display:none;">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;" id="finance-acc-anchor-label">Saldo atual hoje (R$)</label>
+          <input type="number" class="input-field" id="finance-acc-anchor-amount" step="0.01" style="width: 100%;">
+          <div id="finance-acc-anchor-hint" style="font-size: 11px; color: var(--text-muted); margin-top: 5px;"></div>
         </div>
         <div id="finance-acc-merge-box" style="display:none; background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 12px;">
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 6px;">🔗 Mesclar com outra conta (ex: duplicata do mesmo banco)</label>
@@ -7357,6 +7362,13 @@ function getConsolidatedPortfolio() {
 // CONTROLE FINANCEIRO: CALCULO E AGREGACAO (funcoes puras, sem DOM)
 // ================================================================
 
+// Data de hoje no fuso local (toISOString usa UTC - depois das 21h no
+// Brasil ja seria o dia seguinte).
+function getLocalTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function daysInMonth(year, month1to12) {
   return new Date(year, month1to12, 0).getDate();
 }
@@ -7472,11 +7484,16 @@ function generateInstallments(purchase) {
 // nao dessincronizar quando um lancamento antigo e editado/excluido.
 // Parcela pendente (Pix futuro ainda nao confirmado) fica de fora - o
 // dinheiro so sai de verdade quando o usuario marcar como pago.
+// Com balanceAnchor (saldo real informado numa data, ver
+// handleSaveFinanceAccount), o saldo parte desse valor e so lancamentos
+// DEPOIS dessa data mexem nele - os anteriores ja estao no valor informado.
 function getFinanceAccountBalance(accountId) {
   const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
-  let balance = acc ? (Number(acc.initialBalance) || 0) : 0;
+  const anchor = acc && acc.balanceAnchor;
+  let balance = anchor ? Number(anchor.amount) : (acc ? (Number(acc.initialBalance) || 0) : 0);
   (AppState.financeTransactions || []).forEach(tx => {
     if (tx.pending) return;
+    if (anchor && (tx.date || '') <= anchor.date) return;
     const amt = Number(tx.amount) || 0;
     if (tx.accountId === accountId) {
       if (tx.type === 'expense' || tx.type === 'transfer') balance -= amt;
@@ -7587,10 +7604,25 @@ function getCardCurrentOpenCycle(cardAccountId) {
   return getInvoiceCycleForDate(card, new Date().toISOString().slice(0, 10));
 }
 
+// Cartao com balanceAnchor ("valor da fatura atual" informado numa data):
+// a fatura do ciclo dessa data passa a valer o valor informado + o que for
+// lancado depois da data; faturas de ciclos anteriores sao ignoradas
+// (comeco do controle - nao da pra confiar nos lancamentos antigos).
+function getCardAnchorCycle(card) {
+  return card && card.balanceAnchor ? getInvoiceCycleForDate(card, card.balanceAnchor.date) : null;
+}
+
+function isCardTxCoveredByAnchor(card, tx) {
+  const anchorCycle = getCardAnchorCycle(card);
+  if (!anchorCycle || !tx.invoiceMonth) return false;
+  return tx.invoiceMonth < anchorCycle || (tx.invoiceMonth === anchorCycle && (tx.date || '') <= card.balanceAnchor.date);
+}
+
 function getCardInvoiceForCycle(cardAccountId, invoiceMonth) {
   const card = (AppState.financeAccounts || []).find(a => a.id === cardAccountId);
-  const txs = (AppState.financeTransactions || []).filter(tx => tx.accountId === cardAccountId && tx.invoiceMonth === invoiceMonth);
-  const total = txs.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  const txs = (AppState.financeTransactions || []).filter(tx => tx.accountId === cardAccountId && tx.invoiceMonth === invoiceMonth && !isCardTxCoveredByAnchor(card, tx));
+  const anchorAmount = invoiceMonth === getCardAnchorCycle(card) ? Number(card.balanceAnchor.amount) : 0;
+  const total = anchorAmount + txs.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
   const currentCycle = getCardCurrentOpenCycle(cardAccountId);
   let status = 'closed';
   if (invoiceMonth === currentCycle) status = 'open';
@@ -7601,6 +7633,7 @@ function getCardInvoiceForCycle(cardAccountId, invoiceMonth) {
     status,
     isPaid: card ? (card.paidInvoiceMonths || []).includes(invoiceMonth) : false,
     dueDate: card ? getInvoiceDueDate(card, invoiceMonth) : null,
+    anchorAmount,
     transactions: txs
   };
 }
@@ -7608,10 +7641,11 @@ function getCardInvoiceForCycle(cardAccountId, invoiceMonth) {
 // Soma de parcelas futuras (ainda nao faturadas no ciclo atual) - sai de
 // graca por as parcelas ja estarem materializadas desde o lancamento.
 function getCardFutureCommitted(cardAccountId) {
+  const card = (AppState.financeAccounts || []).find(a => a.id === cardAccountId);
   const currentCycle = getCardCurrentOpenCycle(cardAccountId);
   if (!currentCycle) return 0;
   return (AppState.financeTransactions || [])
-    .filter(tx => tx.accountId === cardAccountId && tx.invoiceMonth && tx.invoiceMonth > currentCycle)
+    .filter(tx => tx.accountId === cardAccountId && tx.invoiceMonth && tx.invoiceMonth > currentCycle && !isCardTxCoveredByAnchor(card, tx))
     .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
 }
 
@@ -7621,9 +7655,11 @@ function getCardLimitUsage(cardAccountId) {
   const card = (AppState.financeAccounts || []).find(a => a.id === cardAccountId);
   if (!card) return { used: 0, available: 0, limit: 0, pct: 0 };
   const paid = card.paidInvoiceMonths || [];
+  const anchorCycle = getCardAnchorCycle(card);
   const used = (AppState.financeTransactions || [])
-    .filter(tx => tx.accountId === cardAccountId && tx.type === 'expense' && !paid.includes(tx.invoiceMonth))
-    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+    .filter(tx => tx.accountId === cardAccountId && tx.type === 'expense' && !paid.includes(tx.invoiceMonth) && !isCardTxCoveredByAnchor(card, tx))
+    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0)
+    + (anchorCycle && !paid.includes(anchorCycle) ? Number(card.balanceAnchor.amount) : 0);
   const limit = Number(card.creditLimit) || 0;
   return { used, available: Math.max(0, limit - used), limit, pct: limit > 0 ? (used / limit) * 100 : 0 };
 }
@@ -8877,9 +8913,18 @@ function renderFinanceInvoiceModalContent() {
         : `<button class="btn btn-success btn-sm" onclick="markCardInvoiceAsPaid('${cardId}','${invoiceMonth}'); renderFinanceInvoiceModalContent();">Marcar como paga</button>`)
     : '';
 
-  const rowsHtml = invoice.transactions.length === 0
+  const anchorCard = (AppState.financeAccounts || []).find(a => a.id === cardId);
+  const anchorRowHtml = invoice.anchorAmount
+    ? `<tr>
+        <td class="text-mono" style="font-size:12px;">${NumFmt.date(anchorCard.balanceAnchor.date)}</td>
+        <td><em>Valor da fatura informado (ponto de partida)</em></td>
+        <td style="font-size:12px; color:var(--text-sub);">—</td>
+        <td class="text-right text-mono" style="font-weight:700;">${NumFmt.money(invoice.anchorAmount)}</td>
+      </tr>`
+    : '';
+  const rowsHtml = (invoice.transactions.length === 0 && !anchorRowHtml)
     ? `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); font-size:12px; padding:14px;">Nenhum lançamento nessa fatura.</td></tr>`
-    : [...invoice.transactions].sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(tx => {
+    : anchorRowHtml + [...invoice.transactions].sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(tx => {
         const cat = (AppState.financeCategories || []).find(c => c.id === tx.categoryId);
         const installmentBadge = tx.installmentTotal > 1 ? ` <span class="badge badge-flat" style="font-size:9px;">${tx.installmentNumber}/${tx.installmentTotal}</span>` : '';
         return `
@@ -9734,8 +9779,41 @@ function openFinanceAccountModal(editId = '') {
     mergeBox.style.display = 'none';
   }
 
+  document.getElementById('finance-acc-anchor-amount').value = '';
   onFinanceAccountTypeChange();
   modal.classList.add('active');
+}
+
+// Campo "saldo atual / valor da fatura atual" (so ao editar): vira o
+// balanceAnchor da conta - ver getFinanceAccountBalance e
+// getCardInvoiceForCycle.
+function refreshFinanceAccountAnchorFields() {
+  const editId = document.getElementById('finance-acc-edit-id').value;
+  const box = document.getElementById('finance-acc-anchor-box');
+  if (!editId) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+
+  const acc = (AppState.financeAccounts || []).find(a => a.id === editId);
+  const type = document.getElementById('finance-acc-type').value;
+  const input = document.getElementById('finance-acc-anchor-amount');
+  const label = document.getElementById('finance-acc-anchor-label');
+  const hint = document.getElementById('finance-acc-anchor-hint');
+  const todayStr = getLocalTodayStr();
+  const current = acc && acc.balanceAnchor
+    ? ` Ponto de partida atual: ${NumFmt.money(acc.balanceAnchor.amount)} em ${NumFmt.date(acc.balanceAnchor.date)}.`
+    : '';
+
+  if (type === 'credit_card') {
+    const closingDay = parseInt(document.getElementById('finance-acc-closing-day').value);
+    const cycle = closingDay >= 1 && closingDay <= 31 ? getInvoiceCycleForDate({ closingDay }, todayStr) : null;
+    label.textContent = cycle ? `Valor da fatura ${cycle} (R$)` : 'Valor da fatura atual (R$)';
+    input.placeholder = (acc && acc.type === 'credit_card' && cycle) ? NumFmt.money(getCardInvoiceForCycle(acc.id, cycle).total) : '';
+    hint.textContent = `Opcional. Digite o valor dessa fatura como aparece no app do banco: faturas anteriores e os lançamentos dela até hoje passam a ser ignorados, e o que for lançado depois soma.${current}`;
+  } else {
+    label.textContent = 'Saldo atual hoje (R$)';
+    input.placeholder = (acc && acc.type !== 'credit_card') ? NumFmt.money(getFinanceAccountBalance(acc.id)) : '';
+    hint.textContent = `Opcional. Digite o saldo que aparece hoje no app do banco: os lançamentos até hoje deixam de mexer no saldo (substitui o Saldo Inicial), e os de amanhã em diante somam/subtraem.${current}`;
+  }
 }
 
 // Move todos os lancamentos (accountId e transferAccountId) da conta sendo
@@ -9784,6 +9862,7 @@ function onFinanceAccountTypeChange() {
   const isCard = type === 'credit_card';
   document.getElementById('finance-acc-card-fields').style.display = isCard ? 'grid' : 'none';
   document.getElementById('finance-acc-initial-balance').parentElement.style.display = isCard ? 'none' : 'block';
+  refreshFinanceAccountAnchorFields();
 }
 
 function handleSaveFinanceAccount(e) {
@@ -9817,6 +9896,10 @@ function handleSaveFinanceAccount(e) {
     }
   }
 
+  const anchorRaw = document.getElementById('finance-acc-anchor-amount').value.trim();
+  const anchorAmount = anchorRaw === '' ? null : parseFloat(anchorRaw);
+  if (anchorRaw !== '' && isNaN(anchorAmount)) { showToast('Valor de saldo/fatura atual inválido.', 'error'); return; }
+
   if (editId) {
     const idx = AppState.financeAccounts.findIndex(a => a.id === editId);
     if (idx === -1) return;
@@ -9834,10 +9917,19 @@ function handleSaveFinanceAccount(e) {
         updated.paidInvoiceMonths = existing.paidInvoiceMonths || [];
       }
     } else {
+      if (existing.type !== type) updated.icon = typeIcons[type];
+      updated.type = type;
       updated.initialBalance = initialBalance;
     }
+    // Saldo de conta e valor de fatura sao coisas diferentes - um ponto de
+    // partida informado pra um tipo nao vale se a conta mudou de tipo.
+    if (anchorAmount !== null) updated.balanceAnchor = { date: getLocalTodayStr(), amount: anchorAmount };
+    else if (existing.type !== updated.type) delete updated.balanceAnchor;
     AppState.financeAccounts[idx] = updated;
     logFinanceChange('update', 'conta', convertingToCard ? `Conta "${name}" convertida pra Cartão de Crédito` : `Conta "${name}" atualizada`);
+    if (anchorAmount !== null) {
+      logFinanceChange('update', 'conta', `${isCardType ? 'Valor da fatura atual' : 'Saldo atual'} de "${name}" definido em ${NumFmt.money(anchorAmount)}`);
+    }
 
     if (isCardType) {
       // Recalcula a fatura de tudo que ja foi lancado nessa conta a partir
