@@ -9369,7 +9369,6 @@ function handleSaveFinanceBudget() {
   logFinanceChange('update', 'categoria', `Orçamento ${scope === 'month' ? 'de ' + month : 'padrão (todos os meses)'} atualizado: ${Object.keys(limits).length} categoria(s) com limite`);
   closeFinanceBudgetModal();
   renderFinanceBudgetSection();
-  renderFinanceIncomeNeedSection();
   showToast('Orçamento salvo!', 'success');
 }
 
@@ -9381,18 +9380,15 @@ function handleClearMonthBudgetOverride() {
   logFinanceChange('update', 'categoria', `Ajuste do orçamento de ${month} removido (voltou ao padrão)`);
   closeFinanceBudgetModal();
   renderFinanceBudgetSection();
-  renderFinanceIncomeNeedSection();
   showToast(`${month} voltou a usar o orçamento padrão.`, 'info');
 }
 
 // ---------- QUANTO PRECISO RECEBER ----------
 // Pra salario variavel: em vez de prever o saldo, mostra quanto precisa
-// entrar em cada mes pra cobrir o que ja esta comprometido + o gasto
-// variavel planejado (orcamento) + a meta de investimento. Cada coisa entra
-// uma vez so: do orcamento de cada categoria desconta o que ja foi gasto,
-// os custos fixos nao pagos e os Pix programados daquela categoria no mes
-// (eles ja estao nas outras colunas). O saldo atual em contas abate o
-// primeiro mes; se sobrar, abate o seguinte.
+// entrar em cada mes pra cobrir o que ja esta comprometido (custos fixos,
+// Pix programados, faturas de cartao) + a meta de investimento. Gasto do dia
+// a dia que ainda nao foi lancado nao entra. O saldo atual em contas abate
+// o primeiro mes; se sobrar, abate o seguinte.
 const INCOME_NEED_MONTHS = 6;
 
 function getIncomeNeedByMonth() {
@@ -9418,27 +9414,13 @@ function getIncomeNeedByMonth() {
   let carry = Math.max(0, getNetWorthSnapshot().accountsBalance);
 
   return months.map(month => {
-    const committedByCat = {};
-    const addCat = (catId, v) => { committedByCat[catId || ''] = (committedByCat[catId || ''] || 0) + v; };
+    const pending = txs
+      .filter(tx => tx.pending && clampMonth((tx.date || '').slice(0, 7)) === month)
+      .reduce((s, tx) => s + (Number(tx.amount) || 0), 0);
 
-    let pending = 0;
-    txs.filter(tx => tx.pending && clampMonth((tx.date || '').slice(0, 7)) === month).forEach(tx => {
-      pending += Number(tx.amount) || 0;
-      addCat(tx.categoryId, Number(tx.amount) || 0);
-    });
-
-    let fixed = 0;
-    (AppState.financeFixedCosts || []).filter(fc => fc.active && !isFixedCostPaidForMonth(fc, month)).forEach(fc => {
-      fixed += Number(fc.amount) || 0;
-      addCat(fc.categoryId, Number(fc.amount) || 0);
-    });
-
-    const spentByCat = getMonthExpenseByCategoryId(month);
-    const limits = getBudgetLimitsForMonth(month);
-    const variable = Object.entries(limits).reduce((sum, [catId, limit]) => {
-      const used = (spentByCat[catId] || 0) + (committedByCat[catId] || 0);
-      return sum + Math.max(0, (Number(limit) || 0) - used);
-    }, 0);
+    const fixed = (AppState.financeFixedCosts || [])
+      .filter(fc => fc.active && !isFixedCostPaidForMonth(fc, month))
+      .reduce((s, fc) => s + (Number(fc.amount) || 0), 0);
 
     const investedThisMonth = txs
       .filter(tx => tx.type === 'investment' && tx.investmentDirection === 'contribution' && !tx.pending && (tx.date || '').slice(0, 7) === month)
@@ -9446,10 +9428,10 @@ function getIncomeNeedByMonth() {
     const investment = Math.max(0, goal - investedThisMonth);
 
     const card = cardByMonth[month] || 0;
-    const total = fixed + pending + card + variable + investment;
+    const total = fixed + pending + card + investment;
     const fromBalance = Math.min(carry, total);
     carry -= fromBalance;
-    return { month, fixed, pending, card, variable, investment, total, fromBalance, need: total - fromBalance };
+    return { month, fixed, pending, card, investment, total, fromBalance, need: total - fromBalance };
   });
 }
 
@@ -9468,7 +9450,6 @@ function renderFinanceIncomeNeedSection() {
         <th class="text-right" title="Custos fixos ainda não pagos no mês">Custos Fixos</th>
         <th class="text-right" title="Parcelas de Pagamentos Programados (Pix) com vencimento no mês">Pagamentos Prog.</th>
         <th class="text-right" title="Faturas de cartão não pagas que vencem no mês (inclui parcelas já lançadas)">Cartão</th>
-        <th class="text-right" title="O que ainda falta gastar do orçamento de cada categoria no mês">Gasto Variável</th>
         <th class="text-right" title="Meta de investimento menos o que já foi aportado no mês">Investimento</th>
         <th class="text-right" title="Saldo atual em contas usado pra cobrir o mês">Saldo Usado</th>
         <th class="text-right">Precisa Receber</th>
@@ -9479,14 +9460,13 @@ function renderFinanceIncomeNeedSection() {
           <td class="text-right text-mono" style="font-size:12px;">${money(r.fixed)}</td>
           <td class="text-right text-mono" style="font-size:12px;">${money(r.pending)}</td>
           <td class="text-right text-mono" style="font-size:12px;">${money(r.card)}</td>
-          <td class="text-right text-mono" style="font-size:12px;">${money(r.variable)}</td>
           <td class="text-right text-mono" style="font-size:12px;">${money(r.investment)}</td>
           <td class="text-right text-mono" style="font-size:12px; color: var(--green);">${r.fromBalance > 0 ? '− ' + NumFmt.money(r.fromBalance) : '<span style="color: var(--text-muted);">—</span>'}</td>
           <td class="text-right text-mono" style="font-weight:700; color:${r.need > 0 ? 'var(--red)' : 'var(--green)'};">${NumFmt.money(r.need)}</td>
         </tr>`).join('')}
       </tbody>
     </table>
-    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">Gasto Variável usa o Orçamento do Mês - categorias sem limite não entram. Compras no cartão que você ainda não fez só aparecem aqui por meio do orçamento.</div>`;
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">Só entra o que já está lançado ou programado. Gastos do dia a dia que você ainda vai fazer (mercado, transporte etc.) não estão nessa conta.</div>`;
 }
 
 function handleSaveInvestmentGoal() {
