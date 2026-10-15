@@ -9387,8 +9387,8 @@ function handleClearMonthBudgetOverride() {
 // Pra salario variavel: em vez de prever o saldo, mostra quanto precisa
 // entrar em cada mes pra cobrir o que ja esta comprometido (custos fixos,
 // Pix programados, faturas de cartao) + a meta de investimento. Gasto do dia
-// a dia que ainda nao foi lancado nao entra. O saldo atual em contas abate
-// o primeiro mes; se sobrar, abate o seguinte.
+// a dia que ainda nao foi lancado nao entra, e o saldo que ja esta nas
+// contas nao e descontado.
 const INCOME_NEED_MONTHS = 6;
 
 function getIncomeNeedByMonth() {
@@ -9411,7 +9411,6 @@ function getIncomeNeedByMonth() {
   });
 
   const goal = Number(AppState.financeInvestmentGoal) || 0;
-  let carry = Math.max(0, getNetWorthSnapshot().accountsBalance);
 
   return months.map(month => {
     const pending = txs
@@ -9428,10 +9427,7 @@ function getIncomeNeedByMonth() {
     const investment = Math.max(0, goal - investedThisMonth);
 
     const card = cardByMonth[month] || 0;
-    const total = fixed + pending + card + investment;
-    const fromBalance = Math.min(carry, total);
-    carry -= fromBalance;
-    return { month, fixed, pending, card, investment, total, fromBalance, need: total - fromBalance };
+    return { month, fixed, pending, card, investment, need: fixed + pending + card + investment };
   });
 }
 
@@ -9451,7 +9447,6 @@ function renderFinanceIncomeNeedSection() {
         <th class="text-right" title="Parcelas de Pagamentos Programados (Pix) com vencimento no mês">Pagamentos Prog.</th>
         <th class="text-right" title="Faturas de cartão não pagas que vencem no mês (inclui parcelas já lançadas)">Cartão</th>
         <th class="text-right" title="Meta de investimento menos o que já foi aportado no mês">Investimento</th>
-        <th class="text-right" title="Saldo atual em contas usado pra cobrir o mês">Saldo Usado</th>
         <th class="text-right">Precisa Receber</th>
       </tr></thead>
       <tbody>${rows.map(r => `
@@ -9461,12 +9456,11 @@ function renderFinanceIncomeNeedSection() {
           <td class="text-right text-mono" style="font-size:12px;">${money(r.pending)}</td>
           <td class="text-right text-mono" style="font-size:12px;">${money(r.card)}</td>
           <td class="text-right text-mono" style="font-size:12px;">${money(r.investment)}</td>
-          <td class="text-right text-mono" style="font-size:12px; color: var(--green);">${r.fromBalance > 0 ? '− ' + NumFmt.money(r.fromBalance) : '<span style="color: var(--text-muted);">—</span>'}</td>
           <td class="text-right text-mono" style="font-weight:700; color:${r.need > 0 ? 'var(--red)' : 'var(--green)'};">${NumFmt.money(r.need)}</td>
         </tr>`).join('')}
       </tbody>
     </table>
-    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">Só entra o que já está lançado ou programado. Gastos do dia a dia que você ainda vai fazer (mercado, transporte etc.) não estão nessa conta.</div>`;
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">Só entra o que já está lançado ou programado. Gastos do dia a dia que você ainda vai fazer (mercado, transporte etc.) não estão nessa conta, e o saldo que você já tem nas contas não é descontado.</div>`;
 }
 
 function handleSaveInvestmentGoal() {
