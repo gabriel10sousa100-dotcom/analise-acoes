@@ -7485,15 +7485,18 @@ function generateInstallments(purchase) {
 // Parcela pendente (Pix futuro ainda nao confirmado) fica de fora - o
 // dinheiro so sai de verdade quando o usuario marcar como pago.
 // Com balanceAnchor (saldo real informado numa data, ver
-// handleSaveFinanceAccount), o saldo parte desse valor e so lancamentos
-// DEPOIS dessa data mexem nele - os anteriores ja estao no valor informado.
+// handleSaveFinanceAccount), o saldo e o valor informado + lancamentos
+// entre essa data (exclusive) e hoje - os anteriores ja estao no valor
+// informado, e os de data futura ainda nao aconteceram (entram quando a
+// data chegar).
 function getFinanceAccountBalance(accountId) {
   const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
   const anchor = acc && acc.balanceAnchor;
+  const todayStr = getLocalTodayStr();
   let balance = anchor ? Number(anchor.amount) : (acc ? (Number(acc.initialBalance) || 0) : 0);
   (AppState.financeTransactions || []).forEach(tx => {
     if (tx.pending) return;
-    if (anchor && (tx.date || '') <= anchor.date) return;
+    if (anchor && ((tx.date || '') <= anchor.date || (tx.date || '') > todayStr)) return;
     const amt = Number(tx.amount) || 0;
     if (tx.accountId === accountId) {
       if (tx.type === 'expense' || tx.type === 'transfer') balance -= amt;
@@ -9898,7 +9901,15 @@ function handleSaveFinanceAccount(e) {
     }
   }
 
-  const anchorRaw = document.getElementById('finance-acc-anchor-amount').value.trim();
+  const anchorInput = document.getElementById('finance-acc-anchor-amount');
+  // Campo number com texto que o navegador nao entende (ex: "R$ 99,23",
+  // "1.365,99") devolve value "" - sem essa checagem o valor era ignorado
+  // em silencio e a conta salvava sem mudar o saldo.
+  if (anchorInput.validity && anchorInput.validity.badInput) {
+    showToast('Valor de saldo/fatura inválido - digite só o número, ex: 99,23 ou 1365,99 (sem R$ e sem ponto de milhar).', 'error');
+    return;
+  }
+  const anchorRaw = anchorInput.value.trim();
   const anchorAmount = anchorRaw === '' ? null : parseFloat(anchorRaw);
   if (anchorRaw !== '' && isNaN(anchorAmount)) { showToast('Valor de saldo/fatura atual inválido.', 'error'); return; }
 
@@ -9976,7 +9987,14 @@ function handleSaveFinanceAccount(e) {
   localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
   closeFinanceAccountModal();
   renderFinanceView();
-  showToast('Conta salva!', 'success');
+  if (editId && anchorAmount !== null) {
+    const shown = isCardType
+      ? getCardInvoiceForCycle(editId, getCardCurrentOpenCycle(editId)).total
+      : getFinanceAccountBalance(editId);
+    showToast(`Conta salva! ${isCardType ? 'Fatura atual' : 'Saldo atual'}: ${NumFmt.money(shown)}`, 'success');
+  } else {
+    showToast('Conta salva!', 'success');
+  }
 }
 
 function handleArchiveCurrentFinanceAccount() {
