@@ -970,6 +970,18 @@
           <div class="grid grid-3" id="finance-goals-grid" style="margin-top: 4px;"></div>
         </div>
 
+        <!-- ORCAMENTO POR CATEGORIA -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <div class="card-title" id="finance-budget-title">🧮 Orçamento do Mês</div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span class="status-pill" id="finance-budget-total" style="font-size:12px;">—</span>
+              <button class="btn btn-success btn-sm" onclick="openFinanceBudgetModal()">✏️ Definir Limites</button>
+            </div>
+          </div>
+          <div id="finance-budget-container" style="margin-top: 4px;"></div>
+        </div>
+
         <!-- CUSTOS FIXOS -->
         <div class="card" style="margin-bottom: 20px;">
           <div class="card-header">
@@ -2451,6 +2463,34 @@
 </div>
 
 <!-- ========================================== -->
+<!-- MODAL: ORCAMENTO POR CATEGORIA             -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="finance-budget-modal">
+  <div class="modal-box" style="max-width: 480px;">
+    <div class="modal-header">
+      <div class="modal-title">🧮 Limites do Orçamento</div>
+      <button class="modal-close" onclick="closeFinanceBudgetModal()">✕</button>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div>
+        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Valer para</label>
+        <select class="select-field" id="finance-budget-scope" style="width: 100%;">
+          <option value="all">Todos os meses</option>
+          <option value="month" id="finance-budget-scope-month-option">Só este mês</option>
+        </select>
+      </div>
+      <div style="font-size: 11px; color: var(--text-muted);">Limite mensal de gasto por categoria. Deixe em branco a categoria que não quiser limitar.</div>
+      <div id="finance-budget-rows" style="display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto;"></div>
+      <div style="display: flex; gap: 10px; margin-top: 4px;">
+        <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeFinanceBudgetModal()">Cancelar</button>
+        <button type="button" class="btn btn-secondary" id="finance-budget-clear-month-btn" style="display: none;" onclick="handleClearMonthBudgetOverride()">Voltar ao padrão</button>
+        <button type="button" class="btn btn-success" style="flex: 1;" onclick="handleSaveFinanceBudget()">Salvar Limites</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
 <!-- MODAL: CONFIRMAR PAGAMENTO (Pagamentos Programados) -->
 <!-- ========================================== -->
 <div class="modal-overlay" id="finance-confirm-payment-modal">
@@ -2886,7 +2926,7 @@ const AUTO_CLOUD_SYNC_KEYS = new Set([
   'gemini_api_key', 'b3_ai_folder_files',
   'b3_finance_accounts', 'b3_finance_categories', 'b3_finance_transactions',
   'b3_finance_goals', 'b3_finance_fixed_costs', 'b3_finance_changelog',
-  'b3_finance_category_rules', 'b3_finance_networth_history'
+  'b3_finance_category_rules', 'b3_finance_networth_history', 'b3_finance_budgets'
 ]);
 const AUTO_CLOUD_SYNC_DEBOUNCE_MS = 8000;
 let autoCloudSyncTimer = null;
@@ -4277,6 +4317,9 @@ const AppState = {
   financeCategoryEditingId: null,
   financeGoals: JSON.parse(localStorage.getItem('b3_finance_goals') || '[]'),
   financeFixedCosts: JSON.parse(localStorage.getItem('b3_finance_fixed_costs') || '[]'),
+  // Limite mensal por categoria: "default" vale pra todo mes; "months[AAAA-MM]"
+  // substitui o padrao inteiro naquele mes (ajuste so daquele mes).
+  financeBudgets: JSON.parse(localStorage.getItem('b3_finance_budgets') || '{"default":{},"months":{}}'),
   triggeredFixedCostAlerts: JSON.parse(localStorage.getItem('b3_triggered_fixedcost_alerts') || '[]'),
   triggeredDueAlerts: JSON.parse(localStorage.getItem('b3_triggered_due_alerts') || '[]'),
   financeChangeLog: JSON.parse(localStorage.getItem('b3_finance_changelog') || '[]'),
@@ -8421,6 +8464,7 @@ async function renderFinanceView() {
   renderFinanceCategoryChart();
   renderFinanceTrendChart();
   renderFinanceGoalsSection();
+  renderFinanceBudgetSection();
   renderFinanceFixedCostsSection();
   renderFinancePendingPaymentsSection();
   renderFinanceCardsSection();
@@ -9185,6 +9229,144 @@ function isFixedCostPaidForMonth(fc, monthStr) {
 }
 function isFixedCostPaidThisMonth(fc) {
   return isFixedCostPaidForMonth(fc, AppState.financeActiveMonth);
+}
+
+// ---------- ORCAMENTO POR CATEGORIA ----------
+// Limites do mes: ajuste daquele mes (se existir) senao o padrao. Sobra nao
+// passa pro mes seguinte - cada mes compara so o proprio gasto.
+function getBudgetLimitsForMonth(month) {
+  const b = AppState.financeBudgets || { default: {}, months: {} };
+  return (b.months && b.months[month]) || b.default || {};
+}
+
+// Despesa por categoria pelo mesmo criterio do resumo mensal: compra de
+// cartao conta no mes da FATURA; ignorados e pendentes ficam de fora.
+function getMonthExpenseByCategoryId(month) {
+  const byCat = {};
+  (AppState.financeTransactions || []).forEach(tx => {
+    if (tx.type !== 'expense' || tx.ignored || tx.pending || getEffectiveMonth(tx) !== month) return;
+    const key = tx.categoryId || '';
+    byCat[key] = (byCat[key] || 0) + (Number(tx.amount) || 0);
+  });
+  return byCat;
+}
+
+function getBudgetStatusForMonth(month) {
+  const limits = getBudgetLimitsForMonth(month);
+  const spentByCat = getMonthExpenseByCategoryId(month);
+  const cats = AppState.financeCategories || [];
+  const rows = Object.entries(limits)
+    .filter(([, limit]) => Number(limit) > 0)
+    .map(([categoryId, limit]) => {
+      const spent = spentByCat[categoryId] || 0;
+      return { categoryId, category: cats.find(c => c.id === categoryId), limit: Number(limit), spent, pct: (spent / Number(limit)) * 100 };
+    })
+    .sort((a, b) => b.pct - a.pct);
+  const unbudgetedSpent = Object.entries(spentByCat)
+    .filter(([categoryId]) => !(Number(limits[categoryId]) > 0))
+    .reduce((sum, [, v]) => sum + v, 0);
+  return { rows, unbudgetedSpent };
+}
+
+function renderFinanceBudgetSection() {
+  const container = document.getElementById('finance-budget-container');
+  if (!container) return;
+  const month = AppState.financeActiveMonth;
+  const titleEl = document.getElementById('finance-budget-title');
+  if (titleEl) titleEl.textContent = `🧮 Orçamento do Mês (${month})`;
+  const { rows, unbudgetedSpent } = getBudgetStatusForMonth(month);
+  const totalEl = document.getElementById('finance-budget-total');
+
+  if (rows.length === 0) {
+    if (totalEl) totalEl.textContent = '—';
+    container.innerHTML = `<div class="state-box"><div class="state-icon">🧮</div><div class="state-title">Nenhum limite definido</div><div class="state-desc">Clique em "Definir Limites" pra escolher quanto quer gastar por mês em cada categoria.</div></div>`;
+    return;
+  }
+
+  const totalLimit = rows.reduce((s, r) => s + r.limit, 0);
+  const totalSpent = rows.reduce((s, r) => s + r.spent, 0);
+  if (totalEl) totalEl.textContent = `${NumFmt.money(totalSpent)} de ${NumFmt.money(totalLimit)}`;
+
+  const color = pct => pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--yellow)' : 'var(--green)';
+  container.innerHTML = rows.map(r => {
+    const remaining = r.limit - r.spent;
+    const label = r.category ? `${r.category.icon} ${r.category.name}` : 'Categoria removida';
+    return `
+      <div style="padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px;">
+          <span>${label}</span>
+          <span class="text-mono" style="font-size: 12px;">${NumFmt.money(r.spent)} <span style="color: var(--text-sub);">de ${NumFmt.money(r.limit)}</span></span>
+        </div>
+        <div style="height: 8px; border-radius: 100px; background: rgba(0,0,0,0.08); overflow: hidden; margin-top: 5px;">
+          <div style="height: 100%; width: ${Math.min(100, r.pct)}%; background: ${color(r.pct)}; border-radius: 100px;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-sub); margin-top: 3px;">
+          <span>${NumFmt.num(r.pct, 0)}% usado</span>
+          <span style="${remaining < 0 ? 'color: var(--red); font-weight: 700;' : ''}">${remaining >= 0 ? `Faltam ${NumFmt.money(remaining)}` : `Passou ${NumFmt.money(-remaining)}`}</span>
+        </div>
+      </div>`;
+  }).join('') + (unbudgetedSpent > 0
+    ? `<div style="font-size: 11.5px; color: var(--text-sub); margin-top: 8px;">Gasto em categorias sem limite: ${NumFmt.money(unbudgetedSpent)}</div>`
+    : '');
+}
+
+function openFinanceBudgetModal() {
+  const month = AppState.financeActiveMonth;
+  const b = AppState.financeBudgets || { default: {}, months: {} };
+  const hasMonthOverride = !!(b.months && b.months[month]);
+  const limits = getBudgetLimitsForMonth(month);
+  const cats = (AppState.financeCategories || []).filter(c => !c.archived && (c.appliesTo || []).includes('expense'));
+
+  document.getElementById('finance-budget-scope-month-option').textContent = `Só ${month}`;
+  document.getElementById('finance-budget-scope').value = hasMonthOverride ? 'month' : 'all';
+  document.getElementById('finance-budget-clear-month-btn').style.display = hasMonthOverride ? 'inline-flex' : 'none';
+  document.getElementById('finance-budget-rows').innerHTML = cats.map(c => `
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="flex: 1; font-size: 13px;">${c.icon} ${c.name}</span>
+      <input type="number" class="input-field finance-budget-input" data-category-id="${c.id}" min="0" step="0.01" placeholder="Sem limite" value="${Number(limits[c.id]) > 0 ? limits[c.id] : ''}" style="width: 130px;">
+    </div>`).join('');
+  document.getElementById('finance-budget-modal').classList.add('active');
+}
+
+function closeFinanceBudgetModal() {
+  const modal = document.getElementById('finance-budget-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function handleSaveFinanceBudget() {
+  const month = AppState.financeActiveMonth;
+  const scope = document.getElementById('finance-budget-scope').value;
+  const limits = {};
+  for (const input of document.querySelectorAll('.finance-budget-input')) {
+    if (input.validity && input.validity.badInput) { showToast('Valor inválido - digite só o número, ex: 500 ou 450,50.', 'error'); return; }
+    const v = parseFloat(input.value);
+    if (!isNaN(v) && v > 0) limits[input.dataset.categoryId] = v;
+  }
+
+  AppState.financeBudgets = AppState.financeBudgets || { default: {}, months: {} };
+  AppState.financeBudgets.months = AppState.financeBudgets.months || {};
+  if (scope === 'month') {
+    AppState.financeBudgets.months[month] = limits;
+  } else {
+    AppState.financeBudgets.default = limits;
+    delete AppState.financeBudgets.months[month];
+  }
+  localStorage.setItem('b3_finance_budgets', JSON.stringify(AppState.financeBudgets));
+  logFinanceChange('update', 'categoria', `Orçamento ${scope === 'month' ? 'de ' + month : 'padrão (todos os meses)'} atualizado: ${Object.keys(limits).length} categoria(s) com limite`);
+  closeFinanceBudgetModal();
+  renderFinanceBudgetSection();
+  showToast('Orçamento salvo!', 'success');
+}
+
+function handleClearMonthBudgetOverride() {
+  const month = AppState.financeActiveMonth;
+  if (!AppState.financeBudgets || !AppState.financeBudgets.months) return;
+  delete AppState.financeBudgets.months[month];
+  localStorage.setItem('b3_finance_budgets', JSON.stringify(AppState.financeBudgets));
+  logFinanceChange('update', 'categoria', `Ajuste do orçamento de ${month} removido (voltou ao padrão)`);
+  closeFinanceBudgetModal();
+  renderFinanceBudgetSection();
+  showToast(`${month} voltou a usar o orçamento padrão.`, 'info');
 }
 
 function renderFinanceFixedCostsSection() {
@@ -14446,6 +14628,7 @@ function clearAllCache() {
     localStorage.removeItem('b3_finance_changelog');
     localStorage.removeItem('b3_finance_category_rules');
     localStorage.removeItem('b3_finance_networth_history');
+    localStorage.removeItem('b3_finance_budgets');
     localStorage.removeItem('b3_triggered_unusual_spending_alerts');
     localStorage.removeItem('b3_last_known_cloud_update');
     AppState.favorites = [...DEFAULT_FAVORITES];
@@ -14459,6 +14642,7 @@ function clearAllCache() {
     AppState.financeChangeLog = [];
     AppState.financeCategoryRules = [];
     AppState.financeNetWorthHistory = [];
+    AppState.financeBudgets = { default: {}, months: {} };
     AppState.triggeredUnusualSpendingAlerts = [];
     syncAutomatedDividends();
     showToast('Dados restaurados para os padrões.', 'info');
@@ -14853,6 +15037,21 @@ function checkFinanceDueAlerts(today, horizon) {
       `🔴 ${fc.description} vencido (${NumFmt.money(fc.amount)}).`, 'error');
   });
 
+  // Orcamento: avisa ao chegar em 80% e ao passar de 100% do limite da
+  // categoria no mes calendario atual.
+  getBudgetStatusForMonth(month).rows.forEach(r => {
+    const label = r.category ? `${r.category.icon} ${r.category.name}` : 'Categoria';
+    if (r.pct > 100) {
+      fire(`budget-${r.categoryId}-${month}-100`, `🧮 Orçamento estourado: ${label}`,
+        `${NumFmt.money(r.spent)} gastos de um limite de ${NumFmt.money(r.limit)} em ${month}.`,
+        `🧮 ${label} passou do orçamento (${NumFmt.money(r.spent)} de ${NumFmt.money(r.limit)}).`, 'error');
+    } else if (r.pct >= 80) {
+      fire(`budget-${r.categoryId}-${month}-80`, `🧮 Orçamento em ${NumFmt.num(r.pct, 0)}%: ${label}`,
+        `${NumFmt.money(r.spent)} gastos de ${NumFmt.money(r.limit)} em ${month} - faltam ${NumFmt.money(r.limit - r.spent)}.`,
+        `🧮 ${label} chegou a ${NumFmt.num(r.pct, 0)}% do orçamento.`, 'warn');
+    }
+  });
+
   if (dirty) localStorage.setItem('b3_triggered_due_alerts', JSON.stringify(AppState.triggeredDueAlerts));
 }
 
@@ -14939,7 +15138,8 @@ function buildBackupPayload() {
     financeFixedCosts: AppState.financeFixedCosts || [],
     financeChangeLog: AppState.financeChangeLog || [],
     financeCategoryRules: AppState.financeCategoryRules || [],
-    financeNetWorthHistory: AppState.financeNetWorthHistory || []
+    financeNetWorthHistory: AppState.financeNetWorthHistory || [],
+    financeBudgets: AppState.financeBudgets || { default: {}, months: {} }
   };
 }
 
@@ -14962,6 +15162,7 @@ function applyBackupPayload(data) {
   if (data.financeChangeLog) { AppState.financeChangeLog = data.financeChangeLog; localStorage.setItem('b3_finance_changelog', JSON.stringify(data.financeChangeLog)); }
   if (data.financeCategoryRules) { AppState.financeCategoryRules = data.financeCategoryRules; localStorage.setItem('b3_finance_category_rules', JSON.stringify(data.financeCategoryRules)); }
   if (data.financeNetWorthHistory) { AppState.financeNetWorthHistory = data.financeNetWorthHistory; localStorage.setItem('b3_finance_networth_history', JSON.stringify(data.financeNetWorthHistory)); }
+  if (data.financeBudgets) { AppState.financeBudgets = data.financeBudgets; localStorage.setItem('b3_finance_budgets', JSON.stringify(data.financeBudgets)); }
 }
 
 // Marcador LOCAL (nao faz parte do backup/payload) do ultimo updatedAt da
