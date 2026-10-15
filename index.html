@@ -8423,12 +8423,18 @@ function renderFinanceAccountsList() {
   grid.innerHTML = accounts.map(a => {
     if (a.type === 'credit_card') {
       const usage = getCardLimitUsage(a.id);
-      const cycle = getCardCurrentOpenCycle(a.id);
+      const pct = Math.min(100, Math.max(0, usage.pct));
+      const barColor = usage.pct >= 90 ? 'var(--red)' : usage.pct >= 70 ? 'var(--yellow)' : 'var(--green)';
       return `
         <div class="stat-card" style="cursor:pointer;" onclick="openFinanceAccountModal('${a.id}')">
           <span class="stat-label">${a.icon || '💳'} ${a.name}</span>
           <div class="stat-val" style="color: var(--red); font-size: 18px;">${NumFmt.money(getCardCurrentInvoiceTotal(a.id))}</div>
-          <div class="stat-meta">Fatura ${cycle} · Limite usado ${NumFmt.money(usage.used)} de ${NumFmt.money(usage.limit)}</div>
+          <div title="Usado ${NumFmt.money(usage.used)} · Disponível ${NumFmt.money(usage.available)} · Limite ${NumFmt.money(usage.limit)}" style="margin-top: 8px;">
+            <div style="height: 8px; border-radius: 100px; background: rgba(0,0,0,0.08); overflow: hidden;">
+              <div style="height: 100%; width: ${pct}%; background: ${barColor}; border-radius: 100px;"></div>
+            </div>
+            <div class="stat-meta" style="margin-top: 4px;">${NumFmt.num(usage.pct, 0)}% do limite usado</div>
+          </div>
         </div>`;
     }
     const balance = getFinanceAccountBalance(a.id);
