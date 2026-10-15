@@ -7672,21 +7672,82 @@ function getCardLimitUsage(cardAccountId) {
   return { used, available: Math.max(0, limit - used), limit, pct: limit > 0 ? (used / limit) * 100 : 0 };
 }
 
+// "Marcar como paga" abre o modal Confirmar Pagamento (conta + data) e
+// registra o pagamento como TRANSFERENCIA da conta escolhida pro cartao:
+// sai do saldo da conta, mas nao conta como despesa de novo - as compras
+// da fatura ja foram contadas como despesa uma vez.
 function markCardInvoiceAsPaid(cardAccountId, invoiceMonth) {
   const card = (AppState.financeAccounts || []).find(a => a.id === cardAccountId);
   if (!card) return;
+  const total = getCardInvoiceForCycle(cardAccountId, invoiceMonth).total;
+  if (total <= 0) {
+    card.paidInvoiceMonths = card.paidInvoiceMonths || [];
+    if (!card.paidInvoiceMonths.includes(invoiceMonth)) card.paidInvoiceMonths.push(invoiceMonth);
+    localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+    logFinanceChange('update', 'fatura', `Fatura de ${invoiceMonth} do cartão "${card.name}" marcada como paga`);
+    renderFinanceView();
+    return;
+  }
+
+  const invoiceModal = document.getElementById('finance-invoice-modal');
+  if (invoiceModal) invoiceModal.classList.remove('active');
+
+  document.getElementById('finance-confirm-payment-tx-id').value = `${cardAccountId}|${invoiceMonth}`;
+  document.getElementById('finance-confirm-payment-kind').value = 'invoice';
+  document.getElementById('finance-confirm-payment-desc').textContent = `Fatura ${invoiceMonth} do cartão ${card.name} — ${NumFmt.money(total)} (vencimento ${NumFmt.date(getInvoiceDueDate(card, invoiceMonth))})`;
+
+  const accSel = document.getElementById('finance-confirm-payment-account');
+  const accounts = (AppState.financeAccounts || []).filter(a => !a.archived && a.type !== 'credit_card');
+  accSel.innerHTML = accounts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
+  accSel.value = accounts[0]?.id || '';
+  document.getElementById('finance-confirm-payment-date').value = getLocalTodayStr();
+
+  document.getElementById('finance-confirm-payment-modal').classList.add('active');
+}
+
+function handleConfirmCardInvoicePayment() {
+  const [cardAccountId, invoiceMonth] = document.getElementById('finance-confirm-payment-tx-id').value.split('|');
+  const accountId = document.getElementById('finance-confirm-payment-account').value;
+  const paymentDate = document.getElementById('finance-confirm-payment-date').value;
+  const card = (AppState.financeAccounts || []).find(a => a.id === cardAccountId);
+  const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
+  if (!card || !acc || !paymentDate) { showToast('Selecione a conta e a data do pagamento.', 'error'); return; }
+
+  const total = getCardInvoiceForCycle(cardAccountId, invoiceMonth).total;
+  AppState.financeTransactions.unshift({
+    id: 'ftx_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+    type: 'transfer', description: `Pagamento fatura ${card.name} (${invoiceMonth})`, amount: total, date: paymentDate,
+    accountId, transferAccountId: cardAccountId, categoryId: null,
+    notes: '', tags: [], source: 'manual', importId: null, originalAccountLabel: null,
+    investmentDirection: null, goalId: null, goalDirection: null,
+    isCardPurchase: false, invoiceMonth: null, installmentGroupId: null, installmentNumber: null, installmentTotal: null,
+    fixedCostId: null, ignored: false, pending: false, splitGroupId: null,
+    cardInvoicePayment: { cardId: cardAccountId, invoiceMonth }
+  });
+  card.paidInvoiceMonths = card.paidInvoiceMonths || [];
   if (!card.paidInvoiceMonths.includes(invoiceMonth)) card.paidInvoiceMonths.push(invoiceMonth);
+
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
   localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
-  logFinanceChange('update', 'fatura', `Fatura de ${invoiceMonth} do cartão "${card.name}" marcada como paga`);
+  logFinanceChange('update', 'fatura', `Fatura de ${invoiceMonth} do cartão "${card.name}" paga em ${NumFmt.date(paymentDate)} via ${acc.name} (${NumFmt.money(total)})`);
+  closeConfirmPendingPaymentModal();
   renderFinanceView();
+  showToast('Fatura paga! O pagamento já aparece em Lançamentos.', 'success');
 }
 
 function unmarkCardInvoiceAsPaid(cardAccountId, invoiceMonth) {
   const card = (AppState.financeAccounts || []).find(a => a.id === cardAccountId);
   if (!card) return;
-  card.paidInvoiceMonths = card.paidInvoiceMonths.filter(m => m !== invoiceMonth);
+  const linked = (AppState.financeTransactions || []).filter(t => t.cardInvoicePayment && t.cardInvoicePayment.cardId === cardAccountId && t.cardInvoicePayment.invoiceMonth === invoiceMonth);
+  if (linked.length > 0 && !confirm(`Desfazer o pagamento da fatura ${invoiceMonth} do cartão "${card.name}"? O lançamento do pagamento também será excluído.`)) return;
+
+  card.paidInvoiceMonths = (card.paidInvoiceMonths || []).filter(m => m !== invoiceMonth);
+  if (linked.length > 0) {
+    AppState.financeTransactions = AppState.financeTransactions.filter(t => !linked.includes(t));
+    localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  }
   localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
-  logFinanceChange('update', 'fatura', `Pagamento da fatura de ${invoiceMonth} do cartão "${card.name}" desfeito`);
+  logFinanceChange('update', 'fatura', `Pagamento da fatura de ${invoiceMonth} do cartão "${card.name}" desfeito${linked.length ? ' (lançamento excluído)' : ''}`);
   renderFinanceView();
 }
 
@@ -8624,10 +8685,9 @@ function closeConfirmPendingPaymentModal() {
 }
 
 function handleConfirmPendingPayment() {
-  if (document.getElementById('finance-confirm-payment-kind').value === 'fixedcost') {
-    handleConfirmFixedCostPayment();
-    return;
-  }
+  const kind = document.getElementById('finance-confirm-payment-kind').value;
+  if (kind === 'fixedcost') { handleConfirmFixedCostPayment(); return; }
+  if (kind === 'invoice') { handleConfirmCardInvoicePayment(); return; }
   const id = document.getElementById('finance-confirm-payment-tx-id').value;
   const accountId = document.getElementById('finance-confirm-payment-account').value;
   const paymentDate = document.getElementById('finance-confirm-payment-date').value;
@@ -8924,7 +8984,7 @@ function renderFinanceInvoiceModalContent() {
   const payActionHtml = invoice.status === 'closed'
     ? (invoice.isPaid
         ? `<button class="btn btn-secondary btn-sm" onclick="unmarkCardInvoiceAsPaid('${cardId}','${invoiceMonth}'); renderFinanceInvoiceModalContent();">Desfazer pagamento</button>`
-        : `<button class="btn btn-success btn-sm" onclick="markCardInvoiceAsPaid('${cardId}','${invoiceMonth}'); renderFinanceInvoiceModalContent();">Marcar como paga</button>`)
+        : `<button class="btn btn-success btn-sm" onclick="markCardInvoiceAsPaid('${cardId}','${invoiceMonth}')">Marcar como paga</button>`)
     : '';
 
   const anchorCard = (AppState.financeAccounts || []).find(a => a.id === cardId);
