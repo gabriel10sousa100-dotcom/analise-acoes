@@ -2456,6 +2456,7 @@
     </div>
     <div style="display: flex; flex-direction: column; gap: 14px;">
       <input type="hidden" id="finance-confirm-payment-tx-id" value="">
+      <input type="hidden" id="finance-confirm-payment-kind" value="pending">
       <div id="finance-confirm-payment-desc" style="font-size: 13px; color: var(--text-sub);"></div>
       <div>
         <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Pago com qual conta?</label>
@@ -8554,6 +8555,7 @@ function openConfirmPendingPaymentModal(id) {
   const tx = (AppState.financeTransactions || []).find(t => t.id === id);
   if (!tx) return;
   document.getElementById('finance-confirm-payment-tx-id').value = id;
+  document.getElementById('finance-confirm-payment-kind').value = 'pending';
   document.getElementById('finance-confirm-payment-desc').textContent = `${tx.description} — ${NumFmt.money(tx.amount)} (vencimento ${NumFmt.date(tx.date)})`;
 
   const accSel = document.getElementById('finance-confirm-payment-account');
@@ -8572,6 +8574,10 @@ function closeConfirmPendingPaymentModal() {
 }
 
 function handleConfirmPendingPayment() {
+  if (document.getElementById('finance-confirm-payment-kind').value === 'fixedcost') {
+    handleConfirmFixedCostPayment();
+    return;
+  }
   const id = document.getElementById('finance-confirm-payment-tx-id').value;
   const accountId = document.getElementById('finance-confirm-payment-account').value;
   const paymentDate = document.getElementById('finance-confirm-payment-date').value;
@@ -9164,9 +9170,19 @@ function renderFinancePendingPaymentsSection() {
     </table>`;
 }
 
+// A partir desse mes, "marcar como pago" num custo fixo pede conta + data
+// e cria o lancamento de verdade (mesmo modal de Pagamentos Programados).
+// Meses anteriores continuam so marcando como pago - esses custos ja
+// tinham sido lancados a mao/importados, criar lancamento ali duplicaria.
+const FIXED_COST_LAUNCH_FROM_MONTH = '2026-11';
+
 function markFinanceFixedCostPaid(id) {
   const fc = (AppState.financeFixedCosts || []).find(f => f.id === id);
   if (!fc || isFixedCostPaidThisMonth(fc)) return;
+  if (AppState.financeActiveMonth >= FIXED_COST_LAUNCH_FROM_MONTH) {
+    openConfirmFixedCostPaymentModal(fc);
+    return;
+  }
   fc.paidMonths = fc.paidMonths || [];
   fc.paidMonths.push(AppState.financeActiveMonth);
 
@@ -9176,14 +9192,73 @@ function markFinanceFixedCostPaid(id) {
   showToast(`${fc.description} marcado como pago.`, 'success');
 }
 
+function openConfirmFixedCostPaymentModal(fc) {
+  const month = AppState.financeActiveMonth;
+  document.getElementById('finance-confirm-payment-tx-id').value = fc.id;
+  document.getElementById('finance-confirm-payment-kind').value = 'fixedcost';
+  document.getElementById('finance-confirm-payment-desc').textContent = `${fc.description} — ${NumFmt.money(fc.amount)} (custo fixo de ${month}, vence dia ${fc.dueDay})`;
+
+  // Custo fixo pode ser pago no cartao (ex: assinatura), entao aqui cartao
+  // tambem e opcao - diferente do Pix de Pagamentos Programados.
+  const accSel = document.getElementById('finance-confirm-payment-account');
+  const accounts = (AppState.financeAccounts || []).filter(a => !a.archived);
+  accSel.innerHTML = accounts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
+  accSel.value = accounts[0]?.id || '';
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [y, m] = month.split('-').map(Number);
+  const dueDateInMonth = `${month}-${String(Math.min(fc.dueDay, daysInMonth(y, m))).padStart(2, '0')}`;
+  document.getElementById('finance-confirm-payment-date').value = todayStr.slice(0, 7) === month ? todayStr : dueDateInMonth;
+
+  document.getElementById('finance-confirm-payment-modal').classList.add('active');
+}
+
+function handleConfirmFixedCostPayment() {
+  const fcId = document.getElementById('finance-confirm-payment-tx-id').value;
+  const accountId = document.getElementById('finance-confirm-payment-account').value;
+  const paymentDate = document.getElementById('finance-confirm-payment-date').value;
+  const fc = (AppState.financeFixedCosts || []).find(f => f.id === fcId);
+  const acc = (AppState.financeAccounts || []).find(a => a.id === accountId);
+  if (!fc || !acc || !paymentDate) { showToast('Selecione a conta e a data do pagamento.', 'error'); return; }
+
+  const month = AppState.financeActiveMonth;
+  const isCard = acc.type === 'credit_card';
+  AppState.financeTransactions.unshift({
+    id: 'ftx_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+    type: 'expense', description: fc.description, amount: Number(fc.amount), date: paymentDate, accountId, categoryId: fc.categoryId,
+    notes: '', tags: [], source: 'manual', importId: null, originalAccountLabel: null,
+    transferAccountId: null, investmentDirection: null, goalId: null, goalDirection: null,
+    isCardPurchase: isCard, invoiceMonth: isCard ? getInvoiceCycleForDate(acc, paymentDate) : null,
+    installmentGroupId: null, installmentNumber: null, installmentTotal: null,
+    fixedCostId: fc.id, fixedCostMonth: month, ignored: false, pending: false, splitGroupId: null
+  });
+  fc.paidMonths = fc.paidMonths || [];
+  if (!fc.paidMonths.includes(month)) fc.paidMonths.push(month);
+
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
+  logFinanceChange('update', 'custo_fixo', `Custo fixo "${fc.description}" de ${month} pago em ${NumFmt.date(paymentDate)} via ${acc.name} (${NumFmt.money(fc.amount)})`);
+  closeConfirmPendingPaymentModal();
+  renderFinanceView();
+  showToast('Pagamento confirmado! Já aparece em Lançamentos.', 'success');
+}
+
 function unmarkFinanceFixedCostPaid(id) {
   const fc = (AppState.financeFixedCosts || []).find(f => f.id === id);
   if (!fc) return;
-  fc.paidMonths = (fc.paidMonths || []).filter(m => m !== AppState.financeActiveMonth);
+  const month = AppState.financeActiveMonth;
+  const linked = (AppState.financeTransactions || []).filter(t => t.fixedCostId === fc.id && t.fixedCostMonth === month);
+  if (linked.length > 0 && !confirm(`Desfazer o pagamento de "${fc.description}" em ${month}? O lançamento criado ao confirmar também será excluído.`)) return;
+
+  fc.paidMonths = (fc.paidMonths || []).filter(m => m !== month);
+  if (linked.length > 0) {
+    AppState.financeTransactions = AppState.financeTransactions.filter(t => !linked.includes(t));
+    localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  }
   localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
-  logFinanceChange('update', 'custo_fixo', `Pagamento de "${fc.description}" desfeito em ${AppState.financeActiveMonth}`);
-  renderFinanceFixedCostsSection();
-  showToast('Pagamento desfeito.', 'info');
+  logFinanceChange('update', 'custo_fixo', `Pagamento de "${fc.description}" desfeito em ${month}${linked.length ? ' (lançamento excluído)' : ''}`);
+  renderFinanceView();
+  showToast(linked.length ? 'Pagamento desfeito e lançamento excluído.' : 'Pagamento desfeito.', 'info');
 }
 
 function openFinanceFixedCostModal(editId = '') {
