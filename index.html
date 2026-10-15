@@ -7601,7 +7601,7 @@ function getFinanceMonthSummary(monthStr) {
 function getCardCurrentOpenCycle(cardAccountId) {
   const card = (AppState.financeAccounts || []).find(a => a.id === cardAccountId);
   if (!card) return null;
-  return getInvoiceCycleForDate(card, new Date().toISOString().slice(0, 10));
+  return getInvoiceCycleForDate(card, getLocalTodayStr());
 }
 
 // Cartao com balanceAnchor ("valor da fatura atual" informado numa data):
@@ -8416,11 +8416,13 @@ function renderFinanceAccountsList() {
   grid.innerHTML = accounts.map(a => {
     if (a.type === 'credit_card') {
       const usage = getCardLimitUsage(a.id);
+      const cycle = getCardCurrentOpenCycle(a.id);
+      const invoice = getCardInvoiceForCycle(a.id, cycle);
       return `
         <div class="stat-card" style="cursor:pointer;" onclick="openFinanceAccountModal('${a.id}')">
           <span class="stat-label">${a.icon || '💳'} ${a.name}</span>
-          <div class="stat-val" style="color: var(--red); font-size: 18px;">${NumFmt.money(usage.used)}</div>
-          <div class="stat-meta">Limite: ${NumFmt.money(usage.limit)} (${NumFmt.num(usage.pct, 0)}% usado)</div>
+          <div class="stat-val" style="color: var(--red); font-size: 18px;">${NumFmt.money(invoice.total)}</div>
+          <div class="stat-meta">Fatura ${cycle} · Limite usado ${NumFmt.money(usage.used)} de ${NumFmt.money(usage.limit)}</div>
         </div>`;
     }
     const balance = getFinanceAccountBalance(a.id);
@@ -8917,7 +8919,7 @@ function renderFinanceInvoiceModalContent() {
   const anchorRowHtml = invoice.anchorAmount
     ? `<tr>
         <td class="text-mono" style="font-size:12px;">${NumFmt.date(anchorCard.balanceAnchor.date)}</td>
-        <td><em>Valor da fatura informado (ponto de partida)</em></td>
+        <td><em>Valor da fatura informado</em></td>
         <td style="font-size:12px; color:var(--text-sub);">—</td>
         <td class="text-right text-mono" style="font-weight:700;">${NumFmt.money(invoice.anchorAmount)}</td>
       </tr>`
@@ -9800,7 +9802,7 @@ function refreshFinanceAccountAnchorFields() {
   const hint = document.getElementById('finance-acc-anchor-hint');
   const todayStr = getLocalTodayStr();
   const current = acc && acc.balanceAnchor
-    ? ` Ponto de partida atual: ${NumFmt.money(acc.balanceAnchor.amount)} em ${NumFmt.date(acc.balanceAnchor.date)}.`
+    ? ` Último valor informado: ${NumFmt.money(acc.balanceAnchor.amount)} em ${NumFmt.date(acc.balanceAnchor.date)}.`
     : '';
 
   if (type === 'credit_card') {
@@ -9808,11 +9810,11 @@ function refreshFinanceAccountAnchorFields() {
     const cycle = closingDay >= 1 && closingDay <= 31 ? getInvoiceCycleForDate({ closingDay }, todayStr) : null;
     label.textContent = cycle ? `Valor da fatura ${cycle} (R$)` : 'Valor da fatura atual (R$)';
     input.placeholder = (acc && acc.type === 'credit_card' && cycle) ? NumFmt.money(getCardInvoiceForCycle(acc.id, cycle).total) : '';
-    hint.textContent = `Opcional. Digite o valor dessa fatura como aparece no app do banco: faturas anteriores e os lançamentos dela até hoje passam a ser ignorados, e o que for lançado depois soma.${current}`;
+    hint.textContent = `Opcional. Digite o valor dessa fatura como aparece no app do banco - a caixa do cartão passa a mostrar exatamente esse valor. Compras lançadas a partir de amanhã somam.${current}`;
   } else {
     label.textContent = 'Saldo atual hoje (R$)';
     input.placeholder = (acc && acc.type !== 'credit_card') ? NumFmt.money(getFinanceAccountBalance(acc.id)) : '';
-    hint.textContent = `Opcional. Digite o saldo que aparece hoje no app do banco: os lançamentos até hoje deixam de mexer no saldo (substitui o Saldo Inicial), e os de amanhã em diante somam/subtraem.${current}`;
+    hint.textContent = `Opcional. Digite o saldo que aparece hoje no app do banco - a caixa da conta passa a mostrar exatamente esse valor. Lançamentos a partir de amanhã somam/subtraem.${current}`;
   }
 }
 
