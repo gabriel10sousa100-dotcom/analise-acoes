@@ -982,6 +982,18 @@
           <div id="finance-budget-container" style="margin-top: 4px;"></div>
         </div>
 
+        <!-- QUANTO PRECISO RECEBER (necessidade de renda por mes) -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
+            <div class="card-title">💡 Quanto Preciso Receber</div>
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-sub);">
+              Meta de investimento por mês (R$)
+              <input type="number" class="input-field" id="finance-investment-goal-input" min="0" step="0.01" placeholder="0" style="width: 110px;" onchange="handleSaveInvestmentGoal()">
+            </label>
+          </div>
+          <div class="table-responsive" id="finance-income-need-container" style="margin-top: 4px;"></div>
+        </div>
+
         <!-- CUSTOS FIXOS -->
         <div class="card" style="margin-bottom: 20px;">
           <div class="card-header">
@@ -2926,7 +2938,7 @@ const AUTO_CLOUD_SYNC_KEYS = new Set([
   'gemini_api_key', 'b3_ai_folder_files',
   'b3_finance_accounts', 'b3_finance_categories', 'b3_finance_transactions',
   'b3_finance_goals', 'b3_finance_fixed_costs', 'b3_finance_changelog',
-  'b3_finance_category_rules', 'b3_finance_networth_history', 'b3_finance_budgets'
+  'b3_finance_category_rules', 'b3_finance_networth_history', 'b3_finance_budgets', 'b3_finance_investment_goal'
 ]);
 const AUTO_CLOUD_SYNC_DEBOUNCE_MS = 8000;
 let autoCloudSyncTimer = null;
@@ -4320,6 +4332,7 @@ const AppState = {
   // Limite mensal por categoria: "default" vale pra todo mes; "months[AAAA-MM]"
   // substitui o padrao inteiro naquele mes (ajuste so daquele mes).
   financeBudgets: JSON.parse(localStorage.getItem('b3_finance_budgets') || '{"default":{},"months":{}}'),
+  financeInvestmentGoal: Number(JSON.parse(localStorage.getItem('b3_finance_investment_goal') || '0')) || 0,
   triggeredFixedCostAlerts: JSON.parse(localStorage.getItem('b3_triggered_fixedcost_alerts') || '[]'),
   triggeredDueAlerts: JSON.parse(localStorage.getItem('b3_triggered_due_alerts') || '[]'),
   financeChangeLog: JSON.parse(localStorage.getItem('b3_finance_changelog') || '[]'),
@@ -8465,6 +8478,7 @@ async function renderFinanceView() {
   renderFinanceTrendChart();
   renderFinanceGoalsSection();
   renderFinanceBudgetSection();
+  renderFinanceIncomeNeedSection();
   renderFinanceFixedCostsSection();
   renderFinancePendingPaymentsSection();
   renderFinanceCardsSection();
@@ -9355,6 +9369,7 @@ function handleSaveFinanceBudget() {
   logFinanceChange('update', 'categoria', `Orçamento ${scope === 'month' ? 'de ' + month : 'padrão (todos os meses)'} atualizado: ${Object.keys(limits).length} categoria(s) com limite`);
   closeFinanceBudgetModal();
   renderFinanceBudgetSection();
+  renderFinanceIncomeNeedSection();
   showToast('Orçamento salvo!', 'success');
 }
 
@@ -9366,7 +9381,123 @@ function handleClearMonthBudgetOverride() {
   logFinanceChange('update', 'categoria', `Ajuste do orçamento de ${month} removido (voltou ao padrão)`);
   closeFinanceBudgetModal();
   renderFinanceBudgetSection();
+  renderFinanceIncomeNeedSection();
   showToast(`${month} voltou a usar o orçamento padrão.`, 'info');
+}
+
+// ---------- QUANTO PRECISO RECEBER ----------
+// Pra salario variavel: em vez de prever o saldo, mostra quanto precisa
+// entrar em cada mes pra cobrir o que ja esta comprometido + o gasto
+// variavel planejado (orcamento) + a meta de investimento. Cada coisa entra
+// uma vez so: do orcamento de cada categoria desconta o que ja foi gasto,
+// os custos fixos nao pagos e os Pix programados daquela categoria no mes
+// (eles ja estao nas outras colunas). O saldo atual em contas abate o
+// primeiro mes; se sobrar, abate o seguinte.
+const INCOME_NEED_MONTHS = 6;
+
+function getIncomeNeedByMonth() {
+  const todayStr = getLocalTodayStr();
+  const firstMonth = todayStr.slice(0, 7);
+  const months = Array.from({ length: INCOME_NEED_MONTHS }, (_, i) => addMonthsToYYYYMM(firstMonth, i));
+  const clampMonth = m => (m < firstMonth ? firstMonth : m);
+  const txs = AppState.financeTransactions || [];
+
+  // Faturas de cartao nao pagas, no mes do vencimento (vencida conta no mes atual).
+  const cardByMonth = {};
+  (AppState.financeAccounts || []).filter(a => a.type === 'credit_card' && !a.archived && a.closingDay).forEach(card => {
+    const openCycle = getCardCurrentOpenCycle(card.id);
+    for (let i = -3; i <= INCOME_NEED_MONTHS + 1; i++) {
+      const invoice = getCardInvoiceForCycle(card.id, addMonthsToYYYYMM(openCycle, i));
+      if (invoice.isPaid || invoice.total <= 0 || !invoice.dueDate) continue;
+      const m = clampMonth(invoice.dueDate.slice(0, 7));
+      cardByMonth[m] = (cardByMonth[m] || 0) + invoice.total;
+    }
+  });
+
+  const goal = Number(AppState.financeInvestmentGoal) || 0;
+  let carry = Math.max(0, getNetWorthSnapshot().accountsBalance);
+
+  return months.map(month => {
+    const committedByCat = {};
+    const addCat = (catId, v) => { committedByCat[catId || ''] = (committedByCat[catId || ''] || 0) + v; };
+
+    let pending = 0;
+    txs.filter(tx => tx.pending && clampMonth((tx.date || '').slice(0, 7)) === month).forEach(tx => {
+      pending += Number(tx.amount) || 0;
+      addCat(tx.categoryId, Number(tx.amount) || 0);
+    });
+
+    let fixed = 0;
+    (AppState.financeFixedCosts || []).filter(fc => fc.active && !isFixedCostPaidForMonth(fc, month)).forEach(fc => {
+      fixed += Number(fc.amount) || 0;
+      addCat(fc.categoryId, Number(fc.amount) || 0);
+    });
+
+    const spentByCat = getMonthExpenseByCategoryId(month);
+    const limits = getBudgetLimitsForMonth(month);
+    const variable = Object.entries(limits).reduce((sum, [catId, limit]) => {
+      const used = (spentByCat[catId] || 0) + (committedByCat[catId] || 0);
+      return sum + Math.max(0, (Number(limit) || 0) - used);
+    }, 0);
+
+    const investedThisMonth = txs
+      .filter(tx => tx.type === 'investment' && tx.investmentDirection === 'contribution' && !tx.pending && (tx.date || '').slice(0, 7) === month)
+      .reduce((s, tx) => s + (Number(tx.amount) || 0), 0);
+    const investment = Math.max(0, goal - investedThisMonth);
+
+    const card = cardByMonth[month] || 0;
+    const total = fixed + pending + card + variable + investment;
+    const fromBalance = Math.min(carry, total);
+    carry -= fromBalance;
+    return { month, fixed, pending, card, variable, investment, total, fromBalance, need: total - fromBalance };
+  });
+}
+
+function renderFinanceIncomeNeedSection() {
+  const container = document.getElementById('finance-income-need-container');
+  if (!container) return;
+  const goalInput = document.getElementById('finance-investment-goal-input');
+  if (goalInput && document.activeElement !== goalInput) goalInput.value = AppState.financeInvestmentGoal || '';
+
+  const rows = getIncomeNeedByMonth();
+  const money = v => v > 0 ? NumFmt.money(v) : '<span style="color: var(--text-muted);">—</span>';
+  container.innerHTML = `
+    <table class="custom-table compact">
+      <thead><tr>
+        <th>Mês</th>
+        <th class="text-right" title="Custos fixos ainda não pagos no mês">Custos Fixos</th>
+        <th class="text-right" title="Parcelas de Pagamentos Programados (Pix) com vencimento no mês">Pagamentos Prog.</th>
+        <th class="text-right" title="Faturas de cartão não pagas que vencem no mês (inclui parcelas já lançadas)">Cartão</th>
+        <th class="text-right" title="O que ainda falta gastar do orçamento de cada categoria no mês">Gasto Variável</th>
+        <th class="text-right" title="Meta de investimento menos o que já foi aportado no mês">Investimento</th>
+        <th class="text-right" title="Saldo atual em contas usado pra cobrir o mês">Saldo Usado</th>
+        <th class="text-right">Precisa Receber</th>
+      </tr></thead>
+      <tbody>${rows.map(r => `
+        <tr class="fav-table-row">
+          <td class="text-mono" style="font-size:12px;">${r.month}</td>
+          <td class="text-right text-mono" style="font-size:12px;">${money(r.fixed)}</td>
+          <td class="text-right text-mono" style="font-size:12px;">${money(r.pending)}</td>
+          <td class="text-right text-mono" style="font-size:12px;">${money(r.card)}</td>
+          <td class="text-right text-mono" style="font-size:12px;">${money(r.variable)}</td>
+          <td class="text-right text-mono" style="font-size:12px;">${money(r.investment)}</td>
+          <td class="text-right text-mono" style="font-size:12px; color: var(--green);">${r.fromBalance > 0 ? '− ' + NumFmt.money(r.fromBalance) : '<span style="color: var(--text-muted);">—</span>'}</td>
+          <td class="text-right text-mono" style="font-weight:700; color:${r.need > 0 ? 'var(--red)' : 'var(--green)'};">${NumFmt.money(r.need)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">Gasto Variável usa o Orçamento do Mês - categorias sem limite não entram. Compras no cartão que você ainda não fez só aparecem aqui por meio do orçamento.</div>`;
+}
+
+function handleSaveInvestmentGoal() {
+  const input = document.getElementById('finance-investment-goal-input');
+  if (input.validity && input.validity.badInput) { showToast('Valor inválido - digite só o número, ex: 500.', 'error'); return; }
+  const value = Math.max(0, parseFloat(input.value) || 0);
+  AppState.financeInvestmentGoal = value;
+  localStorage.setItem('b3_finance_investment_goal', JSON.stringify(value));
+  logFinanceChange('update', 'meta', `Meta de investimento mensal definida em ${NumFmt.money(value)}`);
+  renderFinanceIncomeNeedSection();
+  showToast(`Meta de investimento: ${NumFmt.money(value)}/mês`, 'success');
 }
 
 function renderFinanceFixedCostsSection() {
@@ -14629,6 +14760,7 @@ function clearAllCache() {
     localStorage.removeItem('b3_finance_category_rules');
     localStorage.removeItem('b3_finance_networth_history');
     localStorage.removeItem('b3_finance_budgets');
+    localStorage.removeItem('b3_finance_investment_goal');
     localStorage.removeItem('b3_triggered_unusual_spending_alerts');
     localStorage.removeItem('b3_last_known_cloud_update');
     AppState.favorites = [...DEFAULT_FAVORITES];
@@ -14643,6 +14775,7 @@ function clearAllCache() {
     AppState.financeCategoryRules = [];
     AppState.financeNetWorthHistory = [];
     AppState.financeBudgets = { default: {}, months: {} };
+    AppState.financeInvestmentGoal = 0;
     AppState.triggeredUnusualSpendingAlerts = [];
     syncAutomatedDividends();
     showToast('Dados restaurados para os padrões.', 'info');
@@ -15139,7 +15272,8 @@ function buildBackupPayload() {
     financeChangeLog: AppState.financeChangeLog || [],
     financeCategoryRules: AppState.financeCategoryRules || [],
     financeNetWorthHistory: AppState.financeNetWorthHistory || [],
-    financeBudgets: AppState.financeBudgets || { default: {}, months: {} }
+    financeBudgets: AppState.financeBudgets || { default: {}, months: {} },
+    financeInvestmentGoal: AppState.financeInvestmentGoal || 0
   };
 }
 
@@ -15163,6 +15297,7 @@ function applyBackupPayload(data) {
   if (data.financeCategoryRules) { AppState.financeCategoryRules = data.financeCategoryRules; localStorage.setItem('b3_finance_category_rules', JSON.stringify(data.financeCategoryRules)); }
   if (data.financeNetWorthHistory) { AppState.financeNetWorthHistory = data.financeNetWorthHistory; localStorage.setItem('b3_finance_networth_history', JSON.stringify(data.financeNetWorthHistory)); }
   if (data.financeBudgets) { AppState.financeBudgets = data.financeBudgets; localStorage.setItem('b3_finance_budgets', JSON.stringify(data.financeBudgets)); }
+  if (data.financeInvestmentGoal != null) { AppState.financeInvestmentGoal = Number(data.financeInvestmentGoal) || 0; localStorage.setItem('b3_finance_investment_goal', JSON.stringify(AppState.financeInvestmentGoal)); }
 }
 
 // Marcador LOCAL (nao faz parte do backup/payload) do ultimo updatedAt da
