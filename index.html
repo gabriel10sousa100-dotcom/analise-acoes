@@ -4390,16 +4390,6 @@ const AppState = {
   if (dirty) localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
 })();
 
-// Migracao one-time: parcelas de um parcelamento fora do cartao (ex: Pix
-// futuro) criadas ANTES do campo "pending" existir nao tinham essa flag -
-// ficavam marcadas como ja realizadas mesmo tendo data futura, aparecendo
-// direto em Lançamentos em vez de ficar em Pagamentos Programados ate
-// confirmadas. Qualquer parcela assim (fora do cartao, parte de um grupo
-// parcelado, com data ainda no futuro e sem "pending" definido) e marcada
-// pendente agora. Nao mexe em parcela de cartao (sempre "ja comprometida",
-// nunca pendente) nem em parcela ja confirmada (date <= hoje, inclusive a
-// que foi confirmada via o modal de pagamento, que grava a data real do
-// pagamento).
 // Garante que toda despesa lancada numa conta do tipo cartao tenha fatura
 // (isCardPurchase + invoiceMonth), mesmo as que entraram por caminhos que
 // nao calculavam isso (importacao, edicao antiga, conta que virou cartao).
@@ -4421,6 +4411,54 @@ const AppState = {
   if (dirty) localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
 })();
 
+// Regra do dia de fechamento mudou: compra feita NO dia do fechamento agora
+// vai pra fatura do mes seguinte (antes ficava na fatura que fechava). Duas
+// correcoes nos dados ja salvos, as duas seguras de rodar a cada carga:
+// 1) "Valor da fatura" informado sem ciclo gravado: grava o ciclo pela
+//    regra ANTIGA, que era a fatura mostrada no rotulo quando foi digitado.
+// 2) Fatura de cada compra no cartao recalculada pela regra nova. Parcelado
+//    usa a data da 1a parcela + (n-1) meses, igual generateInstallments -
+//    recalcular pela data de cada parcela erraria quando o dia da compra nao
+//    existe no mes da parcela (ex: dia 29 vira 28 em fevereiro).
+(function migrateCardClosingDayRule() {
+  const cards = new Map((AppState.financeAccounts || [])
+    .filter(a => a.type === 'credit_card' && a.closingDay)
+    .map(a => [a.id, a]));
+  if (cards.size === 0) return;
+
+  let accountsDirty = false;
+  cards.forEach(card => {
+    if (!card.balanceAnchor || card.balanceAnchor.cycle) return;
+    const d = new Date(card.balanceAnchor.date + 'T00:00:00');
+    const base = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const effClosing = Math.min(card.closingDay, daysInMonth(d.getFullYear(), d.getMonth() + 1));
+    card.balanceAnchor.cycle = d.getDate() > effClosing ? addMonthsToYYYYMM(base, 1) : base;
+    accountsDirty = true;
+  });
+  if (accountsDirty) localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+
+  const txs = AppState.financeTransactions || [];
+  const firstDates = getFirstInstallmentDates(txs);
+  let txDirty = false;
+  txs.forEach(tx => {
+    const card = cards.get(tx.accountId);
+    if (!card || tx.type !== 'expense' || !tx.isCardPurchase || !tx.date) return;
+    const expected = getExpectedCardInvoiceMonth(card, tx, firstDates);
+    if (tx.invoiceMonth !== expected) { tx.invoiceMonth = expected; txDirty = true; }
+  });
+  if (txDirty) localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+})();
+
+// Migracao one-time: parcelas de um parcelamento fora do cartao (ex: Pix
+// futuro) criadas ANTES do campo "pending" existir nao tinham essa flag -
+// ficavam marcadas como ja realizadas mesmo tendo data futura, aparecendo
+// direto em Lançamentos em vez de ficar em Pagamentos Programados ate
+// confirmadas. Qualquer parcela assim (fora do cartao, parte de um grupo
+// parcelado, com data ainda no futuro e sem "pending" definido) e marcada
+// pendente agora. Nao mexe em parcela de cartao (sempre "ja comprometida",
+// nunca pendente) nem em parcela ja confirmada (date <= hoje, inclusive a
+// que foi confirmada via o modal de pagamento, que grava a data real do
+// pagamento).
 (function migrateFutureInstallmentsToPending() {
   const todayStr = new Date().toISOString().slice(0, 10);
   let dirty = false;
@@ -7447,8 +7485,10 @@ function addMonthsToDateStr(dateStr, n) {
 }
 
 // Em qual ciclo de fatura (mes de FECHAMENTO, 'YYYY-MM') uma data cai, dado o
-// dia de fechamento do cartao. Compra EXATAMENTE no dia de fechamento ainda
-// entra nesse ciclo (comparacao e "day > effClosing", nao ">=").
+// dia de fechamento do cartao. No dia do fechamento a fatura ja esta
+// fechada: compra feita NESSE dia ja vai pra fatura do mes seguinte
+// ("day >= effClosing"), e e tambem nesse dia que a fatura aberta passa
+// pra fechada no quadrante de cartoes (getCardCurrentOpenCycle usa hoje).
 function getInvoiceCycleForDate(cardAccount, dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
   const year = d.getFullYear();
@@ -7456,7 +7496,26 @@ function getInvoiceCycleForDate(cardAccount, dateStr) {
   const day = d.getDate();
   const effClosing = Math.min(cardAccount.closingDay, daysInMonth(year, month1));
   const base = `${year}-${String(month1).padStart(2, '0')}`;
-  return day > effClosing ? addMonthsToYYYYMM(base, 1) : base;
+  return day >= effClosing ? addMonthsToYYYYMM(base, 1) : base;
+}
+
+// Data da 1a parcela de cada grupo parcelado (installmentGroupId -> data).
+function getFirstInstallmentDates(txs) {
+  const map = {};
+  txs.forEach(tx => {
+    if (tx.installmentGroupId && tx.installmentNumber === 1) map[tx.installmentGroupId] = tx.date;
+  });
+  return map;
+}
+
+// Fatura em que uma despesa de cartao deve cair. Parcela usa a fatura da
+// 1a parcela + (n-1) meses (mesma regra de generateInstallments), nao a
+// propria data - que pode ter sido encurtada no fim do mes (dia 29 -> 28).
+function getExpectedCardInvoiceMonth(card, tx, firstInstallmentDates) {
+  const groupFirst = tx.installmentTotal > 1 && firstInstallmentDates[tx.installmentGroupId];
+  return groupFirst
+    ? addMonthsToYYYYMM(getInvoiceCycleForDate(card, groupFirst), (tx.installmentNumber || 1) - 1)
+    : getInvoiceCycleForDate(card, tx.date);
 }
 
 // Data de vencimento de uma fatura a partir do mes de fechamento dela.
@@ -7668,8 +7727,12 @@ function getCardCurrentOpenCycle(cardAccountId) {
 // a fatura do ciclo dessa data passa a valer o valor informado + o que for
 // lancado depois da data; faturas de ciclos anteriores sao ignoradas
 // (comeco do controle - nao da pra confiar nos lancamentos antigos).
+// O ciclo fica gravado no proprio valor informado (balanceAnchor.cycle) -
+// e a fatura que o usuario viu no rotulo ao digitar, e nao pode mudar
+// depois se a regra de ciclo mudar (ver migrateCardClosingDayRule).
 function getCardAnchorCycle(card) {
-  return card && card.balanceAnchor ? getInvoiceCycleForDate(card, card.balanceAnchor.date) : null;
+  if (!card || !card.balanceAnchor) return null;
+  return card.balanceAnchor.cycle || getInvoiceCycleForDate(card, card.balanceAnchor.date);
 }
 
 function isCardTxCoveredByAnchor(card, tx) {
@@ -10304,8 +10367,11 @@ function handleSaveFinanceAccount(e) {
     }
     // Saldo de conta e valor de fatura sao coisas diferentes - um ponto de
     // partida informado pra um tipo nao vale se a conta mudou de tipo.
-    if (anchorAmount !== null) updated.balanceAnchor = { date: getLocalTodayStr(), amount: anchorAmount };
-    else if (existing.type !== updated.type) delete updated.balanceAnchor;
+    if (anchorAmount !== null) {
+      const anchorDate = getLocalTodayStr();
+      updated.balanceAnchor = { date: anchorDate, amount: anchorAmount };
+      if (isCardType) updated.balanceAnchor.cycle = getInvoiceCycleForDate(updated, anchorDate);
+    } else if (existing.type !== updated.type) delete updated.balanceAnchor;
     AppState.financeAccounts[idx] = updated;
     logFinanceChange('update', 'conta', convertingToCard ? `Conta "${name}" convertida pra Cartão de Crédito` : `Conta "${name}" atualizada`);
     if (anchorAmount !== null) {
@@ -10321,9 +10387,10 @@ function handleSaveFinanceAccount(e) {
       // ficavam presos no calculo de quando foram lancados, mesmo depois
       // de voce corrigir os dias do cartao).
       let txDirty = false;
+      const firstDates = getFirstInstallmentDates(AppState.financeTransactions || []);
       (AppState.financeTransactions || []).forEach(tx => {
         if (tx.accountId === editId && tx.type === 'expense') {
-          const newInvoiceMonth = getInvoiceCycleForDate(updated, tx.date);
+          const newInvoiceMonth = getExpectedCardInvoiceMonth(updated, tx, firstDates);
           if (!tx.isCardPurchase || tx.invoiceMonth !== newInvoiceMonth) {
             tx.isCardPurchase = true;
             tx.invoiceMonth = newInvoiceMonth;
