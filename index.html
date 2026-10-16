@@ -10327,7 +10327,14 @@ function refreshFinanceAccountAnchorFields() {
     ? ` Último valor informado: ${NumFmt.money(acc.balanceAnchor.amount)} em ${NumFmt.date(acc.balanceAnchor.date)}.`
     : '';
 
-  if (type === 'credit_card') {
+  if (type === 'credit_card' && acc && acc.type === 'credit_card' && acc.balanceAnchor) {
+    // Cartao que ja tem valor de fatura informado: o campo corrige ESSE valor
+    // (mesma fatura e data), mesmo que a fatura ja tenha fechado.
+    const anchorCycle = getCardAnchorCycle(acc);
+    label.textContent = `Valor da fatura ${anchorCycle} (R$)`;
+    input.placeholder = NumFmt.money(acc.balanceAnchor.amount);
+    hint.textContent = `Opcional. Corrige o valor informado em ${NumFmt.date(acc.balanceAnchor.date)} para a fatura ${anchorCycle} (hoje: ${NumFmt.money(acc.balanceAnchor.amount)}). Nenhum lançamento é alterado ou excluído. Deixe em branco para não mudar.`;
+  } else if (type === 'credit_card') {
     const closingDay = parseInt(document.getElementById('finance-acc-closing-day').value);
     const cycle = closingDay >= 1 && closingDay <= 31 ? getInvoiceCycleForDate({ closingDay }, todayStr) : null;
     label.textContent = cycle ? `Valor da fatura ${cycle} (R$)` : 'Valor da fatura atual (R$)';
@@ -10455,14 +10462,20 @@ function handleSaveFinanceAccount(e) {
     }
     // Saldo de conta e valor de fatura sao coisas diferentes - um ponto de
     // partida informado pra um tipo nao vale se a conta mudou de tipo.
-    if (anchorAmount !== null) {
+    const correctingCardAnchor = isCardType && existing.type === 'credit_card' && !!existing.balanceAnchor;
+    if (anchorAmount !== null && correctingCardAnchor) {
+      // Corrige so o valor; fatura e data continuam as do valor original.
+      updated.balanceAnchor = { ...existing.balanceAnchor, cycle: getCardAnchorCycle(existing), amount: anchorAmount };
+    } else if (anchorAmount !== null) {
       const anchorDate = getLocalTodayStr();
       updated.balanceAnchor = { date: anchorDate, amount: anchorAmount };
       if (isCardType) updated.balanceAnchor.cycle = getInvoiceCycleForDate(updated, anchorDate);
     } else if (existing.type !== updated.type) delete updated.balanceAnchor;
     AppState.financeAccounts[idx] = updated;
     logFinanceChange('update', 'conta', convertingToCard ? `Conta "${name}" convertida pra Cartão de Crédito` : `Conta "${name}" atualizada`);
-    if (anchorAmount !== null) {
+    if (anchorAmount !== null && correctingCardAnchor) {
+      logFinanceChange('update', 'conta', `Valor da fatura ${updated.balanceAnchor.cycle} de "${name}" corrigido de ${NumFmt.money(existing.balanceAnchor.amount)} para ${NumFmt.money(anchorAmount)}`);
+    } else if (anchorAmount !== null) {
       logFinanceChange('update', 'conta', `${isCardType ? 'Valor da fatura atual' : 'Saldo atual'} de "${name}" definido em ${NumFmt.money(anchorAmount)}`);
     }
 
@@ -10511,10 +10524,10 @@ function handleSaveFinanceAccount(e) {
   closeFinanceAccountModal();
   renderFinanceView();
   if (editId && anchorAmount !== null) {
-    const shown = isCardType
-      ? getCardInvoiceForCycle(editId, getCardCurrentOpenCycle(editId)).total
-      : getFinanceAccountBalance(editId);
-    showToast(`Conta salva! ${isCardType ? 'Fatura atual' : 'Saldo atual'}: ${NumFmt.money(shown)}`, 'success');
+    const savedAcc = AppState.financeAccounts.find(a => a.id === editId);
+    const anchorCycle = isCardType ? getCardAnchorCycle(savedAcc) : null;
+    const shown = isCardType ? getCardInvoiceForCycle(editId, anchorCycle).total : getFinanceAccountBalance(editId);
+    showToast(`Conta salva! ${isCardType ? `Fatura ${anchorCycle}` : 'Saldo atual'}: ${NumFmt.money(shown)}`, 'success');
   } else {
     showToast('Conta salva!', 'success');
   }
