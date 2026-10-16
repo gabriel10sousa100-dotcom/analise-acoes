@@ -486,9 +486,70 @@
       .print-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 8pt; font-weight: 700; font-family: monospace; }
       .page-break { page-break-before: always; margin-top: 20px; }
     }
+
+    /* Pagina de login: cobre o app inteiro ate o login resolver */
+    .auth-screen { position: fixed; inset: 0; z-index: 5000; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+    .auth-screen.hidden { display: none; }
+    .auth-box { width: 100%; max-width: 380px; background: var(--card-elevated); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 28px 24px; box-shadow: 0 12px 30px rgba(28,25,20,0.10); }
+    .auth-brand { font-size: 20px; font-weight: 800; text-align: center; margin-bottom: 4px; }
+    .auth-brand .b3 { color: var(--accent); }
+    .auth-subtitle { text-align: center; font-size: 13px; color: var(--text-sub); margin-bottom: 20px; }
+    .auth-field { margin-bottom: 12px; }
+    .auth-field label { display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px; }
+    .auth-field input { width: 100%; }
+    .auth-error { display: none; background: var(--red-soft); border: 1px solid var(--red-glow); color: var(--red); font-size: 12.5px; border-radius: var(--radius-md); padding: 9px 11px; margin-bottom: 12px; }
+    .auth-info { display: none; background: var(--accent-soft); border: 1px solid var(--accent-glow); color: var(--accent); font-size: 12.5px; border-radius: var(--radius-md); padding: 9px 11px; margin-bottom: 12px; }
+    .auth-link { background: none; border: none; color: var(--accent); font-size: 12.5px; cursor: pointer; text-decoration: underline; padding: 0; }
+    .auth-divider { display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 12px; margin: 16px 0; }
+    .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .auth-google-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--surf); border: 1px solid var(--border-active); border-radius: var(--radius-md); padding: 10px; font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer; }
+    .auth-google-btn:hover { background: var(--card-hover); }
   </style>
 </head>
 <body>
+
+<!-- PAGINA DE LOGIN (so entra logado - ver initFirebaseIfConfigured) -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-brand"><span class="b3">B3</span> Análise de Ações</div>
+    <div class="auth-subtitle" id="auth-subtitle">Carregando…</div>
+
+    <div id="auth-form-area" style="display: none;">
+      <div class="auth-error" id="auth-error"></div>
+      <div class="auth-info" id="auth-info"></div>
+      <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+        <div class="auth-field">
+          <label for="auth-email">E-mail</label>
+          <input type="email" class="input-field" id="auth-email" autocomplete="email" required>
+        </div>
+        <div class="auth-field" id="auth-password-field">
+          <label for="auth-password">Senha</label>
+          <input type="password" class="input-field" id="auth-password" autocomplete="current-password" minlength="6">
+        </div>
+        <div class="auth-field" id="auth-password2-field" style="display: none;">
+          <label for="auth-password2">Confirmar senha</label>
+          <input type="password" class="input-field" id="auth-password2" autocomplete="new-password" minlength="6">
+        </div>
+        <button type="submit" class="btn btn-primary" id="auth-submit-btn" style="width: 100%; justify-content: center;">Entrar</button>
+      </form>
+      <div style="display: flex; justify-content: space-between; margin-top: 12px; gap: 10px;">
+        <button type="button" class="auth-link" id="auth-forgot-link" onclick="setAuthMode('reset')">Esqueci minha senha</button>
+        <button type="button" class="auth-link" id="auth-toggle-link" onclick="setAuthMode('signup')">Criar conta</button>
+      </div>
+      <div class="auth-divider">ou</div>
+      <button type="button" class="auth-google-btn" onclick="handleAuthGoogle()">
+        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+        Entrar com Google
+      </button>
+    </div>
+
+    <div id="auth-offline-area" style="display: none; text-align: center;">
+      <div style="font-size: 13px; color: var(--text-sub); margin-bottom: 14px;">Sem conexão com o serviço de login. Verifique a internet e tente de novo.</div>
+      <button type="button" class="btn btn-primary" style="width: 100%; justify-content: center; margin-bottom: 8px;" onclick="location.reload()">Tentar de novo</button>
+      <button type="button" class="btn btn-secondary" id="auth-offline-enter-btn" style="width: 100%; justify-content: center; display: none;" onclick="enterAppOffline()">Entrar sem internet (dados deste aparelho)</button>
+    </div>
+  </div>
+</div>
 
 <div class="app-container">
   <!-- SIDEBAR NAVIGATION -->
@@ -2037,13 +2098,13 @@
           <div class="card" style="border-color: rgba(15, 107, 76, 0.3); background: linear-gradient(135deg, rgba(15, 107, 76, 0.04), var(--card));">
             <div class="card-title" style="margin-bottom: 12px; color: var(--accent);">☁️ Sincronização em Nuvem</div>
             <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-              Sincronize Minha Carteira, favoritos, histórico e todo o Controle Financeiro (contas, lançamentos, categorias, metas, custos fixos) entre dispositivos usando seu próprio projeto Firebase (Firestore + Login Google). Seus dados ficam no seu projeto, não em servidores da aplicação. Uma vez conectado, qualquer alteração é <strong>enviada automaticamente</strong> (poucos segundos depois), e ao abrir o app num aparelho ele <strong>busca sozinho</strong> dados mais novos da nuvem e atualiza a tela. O botão "Baixar" continua disponível pra forçar isso na hora, se precisar.
+              Sincronize Minha Carteira, favoritos, histórico e todo o Controle Financeiro (contas, lançamentos, categorias, metas, custos fixos) entre dispositivos usando o Firebase (Firestore + login com e-mail/senha ou Google). Seus dados ficam no seu projeto, não em servidores da aplicação. Uma vez conectado, qualquer alteração é <strong>enviada automaticamente</strong> (poucos segundos depois), e ao abrir o app num aparelho ele <strong>busca sozinho</strong> dados mais novos da nuvem e atualiza a tela. O botão "Baixar" continua disponível pra forçar isso na hora, se precisar.
             </p>
             <div style="margin-bottom: 10px;">
               <label style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; display: block; margin-bottom: 4px;">Configuração do Firebase (JSON)</label>
               <textarea class="input-field" id="cfg-firebase-config" rows="3" style="width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 11px; resize: vertical;" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea>
               <div style="font-size: 11px; color: var(--text-dim); margin-top: 6px;">
-                💡 Já vem preenchido com o Firebase deste projeto (Firestore + regras de segurança já configuradas, cada usuário só acessa o próprio documento). Falta só 1 passo único: em <a href="https://console.firebase.google.com" target="_blank" style="color: var(--accent); text-decoration: underline;">console.firebase.google.com</a>, abra este projeto → <strong>Authentication → Sign-in method</strong> → habilite o provedor <strong>Google</strong>. Depois é só clicar em "Conectar com Google" abaixo. Prefere usar seu próprio projeto Firebase em vez deste? Cole a configuração do seu projeto aqui pra sobrescrever.
+                💡 Já vem preenchido com o Firebase deste projeto (Firestore + regras de segurança já configuradas, cada usuário só acessa o próprio documento). Falta só 1 passo único: em <a href="https://console.firebase.google.com" target="_blank" style="color: var(--accent); text-decoration: underline;">console.firebase.google.com</a>, abra este projeto → <strong>Authentication → Sign-in method</strong> → habilite os provedores <strong>E-mail/senha</strong> e <strong>Google</strong>, usados na página de login. Prefere usar seu próprio projeto Firebase em vez deste? Cole a configuração do seu projeto aqui pra sobrescrever.
               </div>
             </div>
             <div style="display: flex; gap: 8px; margin-bottom: 12px;">
@@ -2471,6 +2532,33 @@
         </div>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: CRIAR SENHA DE ACESSO (conta Google) -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="auth-set-password-modal">
+  <div class="modal-box" style="max-width: 400px;">
+    <div class="modal-header">
+      <div class="modal-title">🔑 Criar senha de acesso</div>
+      <button class="modal-close" onclick="closeSetPasswordModal()">✕</button>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="font-size: 12.5px; color: var(--text-sub);">Depois de criar, você entra nesta mesma conta (com os mesmos dados) usando o seu e-mail e esta senha - ou continua usando o Google.</div>
+      <div>
+        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Nova senha (mín. 6 caracteres)</label>
+        <input type="password" class="input-field" id="auth-set-password-1" autocomplete="new-password" style="width: 100%;">
+      </div>
+      <div>
+        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Confirmar senha</label>
+        <input type="password" class="input-field" id="auth-set-password-2" autocomplete="new-password" style="width: 100%;">
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeSetPasswordModal()">Cancelar</button>
+        <button type="button" class="btn btn-success" style="flex: 1;" onclick="handleSetPassword()">Criar senha</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -15234,21 +15322,192 @@ function checkFinanceDueAlerts(today, horizon) {
 // ==========================================
 // firebaseAuthRef/firebaseDbRef declarados no topo do script - ver comentario la.
 
+// O app so abre logado: a pagina de login (#auth-screen) cobre tudo desde o
+// carregamento e so some quando o Firebase confirma um usuario. Os dados
+// ficam no localStorage e sao da conta que logou por ultimo nesse aparelho
+// (AUTH_UID_KEY) - se entrar OUTRA conta, os dados locais sao apagados e
+// trocados pelos da nuvem dessa conta antes de qualquer coisa, pra uma
+// conta nunca ver nem enviar pra nuvem os dados da outra.
+const AUTH_UID_KEY = 'b3_auth_uid';
+let authMode = 'login';
+
 function initFirebaseIfConfigured() {
-  if (!AppState.firebaseConfig || typeof firebase === 'undefined') return;
+  if (!AppState.firebaseConfig || typeof firebase === 'undefined') { showAuthScreen('offline'); return; }
   try {
     const app = firebase.apps && firebase.apps.length ? firebase.app() : firebase.initializeApp(AppState.firebaseConfig);
     firebaseAuthRef = firebase.auth(app);
     firebaseDbRef = firebase.firestore(app);
     firebaseAuthRef.onAuthStateChanged(user => {
-      AppState.cloudUser = user ? { uid: user.uid, email: user.email } : null;
+      if (user) { handleSignedInUser(user); return; }
+      AppState.cloudUser = null;
       renderCloudSyncStatus();
-      if (user) checkAndAutoPullFromCloud();
+      showAuthScreen('form');
     });
+    // Erro de login via redirecionamento (celular, quando o pop-up do Google e bloqueado).
+    firebaseAuthRef.getRedirectResult().catch(err => showAuthError(translateAuthError(err)));
   } catch (e) {
     console.warn('Falha ao iniciar Firebase:', e);
-    showToast('Configuração do Firebase inválida.', 'error');
+    showAuthScreen('offline');
   }
+}
+
+async function handleSignedInUser(user) {
+  const lastUid = localStorage.getItem(AUTH_UID_KEY);
+  if (lastUid && lastUid !== user.uid) {
+    await switchLocalDataToUser(user);
+    return;
+  }
+  localStorage.setItem(AUTH_UID_KEY, user.uid);
+  AppState.cloudUser = { uid: user.uid, email: user.email };
+  hideAuthScreen();
+  renderCloudSyncStatus();
+  checkAndAutoPullFromCloud();
+}
+
+// Conta diferente da ultima que usou esse aparelho: apaga os dados locais da
+// conta anterior (nada sobe pra nuvem no meio do caminho - cloudUser fica
+// nulo) e carrega os da nova conta, se ela ja tiver dados na nuvem.
+async function switchLocalDataToUser(user) {
+  showAuthScreen('loading', 'Carregando seus dados…');
+  clearTimeout(autoCloudSyncTimer);
+  AppState.cloudUser = null;
+  [...AUTO_CLOUD_SYNC_KEYS, 'b3_last_known_cloud_update', 'b3_triggered_fixedcost_alerts', 'b3_triggered_due_alerts',
+    'b3_triggered_unusual_spending_alerts'].forEach(k => localStorage.removeItem(k));
+  localStorage.setItem(AUTH_UID_KEY, user.uid);
+  try {
+    const doc = await firebaseDbRef.collection('b3_sync').doc(user.uid).get();
+    if (doc.exists) {
+      const data = doc.data();
+      applyBackupPayload(data);
+      recordLocalCloudSyncMarker(data.updatedAt && typeof data.updatedAt.toMillis === 'function' ? data.updatedAt.toMillis() : Date.now());
+    }
+  } catch (e) {
+    console.warn('Falha ao carregar dados da nova conta:', e);
+  }
+  location.reload();
+}
+
+function showAuthScreen(state, message) {
+  document.getElementById('auth-screen').classList.remove('hidden');
+  document.getElementById('auth-form-area').style.display = state === 'form' ? 'block' : 'none';
+  document.getElementById('auth-offline-area').style.display = state === 'offline' ? 'block' : 'none';
+  const subtitle = document.getElementById('auth-subtitle');
+  if (state === 'loading') subtitle.textContent = message || 'Carregando…';
+  if (state === 'offline') {
+    subtitle.textContent = 'Login indisponível';
+    document.getElementById('auth-offline-enter-btn').style.display = localStorage.getItem(AUTH_UID_KEY) ? 'flex' : 'none';
+  }
+  if (state === 'form') setAuthMode(authMode);
+}
+
+function hideAuthScreen() {
+  document.getElementById('auth-screen').classList.add('hidden');
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const texts = {
+    login: { subtitle: 'Entre na sua conta', submit: 'Entrar', toggle: 'Criar conta', toggleTo: 'signup' },
+    signup: { subtitle: 'Crie sua conta', submit: 'Criar conta', toggle: 'Já tenho conta', toggleTo: 'login' },
+    reset: { subtitle: 'Recuperar senha - enviamos um link pro seu e-mail', submit: 'Enviar link', toggle: 'Voltar para o login', toggleTo: 'login' }
+  }[mode];
+  document.getElementById('auth-subtitle').textContent = texts.subtitle;
+  document.getElementById('auth-submit-btn').textContent = texts.submit;
+  const toggle = document.getElementById('auth-toggle-link');
+  toggle.textContent = texts.toggle;
+  toggle.onclick = () => setAuthMode(texts.toggleTo);
+  document.getElementById('auth-forgot-link').style.visibility = mode === 'login' ? 'visible' : 'hidden';
+  document.getElementById('auth-password-field').style.display = mode === 'reset' ? 'none' : 'block';
+  document.getElementById('auth-password2-field').style.display = mode === 'signup' ? 'block' : 'none';
+  document.getElementById('auth-password').setAttribute('autocomplete', mode === 'signup' ? 'new-password' : 'current-password');
+  showAuthError('');
+  showAuthInfo('');
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+function showAuthInfo(msg) {
+  const el = document.getElementById('auth-info');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+function translateAuthError(err) {
+  const code = (err && err.code) || '';
+  const messages = {
+    'auth/invalid-credential': 'E-mail ou senha incorretos. Se você sempre entrou pelo Google, use "Entrar com Google" - depois dá pra criar uma senha em Configurações.',
+    'auth/invalid-login-credentials': 'E-mail ou senha incorretos. Se você sempre entrou pelo Google, use "Entrar com Google" - depois dá pra criar uma senha em Configurações.',
+    'auth/wrong-password': 'E-mail ou senha incorretos.',
+    'auth/user-not-found': 'E-mail ou senha incorretos.',
+    'auth/email-already-in-use': 'Já existe uma conta com esse e-mail. Use "Já tenho conta" para entrar - se ela foi criada pelo Google, entre com o Google.',
+    'auth/weak-password': 'A senha precisa ter pelo menos 6 caracteres.',
+    'auth/invalid-email': 'E-mail inválido.',
+    'auth/missing-password': 'Digite a senha.',
+    'auth/too-many-requests': 'Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.',
+    'auth/operation-not-allowed': 'O login por e-mail e senha ainda não foi ativado no Firebase deste projeto. Por enquanto, use "Entrar com Google".',
+    'auth/network-request-failed': 'Sem conexão com a internet.',
+    'auth/account-exists-with-different-credential': 'Esse e-mail já tem conta com outra forma de login. Entre com e-mail e senha.',
+    'auth/unauthorized-domain': 'Este endereço do site não está autorizado no Firebase.',
+    'auth/requires-recent-login': 'Por segurança, saia da conta, entre de novo e tente outra vez.',
+    'auth/provider-already-linked': 'Essa conta já tem senha.'
+  };
+  return messages[code] || `Não foi possível concluir: ${(err && err.message) || 'erro desconhecido'}`;
+}
+
+async function handleAuthSubmit(e) {
+  e.preventDefault();
+  if (!firebaseAuthRef) { showAuthError('Serviço de login indisponível. Verifique a internet e recarregue a página.'); return; }
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const btn = document.getElementById('auth-submit-btn');
+  showAuthError('');
+  showAuthInfo('');
+
+  if (authMode !== 'reset' && password.length < 6) { showAuthError('A senha precisa ter pelo menos 6 caracteres.'); return; }
+  if (authMode === 'signup' && password !== document.getElementById('auth-password2').value) { showAuthError('As senhas não conferem.'); return; }
+
+  btn.disabled = true;
+  try {
+    if (authMode === 'login') await firebaseAuthRef.signInWithEmailAndPassword(email, password);
+    else if (authMode === 'signup') await firebaseAuthRef.createUserWithEmailAndPassword(email, password);
+    else {
+      await firebaseAuthRef.sendPasswordResetEmail(email);
+      showAuthInfo('Se existir uma conta com esse e-mail, enviamos um link para criar uma nova senha. Confira também a caixa de spam.');
+    }
+  } catch (err) {
+    showAuthError(translateAuthError(err));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function handleAuthGoogle() {
+  if (!firebaseAuthRef) { showAuthError('Serviço de login indisponível. Verifique a internet e recarregue a página.'); return; }
+  showAuthError('');
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    await firebaseAuthRef.signInWithPopup(provider);
+  } catch (err) {
+    if (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment') {
+      await firebaseAuthRef.signInWithRedirect(provider);
+      return;
+    }
+    if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+    showAuthError(translateAuthError(err));
+  }
+}
+
+// Sem internet e sem o SDK de login: deixa usar os dados que ja estao no
+// aparelho, mas so se alguem ja entrou nele antes (sem sincronizar).
+function enterAppOffline() {
+  if (!localStorage.getItem(AUTH_UID_KEY)) return;
+  hideAuthScreen();
+  renderCloudSyncStatus();
+  showToast('Modo sem internet: nada é sincronizado até você entrar na conta.', 'warn');
 }
 
 function saveFirebaseConfig() {
@@ -15262,31 +15521,56 @@ function saveFirebaseConfig() {
     if (!cfg.apiKey || !cfg.projectId) throw new Error('Configuração incompleta (faltando apiKey ou projectId).');
     AppState.firebaseConfig = cfg;
     localStorage.setItem('b3_firebase_config', JSON.stringify(cfg));
-    showToast('Configuração do Firebase salva!', 'success');
-    initFirebaseIfConfigured();
-    renderCloudSyncStatus();
+    showToast('Configuração do Firebase salva! Recarregando...', 'success');
+    // Outro projeto = outras contas de login: recarrega pra reiniciar o login do zero.
+    setTimeout(() => location.reload(), 800);
   } catch (e) {
     showToast(`JSON inválido: ${e.message}`, 'error');
   }
 }
 
-async function signInWithGoogleForSync() {
-  if (!firebaseAuthRef) {
-    showToast('Salve a configuração do Firebase primeiro.', 'error');
-    return;
+// Sai da conta e volta pra pagina de login. Antes de sair, envia pra nuvem o
+// que ainda nao subiu (auto-envio espera alguns segundos). Os dados locais
+// ficam no aparelho: entrar de novo com a mesma conta e instantaneo; com
+// outra conta, eles sao trocados (ver switchLocalDataToUser).
+async function signOutCloudSync() {
+  if (!firebaseAuthRef) return;
+  if (AppState.cloudUser && firebaseDbRef) {
+    clearTimeout(autoCloudSyncTimer);
+    try { await writeCloudBackup(); } catch (e) { console.warn('Envio antes de sair falhou:', e); }
   }
-  try {
-    await firebaseAuthRef.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-    showToast('Login realizado com sucesso!', 'success');
-  } catch (e) {
-    showToast(`Erro no login: ${e.message}`, 'error');
-  }
+  await firebaseAuthRef.signOut();
+  setAuthMode('login');
 }
 
-async function signOutCloudSync() {
-  if (firebaseAuthRef) await firebaseAuthRef.signOut();
-  localStorage.removeItem('b3_last_known_cloud_update');
-  showToast('Desconectado da nuvem.', 'info');
+function openSetPasswordModal() {
+  document.getElementById('auth-set-password-1').value = '';
+  document.getElementById('auth-set-password-2').value = '';
+  document.getElementById('auth-set-password-modal').classList.add('active');
+}
+
+function closeSetPasswordModal() {
+  document.getElementById('auth-set-password-modal').classList.remove('active');
+}
+
+// Conta que so entra pelo Google ganha uma senha: depois disso da pra entrar
+// com o mesmo e-mail + senha, na MESMA conta (mesmo uid = mesmos dados).
+async function handleSetPassword() {
+  const user = firebaseAuthRef && firebaseAuthRef.currentUser;
+  if (!user || !user.email) return;
+  const p1 = document.getElementById('auth-set-password-1').value;
+  const p2 = document.getElementById('auth-set-password-2').value;
+  if (p1.length < 6) { showToast('A senha precisa ter pelo menos 6 caracteres.', 'error'); return; }
+  if (p1 !== p2) { showToast('As senhas não conferem.', 'error'); return; }
+  try {
+    await user.linkWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, p1));
+    await user.reload();
+    closeSetPasswordModal();
+    renderCloudSyncStatus();
+    showToast(`Senha criada! Agora você também entra com ${user.email} e essa senha.`, 'success');
+  } catch (err) {
+    showToast(translateAuthError(err), 'error');
+  }
 }
 
 function buildBackupPayload() {
@@ -15392,7 +15676,7 @@ async function checkAndAutoPullFromCloud() {
 
 async function pushToCloud() {
   if (!firebaseDbRef || !AppState.cloudUser) {
-    showToast('Faça login com Google primeiro.', 'error');
+    showToast('Entre na sua conta primeiro.', 'error');
     return;
   }
   try {
@@ -15406,7 +15690,7 @@ async function pushToCloud() {
 
 async function pullFromCloud() {
   if (!firebaseDbRef || !AppState.cloudUser) {
-    showToast('Faça login com Google primeiro.', 'error');
+    showToast('Entre na sua conta primeiro.', 'error');
     return;
   }
   if (!confirm('Isso vai SUBSTITUIR seus dados locais pelos dados salvos na nuvem. Deseja continuar?')) return;
@@ -15438,19 +15722,22 @@ function renderCloudSyncStatus() {
     statusEl.innerHTML = '<span class="status-pill warn">Não configurado</span>';
     actionsEl.innerHTML = '';
   } else if (!AppState.cloudUser) {
-    statusEl.innerHTML = '<span class="status-pill info">Configurado — desconectado</span>';
-    actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" onclick="signInWithGoogleForSync()">🔐 Conectar com Google</button>`;
+    statusEl.innerHTML = '<span class="status-pill warn">Sem internet — não sincronizando</span>';
+    actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" onclick="location.reload()">🔐 Entrar na conta</button>`;
   } else {
     const syncNote = AppState.autoSyncError
       ? `<div style="font-size:11px; color:var(--red); margin-top:4px;">⚠️ Auto-envio falhou: ${AppState.autoSyncError}</div>`
       : AppState.lastAutoSyncAt
         ? `<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">✓ Auto-enviado às ${AppState.lastAutoSyncAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>`
         : `<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Envio automático ativo - qualquer alteração sobe sozinha em alguns segundos.</div>`;
+    const currentUser = firebaseAuthRef && firebaseAuthRef.currentUser;
+    const hasPassword = !!(currentUser && currentUser.providerData.some(p => p.providerId === 'password'));
     statusEl.innerHTML = `<span class="status-pill good">Conectado como ${AppState.cloudUser.email}</span>${syncNote}`;
     actionsEl.innerHTML = `
       <button class="btn btn-primary btn-sm" onclick="pushToCloud()">☁️⬆️ Enviar agora</button>
       <button class="btn btn-secondary btn-sm" onclick="pullFromCloud()">☁️⬇️ Forçar baixar agora</button>
-      <button class="btn btn-secondary btn-sm" style="color: var(--red);" onclick="signOutCloudSync()">Desconectar</button>`;
+      ${hasPassword ? '' : `<button class="btn btn-secondary btn-sm" onclick="openSetPasswordModal()" title="Pra entrar também com e-mail e senha nesta mesma conta">🔑 Criar senha de acesso</button>`}
+      <button class="btn btn-secondary btn-sm" style="color: var(--red);" onclick="signOutCloudSync()">Sair da conta</button>`;
   }
 }
 
@@ -15664,6 +15951,9 @@ async function initApp() {
       closeFinanceGoalModal();
       closeFinanceFixedCostModal();
       closeFinanceInvoiceModal();
+      closeFinanceBudgetModal();
+      closeConfirmPendingPaymentModal();
+      closeSetPasswordModal();
       closeEmojiPicker();
     }
   });
