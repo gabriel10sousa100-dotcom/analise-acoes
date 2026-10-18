@@ -1009,6 +1009,10 @@
               <button class="btn btn-success btn-sm" onclick="openFinanceTransactionModal()">+ Novo Lançamento</button>
             </div>
           </div>
+          <div style="position: relative; margin-bottom: 12px;">
+            <input type="search" class="input-field" id="finance-tx-search" placeholder="🔎 Buscar lançamento por descrição, valor, categoria, tag ou data (ex: adidas, 30,00, 12/10/2026)" autocomplete="off" oninput="onFinanceSearchInput(this.value)" style="width: 100%;">
+          </div>
+          <div id="finance-search-info" style="display:none; font-size: 12px; color: var(--text-sub); margin-bottom: 10px;"></div>
           <div id="finance-calendar-container" style="display:none; margin-bottom: 16px;"></div>
           <div id="finance-day-filter-chip" style="display:none; margin-bottom: 10px;"></div>
           <div class="table-responsive" id="finance-transactions-container">
@@ -4436,7 +4440,7 @@ const AppState = {
   })(),
   financeTransactions: JSON.parse(localStorage.getItem('b3_finance_transactions') || '[]'),
   financeActiveMonth: new Date().toISOString().slice(0, 7),
-  financeFilters: { type: 'all', accountId: 'all', categoryId: 'all', day: null },
+  financeFilters: { type: 'all', accountId: 'all', categoryId: 'all', day: null, search: '' },
   financeShowCalendar: false,
   financeCategoryChartMode: 'expense',
   financeAccountChartInstance: null,
@@ -8774,15 +8778,58 @@ function renderFinanceAccountsList() {
 // fechamento do cartao. Parcela pendente (Pix futuro ainda nao confirmado)
 // tambem fica de fora - so aparece no quadrante Pagamentos Programados ate
 // ser confirmada (ver openConfirmPendingPaymentModal).
+// Com texto na busca, procura em TODOS os meses (o filtro de mes e de dia
+// do calendario saem); tipo/conta/categoria continuam valendo.
 function getFilteredFinanceTransactions() {
   const f = AppState.financeFilters;
-  let txs = (AppState.financeTransactions || []).filter(tx => (tx.date || '').slice(0, 7) === AppState.financeActiveMonth && !tx.pending);
+  const terms = getFinanceSearchTerms(f.search);
+  let txs = (AppState.financeTransactions || []).filter(tx => !tx.pending && (terms.length > 0 || (tx.date || '').slice(0, 7) === AppState.financeActiveMonth));
   if (f.type !== 'all') txs = txs.filter(tx => tx.type === f.type);
   if (f.accountId !== 'all') txs = txs.filter(tx => tx.accountId === f.accountId || tx.transferAccountId === f.accountId);
   if (f.categoryId !== 'all') txs = txs.filter(tx => tx.categoryId === f.categoryId);
-  if (f.day) txs = txs.filter(tx => tx.date === f.day);
+  if (f.day && terms.length === 0) txs = txs.filter(tx => tx.date === f.day);
+  if (terms.length > 0) {
+    txs = txs.filter(tx => {
+      const haystack = getFinanceSearchHaystack(tx);
+      return terms.every(term => haystack.includes(term));
+    });
+  }
   txs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   return txs;
+}
+
+// Minusculas e sem acento, pra "agua" achar "Água".
+function normalizeSearchText(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+// Varios termos separados por espaco: todos precisam bater (ex: "adidas 12/10").
+function getFinanceSearchTerms(query) {
+  return normalizeSearchText(query).trim().split(/\s+/).filter(Boolean);
+}
+
+// Texto pesquisavel de um lancamento: descricao, categoria, tag, conta,
+// observacoes, data (12/10/2026 e 2026-10-12) e valor em varios formatos
+// (1.318,10 / 1318,10 / 1318.10).
+function getFinanceSearchHaystack(tx) {
+  const cat = (AppState.financeCategories || []).find(c => c.id === tx.categoryId);
+  const acc = (AppState.financeAccounts || []).find(a => a.id === tx.accountId);
+  const amount = Number(tx.amount) || 0;
+  const fixed = amount.toFixed(2);
+  return normalizeSearchText([
+    tx.description, cat ? cat.name : '', (tx.tags || []).join(' '), acc ? acc.name : '', tx.notes,
+    tx.date, tx.date ? tx.date.split('-').reverse().join('/') : '',
+    fixed, fixed.replace('.', ','), amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  ].join(' | '));
+}
+
+let financeSearchTimer = null;
+function onFinanceSearchInput(value) {
+  clearTimeout(financeSearchTimer);
+  financeSearchTimer = setTimeout(() => {
+    AppState.financeFilters.search = value;
+    renderFinanceTransactionsList();
+  }, 150);
 }
 
 function csvEscapeField(value) {
@@ -8822,7 +8869,7 @@ function handleExportFinanceCsv() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `lancamentos_${AppState.financeActiveMonth}.csv`;
+  a.download = getFinanceSearchTerms(AppState.financeFilters.search).length > 0 ? 'lancamentos_busca.csv' : `lancamentos_${AppState.financeActiveMonth}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -8837,14 +8884,22 @@ function renderFinanceTransactionsList() {
   const f = AppState.financeFilters;
   const txs = getFilteredFinanceTransactions();
 
+  const searching = getFinanceSearchTerms(f.search).length > 0;
   const chipEl = document.getElementById('finance-day-filter-chip');
   if (chipEl) {
-    chipEl.style.display = f.day ? 'block' : 'none';
-    if (f.day) chipEl.innerHTML = `<span class="ticker-tag">📅 ${NumFmt.date(f.day)} <span class="tag-del" onclick="clearFinanceDayFilter()">✕</span></span>`;
+    chipEl.style.display = f.day && !searching ? 'block' : 'none';
+    if (f.day && !searching) chipEl.innerHTML = `<span class="ticker-tag">📅 ${NumFmt.date(f.day)} <span class="tag-del" onclick="clearFinanceDayFilter()">✕</span></span>`;
+  }
+  const infoEl = document.getElementById('finance-search-info');
+  if (infoEl) {
+    infoEl.style.display = searching ? 'block' : 'none';
+    infoEl.textContent = searching ? `🔎 ${txs.length} lançamento(s) encontrado(s) em todos os meses. Apague a busca para voltar ao mês selecionado.` : '';
   }
 
   if (txs.length === 0) {
-    container.innerHTML = `<div class="state-box"><div class="state-icon">💰</div><div class="state-title">Nenhum lançamento ${f.day ? 'nesse dia' : 'neste mês'}</div><div class="state-desc">Ajuste os filtros ou clique em "+ Novo Lançamento".</div></div>`;
+    const emptyTitle = searching ? `Nenhum lançamento encontrado para "${String(f.search).trim().replace(/[<>&"]/g, '')}"` : `Nenhum lançamento ${f.day ? 'nesse dia' : 'neste mês'}`;
+    const emptyDesc = searching ? 'Confira a grafia ou busque por outro termo (descrição, valor, categoria, tag ou data).' : 'Ajuste os filtros ou clique em "+ Novo Lançamento".';
+    container.innerHTML = `<div class="state-box"><div class="state-icon">💰</div><div class="state-title">${emptyTitle}</div><div class="state-desc">${emptyDesc}</div></div>`;
     return;
   }
 
