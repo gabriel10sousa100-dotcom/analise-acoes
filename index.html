@@ -136,7 +136,7 @@
     .market-info span { font-size: 10.5px; color: var(--text-sub); }
 
     /* MAIN CONTENT */
-    .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; width: 100%; }
+    .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; width: 100%; min-width: 0; }
 
     /* HEADER */
     .top-header { height: 62px; flex-shrink: 0; background: var(--surf); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; gap: 16px; z-index: 15; }
@@ -201,6 +201,21 @@
     .grid-2 { grid-template-columns: repeat(2, 1fr); }
     .grid-3 { grid-template-columns: repeat(3, 1fr); }
     .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    /* Sem isso, item de grade/flex nao fica mais estreito que o conteudo
+       (grafico, tabela) e o excesso some cortado na lateral da tela. */
+    .grid > * { min-width: 0; }
+    /* Celular/tela estreita: cards um embaixo do outro (4 colunas viram 2, e 1 no celular pequeno) */
+    @media (max-width: 768px) {
+      .content-area { padding: 14px; }
+      .top-header { height: auto; min-height: 62px; padding: 8px 14px; flex-wrap: wrap; }
+      .header-actions { flex-wrap: wrap; gap: 8px; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid > [style*="grid-column: span 2"] { grid-column: 1 / -1 !important; }
+    }
+    @media (max-width: 480px) {
+      .grid-4 { grid-template-columns: 1fr; }
+    }
 
     /* METRIC STAT CARD */
     .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
@@ -905,13 +920,15 @@
             <h1 class="page-title">💰 Controle Financeiro</h1>
             <p class="page-desc" style="margin-bottom:0">Receitas, despesas, contas e cartão de crédito do dia a dia.</p>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <button class="btn btn-secondary btn-sm" onclick="openFinanceImportModal()">📥 Importar CSV do Mobills</button>
             <button class="btn btn-secondary btn-sm" onclick="openNubankImportModal()">📥 Importar Extrato do Nubank</button>
             <button class="btn btn-secondary btn-sm" onclick="openFinanceHistoryModal()">🕒 Histórico</button>
-            <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(-1)" title="Mês anterior">◀</button>
-            <span class="status-pill good" id="finance-active-month-label" style="min-width: 140px; text-align: center;">—</span>
-            <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(1)" title="Próximo mês">▶</button>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(-1)" title="Mês anterior">◀</button>
+              <span class="status-pill good" id="finance-active-month-label" style="min-width: 140px; text-align: center;">—</span>
+              <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(1)" title="Próximo mês">▶</button>
+            </div>
           </div>
         </div>
 
@@ -1102,7 +1119,7 @@
               <div class="card-title" id="finance-tag-chart-title">🏷️ Gastos por Tag</div>
               <span class="status-pill" id="finance-tag-chart-untagged" style="font-size:12px;"></span>
             </div>
-            <p style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 10px;">Lançamento com mais de uma tag conta inteiro em cada uma - a soma pode passar do total do mês.</p>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 10px;">Despesas do mês por tag. Compra no cartão conta no mês da fatura.</p>
             <div style="height: 260px; position: relative;">
               <canvas id="finance-tag-chart"></canvas>
               <div id="finance-tag-chart-empty" class="state-box" style="display: none; position: absolute; inset: 0;"><div class="state-icon">🏷️</div><div class="state-title">Nenhuma despesa com tag neste mês</div><div class="state-desc">Adicione tags ao lançar ou editar uma despesa (ex: viagem, presente) pra ver aqui quanto gastou em cada uma.</div></div>
@@ -2282,8 +2299,8 @@
           </div>
         </div>
         <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;" title="Marcação livre dentro da categoria - ex: categoria Serviços, tag 'corte de cabelo'">🏷️ Tags (Opcional, separadas por vírgula)</label>
-          <input type="text" class="input-field" id="finance-tx-tags" list="finance-tags-datalist" placeholder="ex: corte de cabelo, presente" style="width: 100%;">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;" title="Marcação livre dentro da categoria - ex: categoria Serviços, tag 'corte de cabelo'">🏷️ Tag (Opcional)</label>
+          <input type="text" class="input-field" id="finance-tx-tags" list="finance-tags-datalist" placeholder="ex: corte de cabelo" style="width: 100%;">
           <datalist id="finance-tags-datalist"></datalist>
         </div>
         <div>
@@ -10176,7 +10193,15 @@ function handleSaveFinanceTransaction(e) {
   const investmentDirection = type === 'investment' ? document.getElementById('finance-tx-investment-direction').value : null;
   const goalId = document.getElementById('finance-tx-goal').value || null;
   const goalDirection = goalId ? document.getElementById('finance-tx-goal-direction').value : null;
-  const tags = document.getElementById('finance-tx-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+  // Uma tag por lancamento. Lancamento antigo com mais de uma aparece com
+  // virgula no campo - pede pra escolher uma, em vez de apagar as outras
+  // em silencio.
+  const tagValue = document.getElementById('finance-tx-tags').value.trim();
+  if (tagValue.includes(',')) {
+    showToast('Só uma tag por lançamento - apague as outras e deixe uma.', 'error');
+    return;
+  }
+  const tags = tagValue ? [tagValue] : [];
   const notes = document.getElementById('finance-tx-notes').value.trim();
   const ignored = document.getElementById('finance-tx-ignored').checked;
 
