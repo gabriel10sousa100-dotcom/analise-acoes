@@ -15938,8 +15938,23 @@ function selectSearchResult(ticker) {
 // ==========================================
 // NAVIGATION & TABS
 // ==========================================
+// Caixa de busca de acoes do topo so faz sentido nas abas de acoes.
+const TABS_WITH_STOCK_SEARCH = ['grafico', 'calendario', 'carteira', 'favoritos', 'fiis'];
+
+function updateStockSearchVisibility(tabId) {
+  const wrap = document.querySelector('.search-box-wrap');
+  if (!wrap) return;
+  const visible = TABS_WITH_STOCK_SEARCH.includes(tabId);
+  wrap.style.display = visible ? '' : 'none';
+  if (!visible) {
+    const dropdown = document.getElementById('search-results-dropdown');
+    if (dropdown) dropdown.classList.remove('visible');
+  }
+}
+
 function setTab(tabId) {
   AppState.activeTab = tabId;
+  updateStockSearchVisibility(tabId);
   document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.view-panel').forEach(panel => panel.classList.remove('active'));
 
