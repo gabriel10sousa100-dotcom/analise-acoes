@@ -8579,9 +8579,7 @@ function renderPortfolioCharts(assetLabels, assetValues, sectorMap) {
         plugins: {
           legend: { position: 'right', labels: { color: '#57503f', font: { family: 'Inter', size: 11 } } },
           tooltip: {
-            callbacks: {
-              label: (ctx) => ` ${ctx.label}: R$ ${ctx.parsed.toLocaleString('pt-BR', {minimumFractionDigits:2})}`
-            }
+            callbacks: { label: portfolioTooltipLabel }
           }
         }
       }
@@ -8611,9 +8609,7 @@ function renderPortfolioCharts(assetLabels, assetValues, sectorMap) {
         plugins: {
           legend: { position: 'right', labels: { color: '#57503f', font: { family: 'Inter', size: 11 } } },
           tooltip: {
-            callbacks: {
-              label: (ctx) => ` ${ctx.label}: R$ ${ctx.parsed.toLocaleString('pt-BR', {minimumFractionDigits:2})}`
-            }
+            callbacks: { label: portfolioTooltipLabel }
           }
         }
       }
@@ -8657,6 +8653,14 @@ async function renderFinanceView() {
   await StockAPI.getFullB3List();
   populateFinanceAccountAndCategorySelects();
   renderFinanceKpis();
+// Tooltip da pizza da Carteira: o titulo ja mostra o nome da fatia, entao a
+// linha so traz valor + percentual sobre o total do grafico exibido.
+function portfolioTooltipLabel(ctx) {
+  const total = (ctx.dataset.data || []).reduce((s, v) => s + (Number(v) || 0), 0);
+  const pct = total > 0 ? (ctx.parsed / total) * 100 : 0;
+  return ` R$ ${ctx.parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${pct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%)`;
+}
+
   renderFinanceAccountsList();
   renderFinanceTransactionsList();
   if (AppState.financeShowCalendar) renderFinanceCalendar();
