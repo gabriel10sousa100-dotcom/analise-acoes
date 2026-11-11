@@ -6187,6 +6187,7 @@ const StockAPI = {
         res.stocks.forEach(s => {
           const sym = (s.stock || s.symbol || '').toUpperCase();
           if (sym) AppState.stockMap[sym] = s;
+          if (s && typeof s.sector === 'string') s.sector = normalizeSectorName(s.sector);
         });
         return res.stocks;
       }
@@ -8210,7 +8211,7 @@ async function renderPortfolioView() {
     }
 
     const realYoC = cost > 0 && stockTotalDividends > 0 ? (stockTotalDividends / cost) * 100 : 0;
-    const sector = isFiiAsset ? (fundFii?.segment || 'Fundo Imobiliário') : (fundStock?.sector || mapItem?.sector || 'Ações');
+    const sector = normalizeSectorName(isFiiAsset ? (fundFii?.segment || 'Fundo Imobiliário') : (fundStock?.sector || mapItem?.sector || 'Ações'));
 
     totalCost += cost;
     totalCurrentValue += currentVal;
@@ -8653,6 +8654,11 @@ async function renderFinanceView() {
   await StockAPI.getFullB3List();
   populateFinanceAccountAndCategorySelects();
   renderFinanceKpis();
+// A API de cotacoes classifica ETFs como "Miscellaneous"; exibimos "ETF".
+function normalizeSectorName(sector) {
+  return String(sector || '').trim().toLowerCase() === 'miscellaneous' ? 'ETF' : sector;
+}
+
 // Tooltip da pizza da Carteira: o titulo ja mostra o nome da fatia, entao a
 // linha so traz valor + percentual sobre o total do grafico exibido.
 function portfolioTooltipLabel(ctx) {
@@ -14553,7 +14559,7 @@ async function renderStockChart(ticker, range = '1y', interval = '1d') {
     const chg = quote.regularMarketChangePercent || 0;
     const chgCol = chg >= 0 ? 'var(--green)' : 'var(--red)';
     const fund = B3_FUNDAMENTAL_DB[ticker];
-    const sec = fund?.sector || quote.summaryProfile?.sector || 'Ação B3';
+    const sec = normalizeSectorName(fund?.sector || quote.summaryProfile?.sector || 'Ação B3');
     const logo = quote.logourl || `https://icons.brapi.dev/icons/${ticker}.svg`;
     const name = fund?.name || quote.longName || quote.shortName || ticker;
     const links = getExternalLinks(ticker);
