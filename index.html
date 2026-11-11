@@ -8560,9 +8560,10 @@ function normalizeSectorName(sector) {
 }
 
 // Tooltip da pizza da Carteira: o titulo ja mostra o nome da fatia, entao a
-// linha so traz valor + percentual sobre o total do grafico exibido.
+// linha so traz valor + percentual. O percentual considera apenas as fatias
+// visiveis na legenda (ao esconder uma, as demais sao recalculadas).
 function portfolioTooltipLabel(ctx) {
-  const total = (ctx.dataset.data || []).reduce((s, v) => s + (Number(v) || 0), 0);
+  const total = (ctx.dataset.data || []).reduce((s, v, i) => s + (ctx.chart.getDataVisibility(i) ? (Number(v) || 0) : 0), 0);
   const pct = total > 0 ? (ctx.parsed / total) * 100 : 0;
   return ` R$ ${ctx.parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${pct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%)`;
 }
