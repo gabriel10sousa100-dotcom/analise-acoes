@@ -923,6 +923,7 @@
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <button class="btn btn-secondary btn-sm" onclick="openFinanceImportModal()">📥 Importar CSV do Mobills</button>
             <button class="btn btn-secondary btn-sm" onclick="openNubankImportModal()">📥 Importar Extrato do Nubank</button>
+            <button class="btn btn-secondary btn-sm" onclick="openGenericImportModal()" title="CSV de qualquer banco ou cartão: o app detecta as colunas e você confere antes de importar">📥 Importar CSV (qualquer banco)</button>
             <button class="btn btn-secondary btn-sm" onclick="openFinanceHistoryModal()">🕒 Histórico</button>
             <div style="display: flex; gap: 8px; align-items: center;">
               <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(-1)" title="Mês anterior">◀</button>
@@ -2466,6 +2467,26 @@
       <div id="nubank-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
     </div>
     <div id="nubank-import-preview" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: IMPORTAR CSV DE QUALQUER BANCO      -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="generic-import-modal">
+  <div class="modal-box modal-lg" style="max-width: 680px;">
+    <div class="modal-header">
+      <div class="modal-title">📥 Importar CSV de qualquer banco</div>
+      <button class="modal-close" onclick="closeGenericImportModal()">✕</button>
+    </div>
+    <div id="generic-import-step-file">
+      <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+        Selecione o CSV de extrato ou fatura exportado do seu banco ou cartão. O app detecta sozinho o separador, a linha de cabeçalho e as colunas de data, descrição e valor (ou débito/crédito); você confere e ajusta na próxima tela. Nada é gravado até confirmar, e reimportar o mesmo arquivo não duplica lançamentos.
+      </p>
+      <input type="file" accept=".csv,.txt,text/csv" id="generic-import-file-input" class="input-field" onchange="handleGenericFileSelected(event)" style="width: 100%;">
+      <div id="generic-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
+    </div>
+    <div id="generic-import-preview" style="display:none;"></div>
   </div>
 </div>
 
@@ -4449,6 +4470,7 @@ const AppState = {
   financeTrendChartInstance: null,
   financeImportStaging: null,
   nubankImportStaging: null,
+  genericImportStaging: null,
   financeCategoryEditingId: null,
   financeGoals: JSON.parse(localStorage.getItem('b3_finance_goals') || '[]'),
   financeFixedCosts: JSON.parse(localStorage.getItem('b3_finance_fixed_costs') || '[]'),
@@ -11475,6 +11497,524 @@ function logImportManualMatches(matchedManual) {
   matchedManual.forEach(tx => {
     logFinanceChange('import', 'transacao', `Linha do extrato não importada: já existia "${tx.description}" (${NumFmt.money(tx.amount)}, ${NumFmt.date(tx.date)}) lançado no app`);
   });
+}
+
+// ---------- IMPORTAR CSV GENERICO (QUALQUER BANCO) ----------
+// Nao depende de um layout fixo: detecta codificacao, delimitador (; , tab |),
+// linha de cabecalho (ignora textos antes dela), e adivinha quais colunas sao
+// Data / Descricao / Valor (ou Debito+Credito) / Tipo D-C / Identificador /
+// Categoria. O usuario confere e ajusta o mapeamento na tela de previa antes
+// de gravar qualquer coisa.
+
+function importEsc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function importNorm(s) {
+  return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9/ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// Parser CSV completo (aspas duplas, aspas escapadas "" e quebra de linha
+// dentro de campo entre aspas).
+function parseCsvText(text, delim) {
+  const rows = [];
+  let row = [], cur = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else cur += c;
+    } else if (c === '"' && cur === '') {
+      inQ = true;
+    } else if (c === delim) {
+      row.push(cur); cur = '';
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(cur); cur = ''; rows.push(row); row = [];
+    } else {
+      cur += c;
+    }
+  }
+  if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+  return rows.filter(r => r.some(c => String(c).trim() !== ''));
+}
+
+function detectCsvDelimiter(text) {
+  const sample = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 30).join('\n');
+  let best = ',', bestScore = -1;
+  [';', ',', '\t', '|'].forEach(d => {
+    const rows = parseCsvText(sample, d);
+    if (!rows.length) return;
+    const counts = {};
+    rows.forEach(r => { counts[r.length] = (counts[r.length] || 0) + 1; });
+    let modeLen = 0, modeFreq = 0;
+    Object.entries(counts).forEach(([len, f]) => {
+      if (f > modeFreq || (f === modeFreq && Number(len) > modeLen)) { modeLen = Number(len); modeFreq = f; }
+    });
+    const score = modeLen > 1 ? modeFreq * modeLen : 0;
+    if (score > bestScore) { bestScore = score; best = d; }
+  });
+  return best;
+}
+
+// Aceita "1.234,56", "1,234.56", "-10,00", "(10,00)", "R$ 10,00", "10,00-",
+// "1.234,56 D" / "100,00C". Retorna null se nao for um numero.
+function parseFlexibleAmount(raw) {
+  let s = String(raw ?? '').trim();
+  if (!s) return null;
+  s = s.replace(/[−–—]/g, '-').replace(/R\$\s*/gi, '').replace(/\s+/g, '');
+  let neg = false;
+  const dc = s.match(/^(.*?)([DC])$/i);
+  if (dc && /\d$/.test(dc[1])) { neg = dc[2].toUpperCase() === 'D'; s = dc[1]; }
+  if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+  if (!/^[-+]?[\d.,]+-?$/.test(s)) return null;
+  if (s.startsWith('-') || s.endsWith('-')) neg = true;
+  s = s.replace(/[-+]/g, '');
+  if (!/\d/.test(s)) return null;
+  const lastDot = s.lastIndexOf('.'), lastComma = s.lastIndexOf(',');
+  let normalized;
+  if (lastDot >= 0 && lastComma >= 0) {
+    const dec = lastDot > lastComma ? '.' : ',';
+    const th = dec === '.' ? ',' : '.';
+    normalized = s.split(th).join('').replace(dec, '.');
+  } else if (lastComma >= 0) {
+    normalized = s.split(',').length > 2 ? s.split(',').join('') : s.replace(',', '.');
+  } else if (lastDot >= 0) {
+    const parts = s.split('.');
+    if (parts.length > 2) normalized = parts.join('');
+    else normalized = (parts[1].length === 3 && parts[0].length >= 1 && parts[0].length <= 3 && parts[0] !== '0') ? parts.join('') : s;
+  } else {
+    normalized = s;
+  }
+  const n = parseFloat(normalized);
+  if (isNaN(n)) return null;
+  return neg ? -Math.abs(n) : n;
+}
+
+const IMPORT_MONTHS = { jan: 1, fev: 2, feb: 2, mar: 3, abr: 4, apr: 4, mai: 5, may: 5, jun: 6, jul: 7, ago: 8, aug: 8, set: 9, sep: 9, out: 10, oct: 10, nov: 11, dez: 12, dec: 12 };
+
+// Aceita dd/mm/aaaa, dd-mm-aa, aaaa-mm-dd (com ou sem hora), aaaammdd e
+// "10 nov 2026" / "10 de novembro de 2026". dayFirst=false le a/b/aaaa como mes/dia.
+function parseFlexibleDate(raw, dayFirst = true) {
+  let s = String(raw ?? '').trim();
+  if (!s) return null;
+  s = s.replace(/[T ]\d{1,2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/, '').trim();
+  let y, m, d, mt;
+  if ((mt = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/))) {
+    y = +mt[1]; m = +mt[2]; d = +mt[3];
+  } else if ((mt = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2}|\d{4})$/))) {
+    const a = +mt[1], b = +mt[2];
+    y = +mt[3]; if (y < 100) y += 2000;
+    if (dayFirst) { d = a; m = b; } else { d = b; m = a; }
+  } else if ((mt = s.match(/^(\d{4})(\d{2})(\d{2})$/))) {
+    y = +mt[1]; m = +mt[2]; d = +mt[3];
+  } else if ((mt = s.toLowerCase().match(/^(\d{1,2})\s*(?:de\s+)?([a-zç]{3,})\.?\s*(?:de\s+)?(\d{4})$/))) {
+    m = IMPORT_MONTHS[mt[2].slice(0, 3)];
+    if (!m) return null;
+    d = +mt[1]; y = +mt[3];
+  } else {
+    return null;
+  }
+  if (!(m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 1990 && y <= 2100)) return null;
+  if (new Date(y, m - 1, d).getMonth() !== m - 1) return null;
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+// Se algum "dia" passa de 12 na 1a posicao e nenhum na 2a, e dia/mes (padrao BR);
+// se algum passa de 12 so na 2a posicao, e mes/dia.
+function detectDayFirst(values) {
+  let firstGt12 = false, secondGt12 = false;
+  values.forEach(v => {
+    const mt = String(v ?? '').trim().match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2}|\d{4})/);
+    if (!mt) return;
+    if (+mt[1] > 12) firstGt12 = true;
+    if (+mt[2] > 12) secondGt12 = true;
+  });
+  return !(secondGt12 && !firstGt12);
+}
+
+const IMPORT_HEADER_ALIASES = {
+  date: ['data', 'date', 'dt', 'data lancamento', 'data lanc', 'data da compra', 'data compra', 'data movimento', 'data mov', 'data transacao', 'data da transacao', 'data operacao', 'dia'],
+  desc: ['descricao', 'descricao do lancamento', 'description', 'historico', 'lancamento', 'estabelecimento', 'detalhes', 'detalhe', 'memo', 'title', 'titulo', 'favorecido', 'beneficiario', 'merchant', 'payee', 'nome', 'name', 'transacao', 'compra'],
+  amount: ['valor', 'amount', 'value', 'montante', 'quantia', 'valor r', 'valor rs'],
+  debit: ['debito', 'debitos', 'saida', 'saidas', 'debit', 'retirada', 'valor debito'],
+  credit: ['credito', 'creditos', 'entrada', 'entradas', 'credit', 'deposito', 'valor credito'],
+  type: ['tipo', 'tipo lancamento', 'tipo de lancamento', 'tipo transacao', 'tipo de transacao', 'natureza', 'd/c', 'dc', 'debito/credito', 'cred/deb', 'operacao'],
+  id: ['identificador', 'id', 'codigo', 'documento', 'numero documento', 'nsu', 'autenticacao', 'protocolo', 'id transacao'],
+  category: ['categoria', 'category']
+};
+
+function autoMapColumns(headers) {
+  const norm = headers.map(importNorm);
+  const used = new Set();
+  const map = { date: -1, desc: -1, amount: -1, debit: -1, credit: -1, type: -1, id: -1, category: -1 };
+  const take = (key, test) => {
+    if (map[key] >= 0) return;
+    const i = norm.findIndex((h, idx) => h && !used.has(idx) && !/\bsaldo\b/.test(h) && test(h));
+    if (i >= 0) { map[key] = i; used.add(i); }
+  };
+  // 1a passada: nome exato, respeitando a ordem de preferencia dos apelidos
+  // (ex: "Descricao" vence "Historico" quando o arquivo tem as duas colunas).
+  ['date', 'amount', 'debit', 'credit', 'type', 'id', 'category', 'desc'].forEach(k => {
+    for (const alias of IMPORT_HEADER_ALIASES[k]) {
+      const i = norm.findIndex((h, idx) => h === alias && !used.has(idx));
+      if (i >= 0) { map[k] = i; used.add(i); return; }
+    }
+  });
+  ['debit', 'credit', 'date', 'desc', 'category', 'id', 'amount', 'type'].forEach(k => take(k, h => {
+    if (['desc', 'amount', 'id', 'type'].includes(k) && /\bdata\b/.test(h)) return false;
+    return IMPORT_HEADER_ALIASES[k].some(a => a.length >= 4 && new RegExp('\\b' + a.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&') + '\\b').test(h));
+  }));
+  return map;
+}
+
+// Sem cabecalho reconhecivel: adivinha pelo conteudo das colunas.
+function guessColumnsByContent(rows, width) {
+  const sample = rows.slice(0, 200);
+  const stats = [];
+  for (let c = 0; c < width; c++) {
+    let dates = 0, nums = 0, filled = 0, len = 0;
+    sample.forEach(r => {
+      const v = String(r[c] ?? '').trim();
+      if (!v) return;
+      filled++; len += v.length;
+      if (parseFlexibleDate(v, true)) dates++;
+      else if (parseFlexibleAmount(v) !== null) nums++;
+    });
+    stats.push({ c, dates: filled ? dates / filled : 0, nums: filled ? nums / filled : 0, avgLen: filled ? len / filled : 0 });
+  }
+  const map = { date: -1, desc: -1, amount: -1, debit: -1, credit: -1, type: -1, id: -1, category: -1 };
+  const dateCol = stats.filter(s => s.dates >= 0.6).sort((a, b) => b.dates - a.dates || a.c - b.c)[0];
+  if (dateCol) map.date = dateCol.c;
+  const amountCol = stats.find(s => s.c !== map.date && s.nums >= 0.6);
+  if (amountCol) map.amount = amountCol.c;
+  const descCol = stats.filter(s => s.c !== map.date && s.c !== map.amount && s.nums < 0.5 && s.dates < 0.5).sort((a, b) => b.avgLen - a.avgLen)[0];
+  if (descCol) map.desc = descCol.c;
+  return map;
+}
+
+function buildGenericImportStaging(text, fileName) {
+  const clean = text.replace(/^﻿/, '');
+  const delimiter = detectCsvDelimiter(clean);
+  const all = parseCsvText(clean, delimiter);
+  if (all.length < 2) return null;
+
+  let headerIdx = -1, mapping = null;
+  for (let i = 0; i < Math.min(all.length, 40); i++) {
+    const m = autoMapColumns(all[i]);
+    if (m.date >= 0 && (m.amount >= 0 || m.debit >= 0 || m.credit >= 0) && all[i].filter(c => String(c).trim()).length >= 3) {
+      headerIdx = i; mapping = m; break;
+    }
+  }
+
+  const dataRows = headerIdx >= 0 ? all.slice(headerIdx + 1) : all;
+  const width = Math.max(...dataRows.map(r => r.length), headerIdx >= 0 ? all[headerIdx].length : 0);
+  let headers;
+  if (headerIdx >= 0) {
+    headers = Array.from({ length: width }, (_, i) => String(all[headerIdx][i] ?? '').trim() || `Coluna ${i + 1}`);
+  } else {
+    headers = Array.from({ length: width }, (_, i) => `Coluna ${i + 1}`);
+    mapping = guessColumnsByContent(dataRows, width);
+  }
+
+  const baseName = String(fileName || '').replace(/\.[^.]+$/, '').trim();
+  // Fatura de cartao do Nubank (date,category,title,amount): compra vem positiva.
+  const isNubankCard = headerIdx >= 0 && headers.map(importNorm).join('|') === 'date|category|title|amount';
+  return {
+    fileName: fileName || '',
+    delimiter, headerIdx, headers, dataRows, mapping,
+    invertSign: isNubankCard,
+    markInvestments: true,
+    accountMapping: { mode: 'create', existingId: null },
+    newAccountName: baseName || 'Conta importada',
+    parsed: []
+  };
+}
+
+function interpretImportTypeCell(raw) {
+  const v = importNorm(raw);
+  if (!v) return 0;
+  if (/^(d|db|deb|debito|debit|saida|saque)\b/.test(v)) return -1;
+  if (/^(c|cr|cred|credito|credit|entrada|deposito)\b/.test(v)) return 1;
+  return 0;
+}
+
+// Aplica o mapeamento atual as linhas cruas. Retorna { rows, skipped }.
+function buildGenericRows(st) {
+  const m = st.mapping;
+  const rows = [];
+  let skipped = 0;
+  if (m.date < 0 || (m.amount < 0 && m.debit < 0 && m.credit < 0)) return { rows, skipped: st.dataRows.length };
+
+  const dayFirst = detectDayFirst(st.dataRows.map(r => r[m.date]));
+  const seen = {};
+  st.dataRows.forEach(r => {
+    const date = parseFlexibleDate(r[m.date], dayFirst);
+    let amount = null;
+    if (m.debit >= 0 || m.credit >= 0) {
+      const d = m.debit >= 0 ? parseFlexibleAmount(r[m.debit]) : null;
+      const c = m.credit >= 0 ? parseFlexibleAmount(r[m.credit]) : null;
+      if (d !== null || c !== null) amount = Math.abs(c || 0) - Math.abs(d || 0);
+    } else {
+      amount = parseFlexibleAmount(r[m.amount]);
+      if (amount !== null && m.type >= 0) {
+        const dir = interpretImportTypeCell(r[m.type]);
+        if (dir !== 0) amount = dir * Math.abs(amount);
+      }
+    }
+    if (!date || amount === null || amount === 0) { skipped++; return; }
+    if (st.invertSign) amount = -amount;
+
+    const description = (m.desc >= 0 ? String(r[m.desc] ?? '') : '').replace(/\s+/g, ' ').trim() || '(sem descrição)';
+    const idValue = m.id >= 0 ? String(r[m.id] ?? '').trim() : '';
+    const category = m.category >= 0 ? String(r[m.category] ?? '').trim() : '';
+    // Linhas realmente iguais no mesmo arquivo (2 cafes iguais no mesmo dia)
+    // continuam sendo 2 lancamentos: o contador diferencia, e reimportar o
+    // mesmo arquivo gera as mesmas chaves (sem duplicar).
+    const base = `${date}|${description}|${amount.toFixed(2)}|${idValue}`;
+    seen[base] = (seen[base] || 0) + 1;
+    rows.push({ date, description, amount, category, key: `${base}#${seen[base]}` });
+  });
+  return { rows, skipped };
+}
+
+function openGenericImportModal() {
+  AppState.genericImportStaging = null;
+  document.getElementById('generic-import-step-file').style.display = 'block';
+  document.getElementById('generic-import-preview').style.display = 'none';
+  document.getElementById('generic-import-preview').innerHTML = '';
+  document.getElementById('generic-import-file-input').value = '';
+  document.getElementById('generic-import-file-error').textContent = '';
+  document.getElementById('generic-import-modal').classList.add('active');
+}
+
+function closeGenericImportModal() {
+  const modal = document.getElementById('generic-import-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function handleGenericFileSelected(event) {
+  const file = event.target.files[0];
+  const errorEl = document.getElementById('generic-import-file-error');
+  errorEl.textContent = '';
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = detectAndDecodeText(e.target.result);
+      const staging = buildGenericImportStaging(text, file.name);
+      if (!staging) {
+        errorEl.textContent = 'Esse arquivo parece vazio ou não é um CSV com linhas de lançamentos.';
+        return;
+      }
+      AppState.genericImportStaging = staging;
+      document.getElementById('generic-import-step-file').style.display = 'none';
+      document.getElementById('generic-import-preview').style.display = 'block';
+      renderGenericImportPreview();
+    } catch (err) {
+      errorEl.textContent = 'Erro ao ler o arquivo: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function setGenericImportMapping(key, value) {
+  const st = AppState.genericImportStaging;
+  if (!st) return;
+  st.mapping[key] = parseInt(value, 10);
+  // Valor unico OU Debito/Credito separados - nunca os dois ao mesmo tempo.
+  if (key === 'amount' && st.mapping.amount >= 0) { st.mapping.debit = -1; st.mapping.credit = -1; }
+  if ((key === 'debit' || key === 'credit') && st.mapping[key] >= 0) st.mapping.amount = -1;
+  renderGenericImportPreview();
+}
+
+function setGenericAccountMapping(value) {
+  const st = AppState.genericImportStaging;
+  if (!st) return;
+  st.accountMapping = value === '__create__' ? { mode: 'create', existingId: null } : { mode: 'existing', existingId: value };
+  renderGenericImportPreview();
+}
+
+function renderGenericImportPreview() {
+  const st = AppState.genericImportStaging;
+  const container = document.getElementById('generic-import-preview');
+  if (!st || !container) return;
+
+  const { rows, skipped } = buildGenericRows(st);
+  st.parsed = rows;
+
+  const colSelect = (key, label) => {
+    const opts = `<option value="-1" ${st.mapping[key] === -1 ? 'selected' : ''}>— nenhuma —</option>` +
+      st.headers.map((h, i) => `<option value="${i}" ${st.mapping[key] === i ? 'selected' : ''}>${importEsc(h)}</option>`).join('');
+    return `
+      <div>
+        <label style="display:block; font-size:10.5px; font-weight:700; color:var(--text-sub); text-transform:uppercase; margin-bottom:3px;">${label}</label>
+        <select class="select-field" style="width:100%; font-size:12px;" onchange="setGenericImportMapping('${key}', this.value)">${opts}</select>
+      </div>`;
+  };
+
+  const existingAccounts = (AppState.financeAccounts || []).filter(a => !a.archived);
+  const accountOpts = existingAccounts.map(a => `<option value="${a.id}" ${st.accountMapping.existingId === a.id ? 'selected' : ''}>${a.icon || ''} ${importEsc(a.name)}</option>`).join('');
+
+  let inTotal = 0, outTotal = 0, inCount = 0, outCount = 0, investmentCount = 0;
+  const categories = {};
+  rows.forEach(r => {
+    if (r.amount >= 0) { inTotal += r.amount; inCount++; } else { outTotal += -r.amount; outCount++; }
+    if (classifyNubankRow(r).isInvestment) investmentCount++;
+    if (r.category) categories[r.category] = (categories[r.category] || 0) + 1;
+  });
+  const minDate = rows.reduce((a, r) => (!a || r.date < a ? r.date : a), null);
+  const maxDate = rows.reduce((a, r) => (!a || r.date > a ? r.date : a), null);
+  const delimName = { ';': 'ponto e vírgula', ',': 'vírgula', '\t': 'tab', '|': 'barra vertical' }[st.delimiter] || st.delimiter;
+
+  const sampleRows = rows.slice(0, 8).map(r => `
+    <tr>
+      <td style="padding:4px 6px; white-space:nowrap;">${NumFmt.date(r.date)}</td>
+      <td style="padding:4px 6px;">${importEsc(r.description)}</td>
+      <td style="padding:4px 6px; text-align:right; white-space:nowrap; font-weight:600; color:${r.amount >= 0 ? 'var(--green)' : 'var(--red)'};">${NumFmt.money(r.amount)}</td>
+    </tr>`).join('');
+
+  const canImport = rows.length > 0;
+
+  container.innerHTML = `
+    <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px; line-height:1.5;">
+      Arquivo <strong>${importEsc(st.fileName)}</strong> — separador: ${delimName}; ${st.headerIdx >= 0 ? `cabeçalho encontrado na linha ${st.headerIdx + 1}` : 'sem cabeçalho reconhecido (colunas adivinhadas pelo conteúdo)'}.
+      Confira se as colunas abaixo estão certas; a prévia atualiza na hora.
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+      ${colSelect('date', 'Data')}
+      ${colSelect('desc', 'Descrição')}
+      ${colSelect('amount', 'Valor (com sinal)')}
+      ${colSelect('type', 'Tipo (D/C) — opcional')}
+      ${colSelect('debit', 'Débito (se separado)')}
+      ${colSelect('credit', 'Crédito (se separado)')}
+      ${colSelect('id', 'Identificador — opcional')}
+      ${colSelect('category', 'Categoria — opcional')}
+    </div>
+    <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; margin-bottom:8px; cursor:pointer;">
+      <input type="checkbox" ${st.invertSign ? 'checked' : ''} onchange="AppState.genericImportStaging.invertSign = this.checked; renderGenericImportPreview();" style="margin-top:2px;">
+      <span>Inverter sinais (use em fatura de cartão, em que as compras vêm como valor positivo)</span>
+    </label>
+    <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; margin-bottom:12px; cursor:pointer;">
+      <input type="checkbox" ${st.markInvestments ? 'checked' : ''} onchange="AppState.genericImportStaging.markInvestments = this.checked; renderGenericImportPreview();" style="margin-top:2px;">
+      <span>Marcar ${investmentCount} lançamento(s) com "RDB"/"Tesouro Direto" como Aporte/Resgate de Investimento</span>
+    </label>
+    <div style="margin-bottom:12px;">
+      <label style="display:block; font-size:11px; font-weight:700; color:var(--text-sub); text-transform:uppercase; margin-bottom:5px;">Conta de destino</label>
+      <select class="select-field" style="width:100%; margin-bottom:8px;" onchange="setGenericAccountMapping(this.value)">
+        <option value="__create__" ${st.accountMapping.mode === 'create' ? 'selected' : ''}>+ Criar nova conta</option>
+        ${accountOpts}
+      </select>
+      ${st.accountMapping.mode === 'create' ? `<input type="text" class="input-field" value="${importEsc(st.newAccountName)}" oninput="AppState.genericImportStaging.newAccountName = this.value" placeholder="Nome da nova conta" style="width:100%;">` : ''}
+    </div>
+    ${canImport ? `
+    <div style="background:rgba(0,0,0,0.03); border-radius:var(--radius-md); padding:10px 14px; margin-bottom:12px; font-size:12.5px; line-height:1.6;">
+      <strong>${rows.length}</strong> lançamentos lidos, de ${NumFmt.date(minDate)} a ${NumFmt.date(maxDate)}${skipped > 0 ? ` (${skipped} linha(s) ignorada(s): cabeçalhos extras, totais, saldos ou sem data/valor)` : ''}.<br>
+      <span style="color:var(--green);">Entradas: ${inCount} (${NumFmt.money(inTotal)})</span> ·
+      <span style="color:var(--red);">Saídas: ${outCount} (${NumFmt.money(outTotal)})</span>
+      ${Object.keys(categories).length ? `<br>${Object.keys(categories).length} categoria(s) do arquivo serão usadas (as que não existirem serão criadas).` : '<br>Sem coluna de categoria: entram como "Outros" (ou pela sua regra de categorização automática).'}
+    </div>
+    <div style="max-height:190px; overflow:auto; margin-bottom:12px; border:1px solid rgba(0,0,0,0.08); border-radius:8px;">
+      <table style="width:100%; font-size:11.5px; border-collapse:collapse;">
+        <tbody>${sampleRows}</tbody>
+      </table>
+    </div>` : `
+    <div style="background:rgba(163,39,31,0.08); color:var(--red); border-radius:var(--radius-md); padding:10px 14px; margin-bottom:12px; font-size:12.5px;">
+      Nenhum lançamento válido com esse mapeamento. Escolha as colunas de <strong>Data</strong> e de <strong>Valor</strong> (ou Débito/Crédito) acima.
+    </div>`}
+    <div style="display:flex; gap:10px;">
+      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeGenericImportModal()">Cancelar</button>
+      <button type="button" class="btn btn-success" style="flex:1;" ${canImport ? '' : 'disabled'} onclick="handleConfirmGenericImport()">Importar ${rows.length} Lançamentos</button>
+    </div>
+  `;
+}
+
+function handleConfirmGenericImport() {
+  const st = AppState.genericImportStaging;
+  if (!st || !st.parsed.length) return;
+
+  let accountId;
+  if (st.accountMapping.mode === 'existing' && st.accountMapping.existingId) {
+    accountId = st.accountMapping.existingId;
+  } else {
+    const name = (st.newAccountName || '').trim() || 'Conta importada';
+    const newAcc = {
+      id: 'facc_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
+      name, type: 'checking', icon: '🏦',
+      color: CHART_COLOR_PALETTE[AppState.financeAccounts.length % CHART_COLOR_PALETTE.length],
+      initialBalance: 0, initialBalanceDate: new Date().toISOString().slice(0, 10),
+      archived: false, createdAt: new Date().toISOString(),
+      creditLimit: null, closingDay: null, dueDay: null, paidInvoiceMonths: []
+    };
+    AppState.financeAccounts.push(newAcc);
+    accountId = newAcc.id;
+  }
+
+  const categoryIdByName = {};
+  st.parsed.forEach(r => {
+    if (!r.category || categoryIdByName[r.category]) return;
+    const existing = AppState.financeCategories.find(c => c.name.toLowerCase() === r.category.toLowerCase());
+    if (existing) { categoryIdByName[r.category] = existing.id; return; }
+    const newCat = {
+      id: 'cat_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
+      name: r.category, icon: '📥', color: CHART_COLOR_PALETTE[AppState.financeCategories.length % CHART_COLOR_PALETTE.length],
+      appliesTo: ['expense', 'income'], isCustom: true, archived: false
+    };
+    AppState.financeCategories.push(newCat);
+    categoryIdByName[r.category] = newCat.id;
+  });
+
+  const outrosCategory = (AppState.financeCategories || []).find(c => c.name.toLowerCase() === 'outros');
+  const outrosCategoryId = outrosCategory ? outrosCategory.id : null;
+
+  const existingImportIds = new Set((AppState.financeTransactions || []).filter(t => t.importId).map(t => t.importId));
+  let imported = 0, skippedDuplicate = 0;
+  const newTxs = [];
+  const matchedManualIds = new Set();
+  const matchedManual = [];
+
+  st.parsed.forEach(row => {
+    const importId = 'csv_' + accountId + '_' + row.key;
+    if (existingImportIds.has(importId)) { skippedDuplicate++; return; }
+    existingImportIds.add(importId);
+
+    const manualMatch = findManualMatchForImportRow(matchedManualIds, accountId, row.amount, row.date);
+    if (manualMatch) { matchedManual.push(manualMatch); return; }
+
+    const amount = Math.abs(row.amount);
+    let type, categoryId = null, investmentDirection = null;
+    if (st.markInvestments && classifyNubankRow(row).isInvestment) {
+      type = 'investment';
+      investmentDirection = row.amount >= 0 ? 'redemption' : 'contribution';
+    } else {
+      type = row.amount >= 0 ? 'income' : 'expense';
+      categoryId = (row.category && categoryIdByName[row.category]) || matchFinanceCategoryRule(row.description) || outrosCategoryId;
+    }
+
+    newTxs.push({
+      id: 'ftx_' + Date.now() + '_' + imported + '_' + Math.floor(Math.random() * 100000),
+      type, description: row.description, amount, date: row.date, accountId, categoryId,
+      notes: '', tags: [], source: 'import', importId, originalAccountLabel: 'CSV: ' + st.fileName,
+      transferAccountId: null, investmentDirection,
+      isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
+      fixedCostId: null, goalId: null, goalDirection: null, ignored: false, pending: false, splitGroupId: null
+    });
+    imported++;
+  });
+
+  AppState.financeTransactions.unshift(...newTxs);
+  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+
+  if (imported > 0) logFinanceChange('import', 'transacao', `${imported} lançamento(s) importados de CSV (${st.fileName})`);
+  logImportManualMatches(matchedManual);
+  AppState.genericImportStaging = null;
+  closeGenericImportModal();
+  renderFinanceView();
+  showToast(`${imported} lançamento(s) importados do CSV (${skippedDuplicate} duplicado(s) ignorado(s), ${matchedManual.length} já lançado(s) no app).`, 'success');
 }
 
 // ==========================================
