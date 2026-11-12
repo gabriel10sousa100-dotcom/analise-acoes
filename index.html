@@ -2433,11 +2433,12 @@
     <div style="border-top: 1px solid var(--border); margin-top: 16px; padding-top: 14px;">
       <div style="font-size: 12px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 6px;">🔤 Regras de Categorização Automática</div>
       <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
-        Quando a descrição de um lançamento (novo ou importado) contiver a palavra-chave, a categoria é aplicada automaticamente. Ex: "uber" → Transporte.
+        Quando a descrição de um lançamento (novo ou importado) contiver a palavra-chave, a categoria e a tag (opcional) são aplicadas automaticamente. Ex: "uber" → Transporte, tag "app".
       </p>
       <div style="display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;">
         <input type="text" class="input-field" id="finance-catrule-new-keyword" placeholder="Palavra-chave (ex: uber)" style="flex: 1; min-width: 140px;">
         <select class="select-field" id="finance-catrule-new-category" style="min-width: 160px;"></select>
+        <input type="text" class="input-field" id="finance-catrule-new-tag" list="finance-tags-datalist" placeholder="Tag (opcional)" style="flex: 1; min-width: 120px;">
         <button class="btn btn-success btn-sm" onclick="handleAddFinanceCategoryRule()">+ Adicionar</button>
       </div>
       <div id="finance-catrule-list" style="display:flex; flex-direction:column; gap:6px; max-height: 200px; overflow-y:auto;"></div>
@@ -10826,9 +10827,13 @@ function closeFinanceCategoryModal() {
 // importadores (so quando a categoria original e desconhecida/"Outros", no
 // caso do Mobills - o Nubank nativo nao tem categoria nenhuma) e como
 // sugestao no lancamento manual.
-function matchFinanceCategoryRule(description) {
+function matchFinanceRule(description) {
   const descLower = (description || '').toLowerCase();
-  const rule = (AppState.financeCategoryRules || []).find(r => descLower.includes(r.keyword.toLowerCase()));
+  return (AppState.financeCategoryRules || []).find(r => descLower.includes(r.keyword.toLowerCase())) || null;
+}
+
+function matchFinanceCategoryRule(description) {
+  const rule = matchFinanceRule(description);
   return rule ? rule.categoryId : null;
 }
 
@@ -10839,10 +10844,13 @@ function autoApplyFinanceCategoryRule() {
   const type = document.getElementById('finance-tx-type').value;
   if (type !== 'expense' && type !== 'income') return;
   const description = document.getElementById('finance-tx-description').value;
-  const categoryId = matchFinanceCategoryRule(description);
-  if (!categoryId) return;
+  const rule = matchFinanceRule(description);
+  if (!rule) return;
   const catSel = document.getElementById('finance-tx-category');
-  if ([...catSel.options].some(o => o.value === categoryId)) catSel.value = categoryId;
+  if ([...catSel.options].some(o => o.value === rule.categoryId)) catSel.value = rule.categoryId;
+  // Tag da regra: so preenche se o campo estiver vazio (nao sobrescreve o que o usuario digitou)
+  const tagEl = document.getElementById('finance-tx-tags');
+  if (rule.tag && tagEl && !tagEl.value.trim()) tagEl.value = rule.tag;
 }
 
 function renderFinanceCategoryRulesList() {
@@ -10851,6 +10859,12 @@ function renderFinanceCategoryRulesList() {
     const cats = (AppState.financeCategories || []).filter(c => !c.archived);
     catSel.innerHTML = cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
   }
+  // Sugestoes de tag: as ja usadas em lancamentos e em outras regras
+  const allTags = new Set();
+  (AppState.financeTransactions || []).forEach(t => (t.tags || []).forEach(tag => allTags.add(tag)));
+  (AppState.financeCategoryRules || []).forEach(r => { if (r.tag) allTags.add(r.tag); });
+  const tagsDatalist = document.getElementById('finance-tags-datalist');
+  if (tagsDatalist) tagsDatalist.innerHTML = [...allTags].sort().map(tag => `<option value="${String(tag).replace(/"/g, '&quot;')}">`).join('');
 
   const list = document.getElementById('finance-catrule-list');
   if (!list) return;
@@ -10863,7 +10877,7 @@ function renderFinanceCategoryRulesList() {
     const cat = (AppState.financeCategories || []).find(c => c.id === r.categoryId);
     return `
     <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--radius-md); background: rgba(0,0,0,0.02);">
-      <span style="flex:1; font-size:12.5px;"><strong>"${r.keyword}"</strong> → ${cat ? cat.icon + ' ' + cat.name : 'Categoria removida'}</span>
+      <span style="flex:1; font-size:12.5px;"><strong>"${r.keyword}"</strong> → ${cat ? cat.icon + ' ' + cat.name : 'Categoria removida'}${r.tag ? ` <span class="badge badge-flat" style="font-size:10px; color:var(--accent);">🏷️ ${r.tag}</span>` : ''}</span>
       <button class="btn btn-icon btn-sm" style="color:var(--red);" onclick="handleDeleteFinanceCategoryRule('${r.id}')" title="Excluir">✕</button>
     </div>`;
   }).join('');
@@ -10874,9 +10888,13 @@ function handleAddFinanceCategoryRule() {
   const categoryId = document.getElementById('finance-catrule-new-category').value;
   if (!keyword) { showToast('Digite a palavra-chave.', 'error'); return; }
   if (!categoryId) { showToast('Cadastre uma categoria antes de criar regras.', 'error'); return; }
-  AppState.financeCategoryRules.push({ id: 'frule_' + Date.now() + '_' + Math.floor(Math.random() * 1000), keyword, categoryId });
+  // Uma tag por lancamento (mesma regra do formulario de lancamento)
+  const tag = document.getElementById('finance-catrule-new-tag').value.trim();
+  if (tag.includes(',')) { showToast('Só uma tag por regra.', 'error'); return; }
+  AppState.financeCategoryRules.push({ id: 'frule_' + Date.now() + '_' + Math.floor(Math.random() * 1000), keyword, categoryId, tag: tag || null });
   localStorage.setItem('b3_finance_category_rules', JSON.stringify(AppState.financeCategoryRules));
   document.getElementById('finance-catrule-new-keyword').value = '';
+  document.getElementById('finance-catrule-new-tag').value = '';
   renderFinanceCategoryRulesList();
   showToast('Regra adicionada!', 'success');
 }
@@ -12110,22 +12128,23 @@ function handleConfirmGenericImport() {
     if (manualMatch) { matchedManual.push(manualMatch); return; }
 
     const amount = Math.abs(row.amount);
-    let type, categoryId = null, investmentDirection = null;
+    let type, categoryId = null, investmentDirection = null, rule = null;
     if (st.markInvestments && classifyInvestmentRow(row).isInvestment) {
       type = 'investment';
       investmentDirection = row.amount >= 0 ? 'redemption' : 'contribution';
     } else {
       type = row.amount >= 0 ? 'income' : 'expense';
       const isOutros = !row.category || row.category.toLowerCase() === 'outros';
+      rule = matchFinanceRule(row.description);
       categoryId = isOutros
-        ? (matchFinanceCategoryRule(row.description) || (row.category ? getCategoryId(row.category) : outrosCategoryId))
+        ? ((rule && rule.categoryId) || (row.category ? getCategoryId(row.category) : outrosCategoryId))
         : getCategoryId(row.category);
     }
     newTxs.push({
       ...baseTx(),
       id: 'ftx_' + Date.now() + '_' + imported + '_' + Math.floor(Math.random() * 100000),
       type, description: row.description, amount, date: row.date, accountId, categoryId,
-      tags: row.tag ? [row.tag] : [], importId, originalAccountLabel: 'CSV: ' + row.fileLabel,
+      tags: (row.tag || (rule && rule.tag)) ? [row.tag || rule.tag] : [], importId, originalAccountLabel: 'CSV: ' + row.fileLabel,
       investmentDirection
     });
     imported++;
