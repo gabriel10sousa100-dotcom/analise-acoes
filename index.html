@@ -227,6 +227,23 @@
       .grid-4 { grid-template-columns: 1fr; }
     }
 
+    /* CONTROLE FINANCEIRO: LAYOUT EDITAVEL (quadrantes reordenaveis) */
+    .finance-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .finance-layout [data-fin-block] { margin: 0 !important; min-width: 0; }
+    @media (max-width: 768px) { .finance-layout { grid-template-columns: 1fr; } }
+    .fin-hidden { display: none !important; }
+    .fin-editbar { display: none; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: rgba(15,107,76,0.08); border: 1px solid rgba(15,107,76,0.3); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 12.5px; line-height: 1.5; }
+    .finance-layout.fin-edit [data-fin-block] { position: relative; outline: 2px dashed rgba(15,107,76,0.45); outline-offset: 3px; cursor: grab; }
+    .finance-layout.fin-edit [data-fin-block] > *:not(.fin-toolbar) { pointer-events: none; }
+    .finance-layout.fin-edit [data-fin-block].fin-dim { opacity: 0.45; }
+    .finance-layout.fin-edit [data-fin-block].fin-dragging { opacity: 0.35; }
+    .finance-layout.fin-edit [data-fin-block].fin-drop-before { box-shadow: 0 -6px 0 0 var(--accent, #0f6b4c); }
+    .finance-layout.fin-edit [data-fin-block].fin-drop-after { box-shadow: 0 6px 0 0 var(--accent, #0f6b4c); }
+    .fin-toolbar { position: absolute; top: -14px; right: 10px; z-index: 6; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; max-width: calc(100% - 12px); background: #ffffff; border: 1px solid rgba(0,0,0,0.18); border-radius: 8px; padding: 4px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); cursor: default; }
+    .fin-toolbar-title { font-size: 11px; font-weight: 700; margin-right: 4px; }
+    .fin-toolbar button { font-size: 11px; padding: 3px 7px; border: 1px solid rgba(0,0,0,0.15); border-radius: 6px; background: #f6f3ec; cursor: pointer; font-family: inherit; }
+    .fin-toolbar button:disabled { opacity: 0.35; cursor: not-allowed; }
+
     /* METRIC STAT CARD */
     .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
     .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-sub); }
@@ -931,6 +948,7 @@
             <p class="page-desc" style="margin-bottom:0">Receitas, despesas, contas e cartão de crédito do dia a dia.</p>
           </div>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-secondary btn-sm" id="finance-layout-edit-btn" onclick="toggleFinanceLayoutEdit()" title="Mude a ordem, a largura e oculte quadrantes desta tela">🧩 Editar layout</button>
             <button class="btn btn-secondary btn-sm" onclick="openGenericImportModal()" title="Importe um ou vários extratos (CSV, PDF ou print, de qualquer banco ou cartão); o app cruza os arquivos e identifica transferências entre contas">📥 Importar extrato</button>
             <button class="btn btn-secondary btn-sm" onclick="openFinanceHistoryModal()">🕒 Histórico</button>
             <div style="display: flex; gap: 8px; align-items: center;">
@@ -941,8 +959,17 @@
           </div>
         </div>
 
+        <div id="finance-layout-editbar" class="fin-editbar">
+          <span>🧩 <strong>Modo de edição:</strong> arraste os quadrantes para trocar de lugar (no celular use ⬆ ⬇), mude a largura com ↔ e oculte com 🙈. O que você ajustar é salvo automaticamente.</span>
+          <span style="display:flex; gap:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="resetFinanceLayout()">↩️ Restaurar padrão</button>
+            <button class="btn btn-success btn-sm" onclick="toggleFinanceLayoutEdit()">✅ Concluir</button>
+          </span>
+        </div>
+
+        <div class="finance-layout" id="finance-layout">
         <!-- KPIs -->
-        <div class="grid grid-4" style="margin-bottom: 14px;">
+        <div class="grid grid-4" style="margin-bottom: 14px;" data-fin-block="kpis" data-fin-title="Resumo do mês" data-fin-default="full">
           <div class="stat-card">
             <span class="stat-label">Saldo Total em Contas</span>
             <div class="stat-val" id="finance-stat-accounts-balance">R$ 0,00</div>
@@ -966,7 +993,7 @@
         </div>
 
         <!-- PATRIMONIO LIQUIDO -->
-        <div class="didactic-box blue" style="padding: 14px 20px; margin-bottom: 20px;">
+        <div class="didactic-box blue" style="padding: 14px 20px; margin-bottom: 20px;" data-fin-block="networth" data-fin-title="Patrimônio líquido" data-fin-default="full">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
               <span class="stat-label">💎 Patrimônio Líquido Estimado</span>
@@ -977,7 +1004,7 @@
         </div>
 
         <!-- CONTAS -->
-        <div class="card" style="margin-bottom: 20px;">
+        <div class="card" style="margin-bottom: 20px;" data-fin-block="accounts" data-fin-title="Minhas contas" data-fin-default="full">
           <div class="card-header">
             <div class="card-title">Minhas Contas</div>
             <button class="btn btn-success btn-sm" onclick="openFinanceAccountModal()">+ Nova Conta</button>
@@ -986,7 +1013,7 @@
         </div>
 
         <!-- FILTROS -->
-        <div class="card" style="margin-bottom: 20px;">
+        <div class="card" style="margin-bottom: 20px;" data-fin-block="filters" data-fin-title="Filtros" data-fin-default="full">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="finance-type-filter-bar">
               <button class="cat-btn active" onclick="setFinanceFilter('type','all', this)">🌐 Todos</button>
@@ -1005,7 +1032,7 @@
         </div>
 
         <!-- LANCAMENTOS -->
-        <div class="card" style="margin-bottom: 20px;">
+        <div class="card" style="margin-bottom: 20px;" data-fin-block="transactions" data-fin-title="Lançamentos" data-fin-default="full">
           <div class="card-header">
             <div class="card-title">Lançamentos</div>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -1034,8 +1061,8 @@
         </div>
 
         <!-- GRAFICOS -->
-        <div class="grid grid-2" style="margin-bottom: 20px;">
-          <div class="card">
+        <div class="grid grid-2" style="display: contents;">
+          <div class="card" data-fin-block="chart-category" data-fin-title="Despesas por categoria" data-fin-default="half">
             <div class="card-header">
               <div class="card-title" id="finance-category-chart-title">Despesas por Categoria</div>
               <button class="btn btn-secondary btn-sm" onclick="toggleFinanceCategoryChartMode()" id="finance-category-chart-toggle-btn">🔄 Ver Receitas</button>
@@ -1044,16 +1071,38 @@
               <canvas id="finance-category-chart"></canvas>
             </div>
           </div>
-          <div class="card">
+          <div class="card" data-fin-block="chart-trend" data-fin-title="Receita x Despesa" data-fin-default="half">
             <div class="card-title">Receita x Despesa (Últimos 6 Meses)</div>
             <div style="height: 260px; position: relative;">
               <canvas id="finance-trend-chart"></canvas>
             </div>
           </div>
+          <div class="card" data-fin-block="chart-card-usage" data-fin-title="Cartão mais usado" data-fin-default="half">
+            <div class="card-header">
+              <div class="card-title" id="finance-card-usage-title">💳 Cartão mais usado</div>
+              <button class="btn btn-secondary btn-sm finance-usage-period-btn" onclick="toggleFinanceUsagePeriod()" title="Alternar entre o mês ativo e todo o período">📅 Mês ativo</button>
+            </div>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 10px;">Barras verdes: valor gasto (só despesas; as ignoradas não entram). Barras douradas: número de movimentações. Compra no cartão conta no mês da fatura.</p>
+            <div style="height: 260px; position: relative;">
+              <canvas id="finance-card-usage-chart"></canvas>
+              <div id="finance-card-usage-empty" class="state-box" style="display: none; position: absolute; inset: 0;"><div class="state-icon">💳</div><div class="state-title">Nada para mostrar neste período</div><div class="state-desc">Cadastre um cartão de crédito e lance compras nele.</div></div>
+            </div>
+          </div>
+          <div class="card" data-fin-block="chart-account-usage" data-fin-title="Conta mais usada" data-fin-default="half">
+            <div class="card-header">
+              <div class="card-title" id="finance-account-usage-title">🏦 Conta mais usada</div>
+              <button class="btn btn-secondary btn-sm finance-usage-period-btn" onclick="toggleFinanceUsagePeriod()" title="Alternar entre o mês ativo e todo o período">📅 Mês ativo</button>
+            </div>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 10px;">Barras verdes: valor gasto (só despesas; as ignoradas não entram). Barras douradas: número de movimentações. Transferências contam nas duas contas.</p>
+            <div style="height: 260px; position: relative;">
+              <canvas id="finance-account-usage-chart"></canvas>
+              <div id="finance-account-usage-empty" class="state-box" style="display: none; position: absolute; inset: 0;"><div class="state-icon">🏦</div><div class="state-title">Nada para mostrar neste período</div><div class="state-desc">Ainda não há lançamentos nas suas contas neste período.</div></div>
+            </div>
+          </div>
         </div>
 
         <!-- OBJETIVOS -->
-        <div class="card" style="margin-bottom: 20px;">
+        <div class="card" style="margin-bottom: 20px;" data-fin-block="goals" data-fin-title="Objetivos" data-fin-default="full">
           <div class="card-header">
             <div class="card-title">🎯 Objetivos</div>
             <button class="btn btn-success btn-sm" onclick="openFinanceGoalModal()">+ Nova Meta</button>
@@ -1062,7 +1111,7 @@
         </div>
 
         <!-- ORCAMENTO POR CATEGORIA -->
-        <div class="card" style="margin-bottom: 20px;">
+        <div class="card" style="margin-bottom: 20px;" data-fin-block="budget" data-fin-title="Orçamento do mês" data-fin-default="full">
           <div class="card-header">
             <div class="card-title" id="finance-budget-title">🧮 Orçamento do Mês</div>
             <div style="display: flex; align-items: center; gap: 10px;">
@@ -1074,7 +1123,7 @@
         </div>
 
         <!-- QUANTO PRECISO RECEBER (necessidade de renda por mes) -->
-        <div class="card" style="margin-bottom: 20px;">
+        <div class="card" style="margin-bottom: 20px;" data-fin-block="income-need" data-fin-title="Quanto preciso receber" data-fin-default="full">
           <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
             <div class="card-title">💡 Quanto Preciso Receber</div>
             <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-sub);">
@@ -1086,7 +1135,7 @@
         </div>
 
         <!-- CUSTOS FIXOS -->
-        <div class="card" style="margin-bottom: 20px;">
+        <div class="card" style="margin-bottom: 20px;" data-fin-block="fixed-costs" data-fin-title="Custos fixos" data-fin-default="full">
           <div class="card-header">
             <div class="card-title">📌 Custos Fixos</div>
             <div style="display: flex; align-items: center; gap: 10px;">
@@ -1098,7 +1147,7 @@
         </div>
 
         <!-- PAGAMENTOS PROGRAMADOS (parcelas fora do cartao, ex: Pix futuro, ainda nao confirmadas) -->
-        <div class="card" style="margin-bottom: 20px;">
+        <div class="card" style="margin-bottom: 20px;" data-fin-block="pending" data-fin-title="Pagamentos programados" data-fin-default="full">
           <div class="card-header">
             <div class="card-title" id="finance-pending-payments-title">📅 Pagamentos Programados</div>
             <span class="status-pill" id="finance-pending-payments-total" style="font-size:12px;">Total: R$ 0,00</span>
@@ -1107,7 +1156,7 @@
         </div>
 
         <!-- CARTAO DE CREDITO -->
-        <div class="card">
+        <div class="card" data-fin-block="cards" data-fin-title="Cartões de crédito" data-fin-default="full">
           <div class="card-title">💳 Cartões de Crédito</div>
           <div id="finance-cards-section" style="margin-top: 10px;">
             <div class="state-box">
@@ -1119,15 +1168,15 @@
         </div>
 
         <!-- EVOLUCAO DO PATRIMONIO LIQUIDO + GASTOS POR TAG -->
-        <div class="grid grid-2" style="margin-top: 20px;">
-          <div class="card">
+        <div class="grid grid-2" style="display: contents;">
+          <div class="card" data-fin-block="chart-networth" data-fin-title="Evolução do patrimônio" data-fin-default="half">
             <div class="card-title">📈 Evolução do Patrimônio Líquido</div>
             <p style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 10px;">Passa a registrar um ponto por mês a partir de agora - não reconstrói meses anteriores.</p>
             <div style="height: 260px; position: relative;">
               <canvas id="finance-networth-chart"></canvas>
             </div>
           </div>
-          <div class="card">
+          <div class="card" data-fin-block="chart-tags" data-fin-title="Gastos por tag" data-fin-default="half">
             <div class="card-header">
               <div class="card-title" id="finance-tag-chart-title">🏷️ Gastos por Tag</div>
               <span class="status-pill" id="finance-tag-chart-untagged" style="font-size:12px;"></span>
@@ -1139,6 +1188,7 @@
             </div>
           </div>
         </div>
+        </div><!-- /finance-layout -->
       </div>
 
       <!-- ========================================== -->
@@ -3059,7 +3109,8 @@ const AUTO_CLOUD_SYNC_KEYS = new Set([
   'gemini_api_key', 'b3_ai_folder_files',
   'b3_finance_accounts', 'b3_finance_categories', 'b3_finance_transactions',
   'b3_finance_goals', 'b3_finance_fixed_costs', 'b3_finance_changelog',
-  'b3_finance_category_rules', 'b3_finance_networth_history', 'b3_finance_budgets', 'b3_finance_investment_goal'
+  'b3_finance_category_rules', 'b3_finance_networth_history', 'b3_finance_budgets', 'b3_finance_investment_goal',
+  'b3_finance_layout'
 ]);
 const AUTO_CLOUD_SYNC_DEBOUNCE_MS = 8000;
 let autoCloudSyncTimer = null;
@@ -4445,6 +4496,11 @@ const AppState = {
   financeAccountChartInstance: null,
   financeCategoryChartInstance: null,
   financeTagChartInstance: null,
+  financeCardUsageChartInstance: null,
+  financeAccountUsageChartInstance: null,
+  financeUsagePeriod: 'month',
+  financeLayoutEditing: false,
+  financeLayout: (() => { try { return JSON.parse(localStorage.getItem('b3_finance_layout') || 'null'); } catch (e) { return null; } })(),
   financeTrendChartInstance: null,
   genericImportStaging: null,
   financeCategoryEditingId: null,
@@ -8739,7 +8795,314 @@ function ensureDefaultFinanceCategoriesPresent() {
   if (dirty) localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
 }
 
+// ================================================================
+// LAYOUT EDITAVEL DA ABA CONTROLE FINANCEIRO
+// ================================================================
+// Cada quadrante da tela e um elemento com data-fin-block. O usuario liga o
+// "modo de edicao" e pode: arrastar (ou usar as setas) pra trocar de lugar,
+// alternar entre largura total e meia largura, e ocultar. A configuracao fica
+// em localStorage (b3_finance_layout) e sincroniza com a nuvem como o resto.
+let finLayoutDefaults = null;
+
+function getFinanceLayoutBlocks() {
+  return Array.from(document.querySelectorAll('#finance-layout [data-fin-block]'));
+}
+
+// Ordem/tamanho padrao = o que esta no HTML (capturado uma vez, antes de qualquer reordenacao).
+function initFinanceLayoutDefaults() {
+  if (finLayoutDefaults) return;
+  finLayoutDefaults = getFinanceLayoutBlocks().map(el => ({
+    id: el.dataset.finBlock,
+    title: el.dataset.finTitle || el.dataset.finBlock,
+    size: el.dataset.finDefault === 'half' ? 'half' : 'full'
+  }));
+}
+
+// Junta o salvo com o padrao: ignora ids que nao existem mais e encaixa
+// quadrantes novos (ainda nao salvos) logo depois do que os antecede no padrao.
+function resolveFinanceLayout() {
+  initFinanceLayoutDefaults();
+  const saved = (AppState.financeLayout && Array.isArray(AppState.financeLayout.items)) ? AppState.financeLayout.items : [];
+  const defById = {};
+  finLayoutDefaults.forEach(d => { defById[d.id] = d; });
+  const out = [];
+  saved.forEach(it => {
+    if (!it || !defById[it.id] || out.some(o => o.id === it.id)) return;
+    out.push({
+      id: it.id, title: defById[it.id].title,
+      size: it.size === 'half' || it.size === 'full' ? it.size : defById[it.id].size,
+      hidden: !!it.hidden
+    });
+  });
+  finLayoutDefaults.forEach((d, idx) => {
+    if (out.some(o => o.id === d.id)) return;
+    let insertAt = 0;
+    for (let i = idx - 1; i >= 0; i--) {
+      const pos = out.findIndex(o => o.id === finLayoutDefaults[i].id);
+      if (pos >= 0) { insertAt = pos + 1; break; }
+    }
+    out.splice(insertAt, 0, { id: d.id, title: d.title, size: d.size, hidden: false });
+  });
+  return out;
+}
+
+function saveFinanceLayout(items) {
+  AppState.financeLayout = { items: items.map(i => ({ id: i.id, size: i.size, hidden: i.hidden })) };
+  localStorage.setItem('b3_finance_layout', JSON.stringify(AppState.financeLayout));
+  applyFinanceLayout();
+}
+
+function syncFinanceToolbar(el, it, items) {
+  let tb = el.querySelector(':scope > .fin-toolbar');
+  if (!AppState.financeLayoutEditing) { if (tb) tb.remove(); return; }
+  const idx = items.findIndex(i => i.id === it.id);
+  const html = `
+    <span class="fin-toolbar-title">${importEsc(it.title)}</span>
+    <button type="button" title="Mover para antes" onclick="moveFinanceBlock('${it.id}', -1)" ${idx === 0 ? 'disabled' : ''}>⬆</button>
+    <button type="button" title="Mover para depois" onclick="moveFinanceBlock('${it.id}', 1)" ${idx === items.length - 1 ? 'disabled' : ''}>⬇</button>
+    <button type="button" title="Alternar largura total / meia largura" onclick="toggleFinanceBlockSize('${it.id}')">↔ ${it.size === 'full' ? 'Largo' : 'Meio'}</button>
+    <button type="button" title="${it.hidden ? 'Mostrar de novo' : 'Ocultar este quadrante'}" onclick="toggleFinanceBlockHidden('${it.id}')">${it.hidden ? '👁 Mostrar' : '🙈 Ocultar'}</button>`;
+  if (!tb) {
+    tb = document.createElement('div');
+    tb.className = 'fin-toolbar';
+    el.insertBefore(tb, el.firstChild);
+  }
+  if (tb.dataset.sig !== html) { tb.innerHTML = html; tb.dataset.sig = html; }
+}
+
+function applyFinanceLayout() {
+  const container = document.getElementById('finance-layout');
+  if (!container) return;
+  const editing = !!AppState.financeLayoutEditing;
+  const items = resolveFinanceLayout();
+  container.classList.toggle('fin-edit', editing);
+
+  const els = {};
+  getFinanceLayoutBlocks().forEach(el => { els[el.dataset.finBlock] = el; });
+  const current = Array.from(container.children).filter(c => c.dataset && c.dataset.finBlock).map(c => c.dataset.finBlock);
+  const target = items.map(i => i.id);
+  const sameOrder = current.length === target.length && current.every((id, i) => id === target[i]);
+  if (!sameOrder) items.forEach(it => { if (els[it.id]) container.appendChild(els[it.id]); });
+
+  items.forEach(it => {
+    const el = els[it.id];
+    if (!el) return;
+    el.style.gridColumn = it.size === 'full' ? '1 / -1' : 'span 1';
+    el.classList.toggle('fin-hidden', it.hidden && !editing);
+    el.classList.toggle('fin-dim', it.hidden && editing);
+    el.draggable = editing;
+    syncFinanceToolbar(el, it, items);
+  });
+
+  const bar = document.getElementById('finance-layout-editbar');
+  if (bar) bar.style.display = editing ? 'flex' : 'none';
+  const btn = document.getElementById('finance-layout-edit-btn');
+  if (btn) btn.textContent = editing ? '✅ Concluir edição' : '🧩 Editar layout';
+  initFinanceLayoutDnD();
+
+  // Grafico em quadrante que estava oculto/de outro tamanho precisa recalcular o tamanho
+  if (typeof Chart !== 'undefined' && Chart.instances) {
+    Object.values(Chart.instances).forEach(c => { try { c.resize(); } catch (e) { /* ignora */ } });
+  }
+}
+
+function toggleFinanceLayoutEdit() {
+  AppState.financeLayoutEditing = !AppState.financeLayoutEditing;
+  applyFinanceLayout();
+}
+
+function moveFinanceBlock(id, delta) {
+  const items = resolveFinanceLayout();
+  const i = items.findIndex(x => x.id === id);
+  const j = i + delta;
+  if (i < 0 || j < 0 || j >= items.length) return;
+  [items[i], items[j]] = [items[j], items[i]];
+  saveFinanceLayout(items);
+}
+
+function toggleFinanceBlockSize(id) {
+  const items = resolveFinanceLayout();
+  const it = items.find(x => x.id === id);
+  if (!it) return;
+  it.size = it.size === 'full' ? 'half' : 'full';
+  saveFinanceLayout(items);
+}
+
+function toggleFinanceBlockHidden(id) {
+  const items = resolveFinanceLayout();
+  const it = items.find(x => x.id === id);
+  if (!it) return;
+  it.hidden = !it.hidden;
+  saveFinanceLayout(items);
+}
+
+function resetFinanceLayout() {
+  AppState.financeLayout = null;
+  localStorage.setItem('b3_finance_layout', 'null');
+  applyFinanceLayout();
+  showToast('Layout restaurado para o padrão.', 'info');
+}
+
+// Arrastar e soltar (computador). No celular use as setas ⬆ ⬇.
+function initFinanceLayoutDnD() {
+  const c = document.getElementById('finance-layout');
+  if (!c || c.dataset.dnd === '1') return;
+  c.dataset.dnd = '1';
+  let dragId = null;
+  const blockOf = t => (t && t.closest) ? t.closest('[data-fin-block]') : null;
+  const clearMarks = () => c.querySelectorAll('.fin-drop-before, .fin-drop-after, .fin-dragging').forEach(el => el.classList.remove('fin-drop-before', 'fin-drop-after', 'fin-dragging'));
+  const dropBefore = (b, e) => {
+    const r = b.getBoundingClientRect();
+    return b.style.gridColumn === 'span 1' ? e.clientX < r.left + r.width / 2 : e.clientY < r.top + r.height / 2;
+  };
+
+  c.addEventListener('dragstart', e => {
+    const b = blockOf(e.target);
+    if (!b || !AppState.financeLayoutEditing) return;
+    dragId = b.dataset.finBlock;
+    b.classList.add('fin-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', dragId); } catch (err) { /* ignora */ }
+  });
+  c.addEventListener('dragover', e => {
+    if (!dragId) return;
+    const b = blockOf(e.target);
+    if (!b || b.dataset.finBlock === dragId) return;
+    e.preventDefault();
+    c.querySelectorAll('.fin-drop-before, .fin-drop-after').forEach(el => el.classList.remove('fin-drop-before', 'fin-drop-after'));
+    b.classList.add(dropBefore(b, e) ? 'fin-drop-before' : 'fin-drop-after');
+  });
+  c.addEventListener('drop', e => {
+    if (!dragId) return;
+    const b = blockOf(e.target);
+    e.preventDefault();
+    if (b && b.dataset.finBlock !== dragId) {
+      const before = dropBefore(b, e);
+      const items = resolveFinanceLayout();
+      const from = items.findIndex(x => x.id === dragId);
+      if (from >= 0) {
+        const [moved] = items.splice(from, 1);
+        const to = items.findIndex(x => x.id === b.dataset.finBlock);
+        items.splice(before ? to : to + 1, 0, moved);
+        clearMarks();
+        dragId = null;
+        saveFinanceLayout(items);
+        return;
+      }
+    }
+    clearMarks();
+    dragId = null;
+  });
+  c.addEventListener('dragend', () => { clearMarks(); dragId = null; });
+}
+
+// ================================================================
+// GRAFICOS DE USO: CARTOES E CONTAS (numero de movimentacoes x valor gasto)
+// ================================================================
+function toggleFinanceUsagePeriod() {
+  AppState.financeUsagePeriod = AppState.financeUsagePeriod === 'all' ? 'month' : 'all';
+  renderFinanceCardUsageChart();
+  renderFinanceAccountUsageChart();
+}
+
+// Movimentacoes: cartao = compras (despesas) no cartao; conta = todo lancamento que
+// mexe na conta (receita, despesa, transferencia - saida e entrada - e investimento).
+// Valor gasto: so despesas (as marcadas como "ignorado" nao entram). Compra no
+// cartao conta no mes da fatura, igual ao resto da tela. Pendentes ficam de fora.
+function getFinanceUsageStats(kind) {
+  const wantCards = kind === 'card';
+  const allTime = AppState.financeUsagePeriod === 'all';
+  const month = AppState.financeActiveMonth;
+  const stats = {};
+  (AppState.financeAccounts || [])
+    .filter(a => !a.archived && (a.type === 'credit_card') === wantCards)
+    .forEach(a => { stats[a.id] = { acc: a, count: 0, spent: 0 }; });
+  (AppState.financeTransactions || []).forEach(tx => {
+    if (tx.pending) return;
+    if (!allTime && getEffectiveMonth(tx) !== month) return;
+    const own = stats[tx.accountId];
+    if (wantCards) {
+      if (own && tx.type === 'expense') {
+        own.count++;
+        if (!tx.ignored) own.spent += Number(tx.amount) || 0;
+      }
+      return;
+    }
+    if (own) {
+      own.count++;
+      if (tx.type === 'expense' && !tx.ignored) own.spent += Number(tx.amount) || 0;
+    }
+    if (tx.type === 'transfer' && tx.transferAccountId !== tx.accountId && stats[tx.transferAccountId]) stats[tx.transferAccountId].count++;
+  });
+  return Object.values(stats)
+    .filter(s => s.count > 0 || s.spent > 0)
+    .sort((a, b) => b.spent - a.spent || b.count - a.count);
+}
+
+function renderFinanceUsageChart(kind) {
+  const isCard = kind === 'card';
+  const prefix = isCard ? 'finance-card-usage' : 'finance-account-usage';
+  const instanceKey = isCard ? 'financeCardUsageChartInstance' : 'financeAccountUsageChartInstance';
+  const canvas = document.getElementById(prefix + '-chart');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const allTime = AppState.financeUsagePeriod === 'all';
+  const stats = getFinanceUsageStats(kind);
+  const titleEl = document.getElementById(prefix + '-title');
+  if (titleEl) titleEl.textContent = `${isCard ? '💳 Cartão mais usado' : '🏦 Conta mais usada'} (${allTime ? 'todo o período' : AppState.financeActiveMonth})`;
+  document.querySelectorAll('.finance-usage-period-btn').forEach(b => { b.textContent = allTime ? '♾️ Todo o período' : '📅 Mês ativo'; });
+  const emptyEl = document.getElementById(prefix + '-empty');
+  if (emptyEl) emptyEl.style.display = stats.length ? 'none' : 'flex';
+
+  if (AppState[instanceKey]) { AppState[instanceKey].destroy(); AppState[instanceKey] = null; }
+  if (!stats.length) return;
+
+  const shortName = s => { const n = `${s.acc.icon || ''} ${s.acc.name}`.trim(); return n.length > 22 ? n.slice(0, 21) + '…' : n; };
+  AppState[instanceKey] = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: stats.map(shortName),
+      datasets: [
+        { label: 'Valor gasto (R$)', data: stats.map(s => s.spent), backgroundColor: '#0f6b4c', borderRadius: 4, yAxisID: 'y' },
+        { label: 'Nº de movimentações', data: stats.map(s => s.count), backgroundColor: '#92610d', borderRadius: 4, yAxisID: 'y1' }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#57503f', font: { family: 'Inter', size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.datasetIndex === 0
+              ? ` Valor gasto: R$ ${ctx.parsed.y.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+              : ` Movimentações: ${ctx.parsed.y}`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#57503f', font: { size: 10.5 } }, grid: { display: false } },
+        y: {
+          position: 'left', beginAtZero: true,
+          title: { display: true, text: 'Valor gasto (R$)', color: '#0f6b4c', font: { size: 10.5 } },
+          ticks: { color: '#57503f', font: { size: 10.5 }, callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) }
+        },
+        y1: {
+          position: 'right', beginAtZero: true,
+          title: { display: true, text: 'Nº de movimentações', color: '#92610d', font: { size: 10.5 } },
+          ticks: { color: '#57503f', font: { size: 10.5 }, precision: 0 },
+          grid: { drawOnChartArea: false }
+        }
+      }
+    }
+  });
+}
+
+function renderFinanceCardUsageChart() { renderFinanceUsageChart('card'); }
+function renderFinanceAccountUsageChart() { renderFinanceUsageChart('account'); }
+
 async function renderFinanceView() {
+  applyFinanceLayout();
   ensureDefaultFinanceCategoriesPresent();
   const monthLabel = document.getElementById('finance-active-month-label');
   if (monthLabel) {
@@ -8759,6 +9122,8 @@ async function renderFinanceView() {
   renderFinanceCategoryChart();
   renderFinanceTrendChart();
   renderFinanceTagChart();
+  renderFinanceCardUsageChart();
+  renderFinanceAccountUsageChart();
   renderFinanceGoalsSection();
   renderFinanceBudgetSection();
   renderFinanceIncomeNeedSection();
@@ -15956,6 +16321,7 @@ function clearAllCache() {
     localStorage.removeItem('b3_finance_networth_history');
     localStorage.removeItem('b3_finance_budgets');
     localStorage.removeItem('b3_finance_investment_goal');
+    localStorage.removeItem('b3_finance_layout');
     localStorage.removeItem('b3_triggered_unusual_spending_alerts');
     localStorage.removeItem('b3_last_known_cloud_update');
     AppState.favorites = [...DEFAULT_FAVORITES];
@@ -15971,6 +16337,7 @@ function clearAllCache() {
     AppState.financeNetWorthHistory = [];
     AppState.financeBudgets = { default: {}, months: {} };
     AppState.financeInvestmentGoal = 0;
+    AppState.financeLayout = null;
     AppState.triggeredUnusualSpendingAlerts = [];
     syncAutomatedDividends();
     showToast('Dados restaurados para os padrões.', 'info');
@@ -16664,7 +17031,8 @@ function buildBackupPayload() {
     financeCategoryRules: AppState.financeCategoryRules || [],
     financeNetWorthHistory: AppState.financeNetWorthHistory || [],
     financeBudgets: AppState.financeBudgets || { default: {}, months: {} },
-    financeInvestmentGoal: AppState.financeInvestmentGoal || 0
+    financeInvestmentGoal: AppState.financeInvestmentGoal || 0,
+    financeLayout: AppState.financeLayout || null
   };
 }
 
@@ -16688,6 +17056,7 @@ function applyBackupPayload(data) {
   if (data.financeCategoryRules) { AppState.financeCategoryRules = data.financeCategoryRules; localStorage.setItem('b3_finance_category_rules', JSON.stringify(data.financeCategoryRules)); }
   if (data.financeNetWorthHistory) { AppState.financeNetWorthHistory = data.financeNetWorthHistory; localStorage.setItem('b3_finance_networth_history', JSON.stringify(data.financeNetWorthHistory)); }
   if (data.financeBudgets) { AppState.financeBudgets = data.financeBudgets; localStorage.setItem('b3_finance_budgets', JSON.stringify(data.financeBudgets)); }
+  if (data.financeLayout !== undefined) { AppState.financeLayout = data.financeLayout; localStorage.setItem('b3_finance_layout', JSON.stringify(data.financeLayout)); }
   if (data.financeInvestmentGoal != null) { AppState.financeInvestmentGoal = Number(data.financeInvestmentGoal) || 0; localStorage.setItem('b3_finance_investment_goal', JSON.stringify(AppState.financeInvestmentGoal)); }
 }
 
