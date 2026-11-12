@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -114,6 +114,16 @@
     .sub-trades-table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .sub-trades-table th { text-align: left; padding: 6px 8px; color: var(--text-sub); font-weight: 600; text-transform: uppercase; font-size: 10px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); }
     .sub-trades-table td { padding: 7px 8px; border-bottom: 1px solid rgba(0, 0, 0, 0.04); }
+
+    /* Seletor Compra / Venda no modal de operacao */
+    .trade-type-toggle { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid rgba(0, 0, 0, 0.12); border-radius: 10px; overflow: hidden; }
+    .trade-type-btn { padding: 10px 12px; font-size: 13.5px; font-weight: 700; border: none; background: transparent; color: var(--text-sub); cursor: pointer; transition: background 0.15s, color 0.15s; font-family: inherit; }
+    .trade-type-btn + .trade-type-btn { border-left: 1px solid rgba(0, 0, 0, 0.12); }
+    .trade-type-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+    #trade-type-buy.active { background: var(--green); color: #fff; }
+    #trade-type-sell.active { background: var(--red); color: #fff; }
+    .trade-badge-sell { color: var(--red); border-color: rgba(163, 39, 31, 0.3); font-size: 10px; }
+    .trade-badge-buy { color: var(--green); border-color: rgba(21, 128, 61, 0.3); font-size: 10px; }
 
     .sidebar-menu { flex: 1; padding: 14px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
     .menu-group { display: flex; flex-direction: column; gap: 2px; }
@@ -787,7 +797,7 @@
               🖨️ Relatório Executivo (PDF / Imprimir)
             </button>
             <button class="btn btn-secondary btn-sm" onclick="openAddDividendModal()">💰 + Lançar Provento</button>
-            <button class="btn btn-success btn-sm" onclick="openAddTradeModal()">+ Lançar Compra / Aporte</button>
+            <button class="btn btn-success btn-sm" onclick="openAddTradeModal()" title="Lançar uma compra (aporte) ou uma venda de ativo">⇅ Lançar Compra / Venda</button>
           </div>
         </div>
 
@@ -891,7 +901,7 @@
             <div class="state-box">
               <div class="state-icon">💼</div>
               <div class="state-title">Nenhum lançamento registrado</div>
-              <div class="state-desc">Clique no botão "+ Lançar Compra / Aporte" para adicionar as ações que você comprou e começar a acompanhar sua rentabilidade!</div>
+              <div class="state-desc">Clique no botão "⇅ Lançar Compra / Venda" para adicionar as ações que você comprou e começar a acompanhar sua rentabilidade!</div>
             </div>
           </div>
         </div>
@@ -2181,10 +2191,17 @@
     </div>
     <form id="trade-form" onsubmit="handleSaveTrade(event)">
       <input type="hidden" id="trade-edit-id" value="">
+      <input type="hidden" id="trade-type" value="buy">
       <div style="display: flex; flex-direction: column; gap: 14px;">
+        <!-- Seletor Compra / Venda (botoes juntos) -->
+        <div class="trade-type-toggle" role="group" aria-label="Tipo de operação">
+          <button type="button" class="trade-type-btn" id="trade-type-buy" onclick="setTradeType('buy')">🟢 Compra</button>
+          <button type="button" class="trade-type-btn" id="trade-type-sell" onclick="setTradeType('sell')">🔴 Venda</button>
+        </div>
         <div>
           <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Código do Ativo (Ticker)</label>
-          <input type="text" class="input-field input-mono" id="trade-ticker" placeholder="ex: BBAS3, TAEE3, HGLG11, MXRF11" required style="width: 100%; font-size: 15px; font-weight: 700;">
+          <input type="text" class="input-field input-mono" id="trade-ticker" placeholder="ex: BBAS3, TAEE3, HGLG11, MXRF11" required style="width: 100%; font-size: 15px; font-weight: 700;" oninput="updateTradeSellHint()">
+          <div id="trade-sell-hint" style="display: none; font-size: 11.5px; color: var(--text-sub); margin-top: 5px;"></div>
         </div>
         <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
           <div>
@@ -2192,16 +2209,16 @@
             <input type="number" class="input-field" id="trade-qty" placeholder="ex: 100" min="1" step="1" required style="width: 100%;">
           </div>
           <div>
-            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Preço Pago por Unidade (R$)</label>
+            <label id="trade-price-label" style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Preço Pago por Unidade (R$)</label>
             <input type="number" class="input-field" id="trade-price" placeholder="ex: 17.95" min="0.01" step="0.01" required style="width: 100%;">
           </div>
         </div>
         <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Data da Compra</label>
+          <label id="trade-date-label" style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Data da Compra</label>
           <input type="date" class="input-field" id="trade-date" required style="width: 100%;">
         </div>
         <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">ObservaÃ§Ãµes / DescriÃ§Ã£o (Opcional)</label>
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Observações / Descrição (Opcional)</label>
           <input type="text" class="input-field" id="trade-notes" placeholder="ex: Aporte mensal, Reinvestimento de dividendos..." style="width: 100%;">
         </div>
 
@@ -7517,43 +7534,89 @@ function closeEtfAuditModal() {
 // ==========================================
 // PORTFOLIO CONSOLIDATION & AUTOMATION HELPERS
 // ==========================================
-function getConsolidatedPortfolio() {
-  const trades = AppState.trades || [];
-  const map = {};
+// Uma operacao e venda quando type === 'sell'. Operacoes antigas (sem campo
+// type) continuam sendo compras, entao os dados ja salvos nao mudam.
+function isSellTrade(tr) {
+  return tr && tr.type === 'sell';
+}
 
-  trades.forEach(tr => {
+// Reprocessa as operacoes em ordem cronologica (compras antes de vendas no
+// mesmo dia) aplicando a regra de preco medio da Receita: compra recalcula o
+// preco medio; venda baixa quantidade e custo pelo preco medio vigente (o
+// preco medio NAO muda) e gera lucro/prejuizo realizado.
+function buildPortfolioLedger(tradesList) {
+  const map = {};
+  const sorted = [...(tradesList || [])].sort((a, b) =>
+    (a.date || '').localeCompare(b.date || '') || (isSellTrade(a) ? 1 : 0) - (isSellTrade(b) ? 1 : 0)
+  );
+
+  sorted.forEach(tr => {
     const sym = tr.symbol.toUpperCase();
     if (!map[sym]) {
       map[sym] = {
         symbol: sym,
         totalQty: 0,
         totalCost: 0,
+        realizedProfit: 0,
+        soldQty: 0,
+        oversold: false,
         trades: [],
         latestDate: tr.date
       };
     }
+    const m = map[sym];
     const q = Number(tr.quantity) || 0;
     const p = Number(tr.price) || 0;
-    map[sym].totalQty += q;
-    map[sym].totalCost += (q * p);
-    map[sym].trades.push(tr);
-    if (tr.date && (!map[sym].latestDate || tr.date > map[sym].latestDate)) {
-      map[sym].latestDate = tr.date;
+
+    if (isSellTrade(tr)) {
+      const avg = m.totalQty > 0 ? m.totalCost / m.totalQty : 0;
+      if (q > m.totalQty) m.oversold = true;
+      const sellQty = Math.min(q, m.totalQty);
+      m.realizedProfit += sellQty * (p - avg);
+      m.soldQty += sellQty;
+      m.totalCost -= sellQty * avg;
+      m.totalQty -= sellQty;
+      if (m.totalQty <= 0) { m.totalQty = 0; m.totalCost = 0; }
+    } else {
+      m.totalQty += q;
+      m.totalCost += (q * p);
+    }
+    m.trades.push(tr);
+    if (tr.date && (!m.latestDate || tr.date > m.latestDate)) {
+      m.latestDate = tr.date;
     }
   });
 
-  return Object.values(map).map(item => {
-    const avgPrice = item.totalQty > 0 ? (item.totalCost / item.totalQty) : 0;
-    item.trades.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    return {
-      symbol: item.symbol,
-      quantity: item.totalQty,
-      avgPrice: parseFloat(avgPrice.toFixed(2)),
-      cost: item.totalCost,
-      date: item.latestDate,
-      trades: item.trades
-    };
-  });
+  return map;
+}
+
+// Retorna as posicoes ABERTAS (quantidade > 0). Posicoes zeradas por venda
+// so aparecem com { includeClosed: true }.
+function getConsolidatedPortfolio(options = {}) {
+  const map = buildPortfolioLedger(AppState.trades || []);
+
+  return Object.values(map)
+    .filter(item => options.includeClosed || item.totalQty > 0)
+    .map(item => {
+      const avgPrice = item.totalQty > 0 ? (item.totalCost / item.totalQty) : 0;
+      item.trades.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      return {
+        symbol: item.symbol,
+        quantity: item.totalQty,
+        avgPrice: parseFloat(avgPrice.toFixed(2)),
+        cost: item.totalCost,
+        realizedProfit: item.realizedProfit,
+        soldQty: item.soldQty,
+        date: item.latestDate,
+        trades: item.trades
+      };
+    });
+}
+
+// Lucro/prejuizo realizado total com vendas (inclui posicoes ja zeradas).
+function getPortfolioRealizedProfit() {
+  return Object.values(buildPortfolioLedger(AppState.trades || []))
+    .reduce((sum, m) => sum + m.realizedProfit, 0);
 }
 
 // ================================================================
@@ -8051,27 +8114,57 @@ function syncAutomatedDividends() {
   
   if (trades.length === 0) return;
 
+  // Agrupa compras e vendas por ativo. Os proventos automaticos continuam
+  // vinculados a cada COMPRA (id auto_<tradeId>_<evento>); as vendas feitas
+  // ate a Data Com consomem as compras mais antigas primeiro (FIFO), entao
+  // acoes ja vendidas deixam de receber.
+  const bySym = {};
   trades.forEach(trade => {
     const sym = trade.symbol.toUpperCase();
-    const tradeQty = Number(trade.quantity) || 0;
-    const tradeDate = trade.date || '2026-01-01';
+    if (!bySym[sym]) bySym[sym] = { buys: [], sells: [] };
+    bySym[sym][isSellTrade(trade) ? 'sells' : 'buys'].push(trade);
+  });
 
-    if (tradeQty <= 0) return;
+  Object.entries(bySym).forEach(([sym, group]) => {
+    group.buys.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
     // Find all matching corporate events for this symbol
     const events = B3_DIVIDEND_CALENDAR.filter(ev => ev.symbol === sym);
     events.forEach(ev => {
-      // RULE: User receives dividend if trade date was on or before Data Com OR if it is an upcoming scheduled event
       const isUpcoming = (ev.datePay >= todayStr);
-      const isEligible = (tradeDate <= ev.dateCom) || (isUpcoming && ev.dateCom >= todayStr);
-      
-      if (isEligible) {
+      const isUpcomingCom = isUpcoming && ev.dateCom >= todayStr;
+
+      // Vendas ate a Data Com (inclusive) tiram o direito ao provento
+      let soldToAllocate = group.sells
+        .filter(s => (s.date || todayStr) <= ev.dateCom || isUpcomingCom)
+        .reduce((sum, s) => sum + (Number(s.quantity) || 0), 0);
+
+      group.buys.forEach(trade => {
+        const buyQty = Number(trade.quantity) || 0;
+        const tradeDate = trade.date || '2026-01-01';
+        if (buyQty <= 0) return;
+
+        // RULE: User receives dividend if trade date was on or before Data Com OR if it is an upcoming scheduled event
+        const isEligible = (tradeDate <= ev.dateCom) || isUpcomingCom;
+        if (!isEligible) return;
+
+        const consumed = Math.min(buyQty, soldToAllocate);
+        soldToAllocate -= consumed;
+        const tradeQty = buyQty - consumed;
+
         const autoId = `auto_${trade.id || sym}_${ev.id}`;
+        const existingIdx = AppState.portfolioDividends.findIndex(d => d.id === autoId);
+
+        // Compra totalmente vendida antes da Data Com: sem provento
+        if (tradeQty <= 0) {
+          if (existingIdx >= 0) AppState.portfolioDividends.splice(existingIdx, 1);
+          return;
+        }
+
         const taxMultiplier = ev.type === 'JCP' ? 0.85 : 1.0;
         const valNet = parseFloat((tradeQty * ev.valUnit * taxMultiplier).toFixed(2));
         const status = (ev.datePay <= todayStr) ? 'PAID' : 'PENDING';
 
-        const existingIdx = AppState.portfolioDividends.findIndex(d => d.id === autoId);
         if (existingIdx >= 0) {
           AppState.portfolioDividends[existingIdx].qty = tradeQty;
           AppState.portfolioDividends[existingIdx].valNet = valNet;
@@ -8095,7 +8188,7 @@ function syncAutomatedDividends() {
             label: ev.label || `${ev.type} ${ev.datePay.substring(0,4)}`
           });
         }
-      }
+      });
     });
   });
 
@@ -8124,15 +8217,22 @@ async function renderPortfolioView() {
   const tableContainer = document.getElementById('portfolio-table-container');
   const summaryEl = document.getElementById('port-table-summary');
   const consolidated = getConsolidatedPortfolio();
+  const realizedProfit = getPortfolioRealizedProfit();
+  const sellCount = (AppState.trades || []).filter(isSellTrade).length;
+  const buyCount = (AppState.trades || []).length - sellCount;
+  const opsLabel = `${buyCount} ${buyCount === 1 ? 'compra' : 'compras'}${sellCount ? ` / ${sellCount} ${sellCount === 1 ? 'venda' : 'vendas'}` : ''}`;
+  const realizedLabel = sellCount
+    ? ` | Lucro realizado: ${realizedProfit >= 0 ? '+' : ''}${NumFmt.money(realizedProfit)}`
+    : '';
   
-  if (summaryEl) summaryEl.textContent = `${consolidated.length} posições | ${AppState.trades.length} aportes registrados`;
+  if (summaryEl) summaryEl.textContent = `${consolidated.length} posições | ${opsLabel}`;
 
   if (consolidated.length === 0) {
     tableContainer.innerHTML = `
       <div class="state-box">
         <div class="state-icon">💼</div>
         <div class="state-title">Sua carteira está vazia</div>
-        <div class="state-desc">Clique no botão "+ Lançar Compra / Aporte" acima para cadastrar os ativos que você comprou.</div>
+        <div class="state-desc">Clique no botão "⇅ Lançar Compra / Venda" acima para cadastrar os ativos que você comprou.</div>
       </div>`;
     document.getElementById('port-total-value').textContent = 'R$ 0,00';
     document.getElementById('port-total-cost-sub').textContent = 'Total Investido: R$ 0,00';
@@ -8228,7 +8328,7 @@ async function renderPortfolioView() {
   if (summaryEl) {
     const stockPct = totalCurrentValue > 0 ? ((totalStocksVal / totalCurrentValue) * 100).toFixed(1) : '0.0';
     const fiiPct = totalCurrentValue > 0 ? ((totalFiisVal / totalCurrentValue) * 100).toFixed(1) : '0.0';
-    summaryEl.innerHTML = `${consolidated.length} posições (${AppState.trades.length} aportes) &nbsp;•&nbsp; <span style="color:var(--accent);">📈 Ações: ${stockPct}%</span> &nbsp;•&nbsp; <span style="color:#6d4a8f;">🏢 FIIs: ${fiiPct}%</span>`;
+    summaryEl.innerHTML = `${consolidated.length} posições (${opsLabel}) &nbsp;•&nbsp; <span style="color:var(--accent);">📈 Ações: ${stockPct}%</span> &nbsp;•&nbsp; <span style="color:#6d4a8f;">🏢 FIIs: ${fiiPct}%</span>${sellCount ? ` &nbsp;•&nbsp; <span style="color:${realizedProfit >= 0 ? 'var(--green)' : 'var(--red)'}; font-weight:700;" title="Lucro/prejuízo das vendas (preço de venda − preço médio)">💵 Lucro realizado: ${realizedProfit >= 0 ? '+' : ''}${NumFmt.money(realizedProfit)}</span>` : ''}`;
   }
 
   // Total dividends strictly from user's launched / automated dividends
@@ -8247,7 +8347,7 @@ async function renderPortfolioView() {
   const profitValEl = document.getElementById('port-profit-val');
   profitValEl.textContent = `${totalProfitR$ >= 0 ? '+' : ''}${NumFmt.money(totalProfitR$)}`;
   profitValEl.style.color = totalProfitR$ >= 0 ? 'var(--green)' : 'var(--red)';
-  document.getElementById('port-profit-pct-sub').textContent = `Rentabilidade: ${NumFmt.pct(totalProfitPct)}`;
+  document.getElementById('port-profit-pct-sub').textContent = `Rentabilidade: ${NumFmt.pct(totalProfitPct)}${realizedLabel}`;
   
   document.getElementById('port-dividends-year').textContent = NumFmt.money(logTotalNetDividends);
   document.getElementById('port-yoc-sub').textContent = `Yield on Cost (YoC): ${NumFmt.num(totalYoC, 2)}%`;
@@ -8270,16 +8370,20 @@ async function renderPortfolioView() {
     // Sub-trades rows
     const subTradesHtml = p.trades.map((tr, trIdx) => {
       const trCost = tr.quantity * tr.price;
+      const sell = isSellTrade(tr);
+      const opBadge = sell
+        ? '<span class="badge badge-flat trade-badge-sell">🔴 VENDA</span>'
+        : '<span class="badge badge-flat trade-badge-buy">🟢 COMPRA</span>';
       return `
         <tr>
-          <td class="text-mono" style="font-weight: 600;">${NumFmt.date(tr.date)}</td>
-          <td class="text-right text-mono">${Number(tr.quantity).toLocaleString('pt-BR')}</td>
+          <td class="text-mono" style="font-weight: 600;">${NumFmt.date(tr.date)} ${opBadge}</td>
+          <td class="text-right text-mono">${sell ? '−' : ''}${Number(tr.quantity).toLocaleString('pt-BR')}</td>
           <td class="text-right text-mono">${NumFmt.money(tr.price)}</td>
-          <td class="text-right text-mono" style="font-weight: 700; color: var(--green);">${NumFmt.money(trCost)}</td>
+          <td class="text-right text-mono" style="font-weight: 700; color: ${sell ? 'var(--red)' : 'var(--green)'};">${NumFmt.money(trCost)}</td>
           <td class="text-center">
             <div style="display: flex; gap: 4px; justify-content: center;">
-              <button class="btn btn-icon btn-sm" onclick="openAddTradeModal('${p.symbol}', '', '${tr.id}')" title="Editar este aporte">✏️</button>
-              <button class="btn btn-icon btn-sm" onclick="deleteTrade('${tr.id}')" title="Excluir este aporte" style="color: var(--red);">✕</button>
+              <button class="btn btn-icon btn-sm" onclick="openAddTradeModal('${p.symbol}', '', '${tr.id}')" title="Editar esta ${sell ? 'venda' : 'compra'}">✏️</button>
+              <button class="btn btn-icon btn-sm" onclick="deleteTrade('${tr.id}')" title="Excluir esta ${sell ? 'venda' : 'compra'}" style="color: var(--red);">✕</button>
             </div>
           </td>
         </tr>
@@ -8296,7 +8400,7 @@ async function renderPortfolioView() {
                 <strong>${p.symbol}</strong>
                 ${typeBadge}
                 <span class="badge badge-flat" style="font-size: 10px; cursor: pointer;" title="Clique para ver histórico de compras">
-                  <span id="acc-icon-${p.symbol}">${isExpanded ? '▲' : '▼'}</span> ${p.trades.length} ${p.trades.length > 1 ? 'aportes' : 'aporte'}
+                  <span id="acc-icon-${p.symbol}">${isExpanded ? '▲' : '▼'}</span> ${p.trades.length} ${p.trades.length > 1 ? 'operações' : 'operação'}
                 </span>
               </div>
               <span>${p.name}</span>
@@ -8323,7 +8427,7 @@ async function renderPortfolioView() {
         <td class="text-center">${extLinks}</td>
         <td class="text-center">
           <div style="display: flex; gap: 4px; justify-content: center;">
-            <button class="btn btn-icon btn-sm" onclick="openAddTradeModal('${p.symbol}', ${p.currentPrice})" title="Adicionar novo aporte em ${p.symbol}" style="color: var(--green);">➕</button>
+            <button class="btn btn-icon btn-sm" onclick="openAddTradeModal('${p.symbol}', ${p.currentPrice})" title="Lançar compra ou venda de ${p.symbol}" style="color: var(--green); font-weight: 800;">⇅</button>
             <button class="btn btn-icon btn-sm" onclick="openAddDividendModal('${p.symbol}')" title="Lançar Provento em ${p.symbol}" style="color: var(--yellow);">💰</button>
             <button class="btn btn-icon btn-sm" onclick="askAIToAnalyzeStock('${p.symbol}')" title="Diagnóstico IA" style="color: #6d4a8f;">🤖</button>
             <button class="btn btn-icon btn-sm" onclick="removePortfolioPosition('${p.symbol}')" title="Excluir todos os aportes deste ativo" style="color: var(--red);">✕</button>
@@ -8337,20 +8441,20 @@ async function renderPortfolioView() {
           <div class="sub-trades-box">
             <div class="sub-trades-header">
               <div>
-                <strong style="font-size: 13px; color: var(--green);">📋 Histórico de Aportes em ${p.symbol}</strong>
-                <span style="font-size: 11.5px; color: var(--text-sub); margin-left: 8px;">(${p.trades.length} ${p.trades.length > 1 ? 'compras registradas' : 'compra'} | Preço Médio: <strong>${NumFmt.money(p.avgPrice)}</strong>)</span>
+                <strong style="font-size: 13px; color: var(--green);">📋 Histórico de Compras e Vendas em ${p.symbol}</strong>
+                <span style="font-size: 11.5px; color: var(--text-sub); margin-left: 8px;">(${p.trades.length} ${p.trades.length > 1 ? 'operações registradas' : 'operação'} | Preço Médio: <strong>${NumFmt.money(p.avgPrice)}</strong>${p.soldQty > 0 ? ` | Lucro realizado: <strong style="color:${p.realizedProfit >= 0 ? 'var(--green)' : 'var(--red)'};">${p.realizedProfit >= 0 ? '+' : ''}${NumFmt.money(p.realizedProfit)}</strong>` : ''})</span>
               </div>
               <div>
-                <button class="btn btn-success btn-sm" onclick="openAddTradeModal('${p.symbol}', ${p.currentPrice})">+ Lançar Novo Aporte em ${p.symbol}</button>
+                <button class="btn btn-success btn-sm" onclick="openAddTradeModal('${p.symbol}', ${p.currentPrice})">⇅ Lançar Compra / Venda de ${p.symbol}</button>
               </div>
             </div>
             <table class="sub-trades-table">
               <thead>
                 <tr>
-                  <th class="text-center">Data da Compra</th>
+                  <th class="text-center">Data / Operação</th>
                   <th class="text-right">Quantidade</th>
-                  <th class="text-right">Preço Pago (R$)</th>
-                  <th class="text-right">Total Desembolsado</th>
+                  <th class="text-right">Preço (R$)</th>
+                  <th class="text-right">Total da Operação</th>
                   <th class="text-center">Ações</th>
                 </tr>
               </thead>
@@ -12953,41 +13057,104 @@ function renderCalendarView() {
 }
 
 // TRADE & APORTE MANAGEMENT
-function openAddTradeModal(prefillTicker = '', prefillPrice = '', editTradeId = '') {
-  const modal = document.getElementById('trade-modal');
+// Quantidade disponivel do ativo, ignorando opcionalmente uma operacao
+// (usado ao editar uma venda, para nao contar ela mesma).
+function getAvailableQtyForSale(symbol, excludeTradeId = '') {
+  const sym = (symbol || '').trim().toUpperCase();
+  if (!sym) return 0;
+  const ledger = buildPortfolioLedger((AppState.trades || []).filter(t => t.id !== excludeTradeId));
+  return ledger[sym]?.totalQty || 0;
+}
+
+function updateTradeSellHint() {
+  const hint = document.getElementById('trade-sell-hint');
+  if (!hint) return;
+  const type = document.getElementById('trade-type')?.value || 'buy';
+  const ticker = document.getElementById('trade-ticker')?.value || '';
+  if (type !== 'sell' || !ticker.trim()) { hint.style.display = 'none'; return; }
+  const editId = document.getElementById('trade-edit-id')?.value || '';
+  const avail = getAvailableQtyForSale(ticker, editId);
+  const sym = ticker.trim().toUpperCase();
+  const pos = getConsolidatedPortfolio().find(p => p.symbol === sym);
+  hint.style.display = 'block';
+  hint.innerHTML = avail > 0
+    ? `Disponível para venda: <strong>${avail.toLocaleString('pt-BR')}</strong>${pos ? ` | Preço médio: <strong>${NumFmt.money(pos.avgPrice)}</strong>` : ''}`
+    : `<span style="color: var(--red);">Você não tem ${sym} na carteira.</span>`;
+}
+
+function setTradeType(type) {
+  const t = type === 'sell' ? 'sell' : 'buy';
+  const isSell = t === 'sell';
+  const typeInput = document.getElementById('trade-type');
+  if (typeInput) typeInput.value = t;
+  document.getElementById('trade-type-buy')?.classList.toggle('active', !isSell);
+  document.getElementById('trade-type-sell')?.classList.toggle('active', isSell);
+
+  const editing = !!document.getElementById('trade-edit-id')?.value;
   const title = document.getElementById('modal-trade-title');
+  const priceLabel = document.getElementById('trade-price-label');
+  const dateLabel = document.getElementById('trade-date-label');
+  const submitBtn = document.getElementById('trade-submit-btn');
+  const btnDelete = document.getElementById('trade-delete-btn');
+  const ticker = (document.getElementById('trade-ticker')?.value || '').trim().toUpperCase();
+
+  if (priceLabel) priceLabel.textContent = isSell ? 'Preço de Venda por Unidade (R$)' : 'Preço Pago por Unidade (R$)';
+  if (dateLabel) dateLabel.textContent = isSell ? 'Data da Venda' : 'Data da Compra';
+  if (btnDelete) btnDelete.textContent = isSell ? 'Excluir Venda' : 'Excluir Compra';
+  if (title) {
+    title.textContent = editing
+      ? `✏️ Editar ${isSell ? 'Venda' : 'Compra'} em ${ticker}`
+      : '⇅ Lançar Compra / Venda (Ação ou FII)';
+  }
+  if (submitBtn) {
+    submitBtn.textContent = editing
+      ? (isSell ? 'Atualizar Venda' : 'Atualizar Compra')
+      : (isSell ? 'Salvar Venda' : 'Salvar Compra');
+    submitBtn.classList.toggle('btn-success', !isSell);
+    submitBtn.classList.toggle('btn-danger', isSell);
+  }
+  updateTradeSellHint();
+}
+
+function openAddTradeModal(prefillTicker = '', prefillPrice = '', editTradeId = '', prefillType = 'buy') {
+  const modal = document.getElementById('trade-modal');
   const editIdInput = document.getElementById('trade-edit-id');
   const tickerInput = document.getElementById('trade-ticker');
   const priceInput = document.getElementById('trade-price');
   const qtyInput = document.getElementById('trade-qty');
   const dateInput = document.getElementById('trade-date');
   const btnDelete = document.getElementById('trade-delete-btn');
-  const submitBtn = document.getElementById('trade-submit-btn');
+  const btnBuy = document.getElementById('trade-type-buy');
+  const btnSell = document.getElementById('trade-type-sell');
 
   if (!modal) return;
+
+  let type = prefillType === 'sell' ? 'sell' : 'buy';
 
   if (editTradeId) {
     const existing = (AppState.trades || []).find(t => t.id === editTradeId);
     if (existing) {
-      if (title) title.textContent = `✏️ Editar Aporte em ${existing.symbol}`;
+      type = isSellTrade(existing) ? 'sell' : 'buy';
       if (editIdInput) editIdInput.value = existing.id;
       if (tickerInput) { tickerInput.value = existing.symbol; tickerInput.disabled = true; }
       if (priceInput) priceInput.value = existing.price;
       if (qtyInput) qtyInput.value = existing.quantity;
       if (dateInput) dateInput.value = existing.date || new Date().toISOString().split('T')[0];
       if (btnDelete) btnDelete.style.display = 'block';
-      if (submitBtn) submitBtn.textContent = 'Atualizar Aporte';
     }
   } else {
-    if (title) title.textContent = '➕ Lançar Compra / Aporte de Ação';
     if (editIdInput) editIdInput.value = '';
     if (tickerInput) { tickerInput.value = prefillTicker || ''; tickerInput.disabled = false; }
     if (priceInput) priceInput.value = prefillPrice || '';
     if (qtyInput) qtyInput.value = '100';
     if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
     if (btnDelete) btnDelete.style.display = 'none';
-    if (submitBtn) submitBtn.textContent = 'Salvar Aporte';
   }
+
+  // Ao editar, o tipo da operacao fica travado (compra continua compra).
+  if (btnBuy) btnBuy.disabled = !!editTradeId;
+  if (btnSell) btnSell.disabled = !!editTradeId;
+  setTradeType(type);
 
   modal.classList.add('active');
   if (tickerInput && !prefillTicker && !editTradeId) tickerInput.focus();
@@ -13001,6 +13168,8 @@ function closeTradeModal() {
 function handleSaveTrade(e) {
   e.preventDefault();
   const editId = document.getElementById('trade-edit-id')?.value || '';
+  const type = document.getElementById('trade-type')?.value === 'sell' ? 'sell' : 'buy';
+  const isSell = type === 'sell';
   const ticker = document.getElementById('trade-ticker').value.trim().toUpperCase();
   const qty = parseInt(document.getElementById('trade-qty').value);
   const price = parseFloat(document.getElementById('trade-price').value);
@@ -13011,30 +13180,33 @@ function handleSaveTrade(e) {
     return;
   }
 
+  // Monta a lista resultante e valida que nenhuma venda deixa a posicao
+  // negativa em ordem cronologica (nao da pra vender o que nao tinha na data).
+  const candidate = editId
+    ? (AppState.trades || []).map(t => t.id === editId ? { ...t, quantity: qty, price: price, date: date } : t)
+    : [{ id: 'tr_' + Date.now() + '_' + Math.floor(Math.random() * 1000), symbol: ticker, type: type, quantity: qty, price: price, date: date }, ...(AppState.trades || [])];
+
+  const ledger = buildPortfolioLedger(candidate);
+  if (ledger[ticker]?.oversold) {
+    const avail = getAvailableQtyForSale(ticker, editId);
+    showToast(isSell
+      ? `Quantidade maior que a disponível de ${ticker} na data da venda (disponível hoje: ${avail.toLocaleString('pt-BR')}).`
+      : `Essa alteração deixaria uma venda de ${ticker} maior que a posição na data. Ajuste as vendas antes.`, 'error');
+    return;
+  }
+
+  AppState.trades = candidate;
   if (editId) {
-    const idx = AppState.trades.findIndex(t => t.id === editId);
-    if (idx >= 0) {
-      AppState.trades[idx] = {
-        ...AppState.trades[idx],
-        quantity: qty,
-        price: price,
-        date: date
-      };
-      showToast(`Aporte em ${ticker} atualizado com sucesso!`, 'success');
-    }
+    showToast(`${isSell ? 'Venda' : 'Compra'} de ${ticker} atualizada com sucesso!`, 'success');
+  } else if (isSell) {
+    const pos = getConsolidatedPortfolio({ includeClosed: true }).find(p => p.symbol === ticker);
+    const zeroed = pos && pos.quantity === 0;
+    showToast(`Venda de ${qty} ${ticker} registrada!${zeroed ? ' Posição zerada.' : ''}`, 'success');
   } else {
-    const newTrade = {
-      id: 'tr_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-      symbol: ticker,
-      quantity: qty,
-      price: price,
-      date: date
-    };
-    AppState.trades.unshift(newTrade);
     showToast(`Compra de ${qty} ${ticker} registrada com sucesso!`, 'success');
   }
 
-  if (!AppState.favorites.includes(ticker)) {
+  if (!isSell && !AppState.favorites.includes(ticker)) {
     AppState.favorites.push(ticker);
     localStorage.setItem('b3_favorites', JSON.stringify(AppState.favorites));
   }
@@ -13056,13 +13228,14 @@ function handleDeleteCurrentTrade() {
 function deleteTrade(tradeId) {
   const trade = (AppState.trades || []).find(t => t.id === tradeId);
   if (!trade) return;
-  if (confirm(`Deseja realmente excluir este aporte de ${trade.quantity} ${trade.symbol} de ${NumFmt.date(trade.date)}?`)) {
+  const opName = isSellTrade(trade) ? 'esta venda' : 'esta compra';
+  if (confirm(`Deseja realmente excluir ${opName} de ${trade.quantity} ${trade.symbol} de ${NumFmt.date(trade.date)}?`)) {
     AppState.trades = AppState.trades.filter(t => t.id !== tradeId);
     localStorage.setItem('b3_user_trades', JSON.stringify(AppState.trades));
     // Remove automated dividends tied to this trade
     AppState.portfolioDividends = AppState.portfolioDividends.filter(d => !d.id.startsWith(`auto_${tradeId}_`));
     localStorage.setItem('b3_portfolio_dividends', JSON.stringify(AppState.portfolioDividends));
-    showToast(`Aporte em ${trade.symbol} excluído com sucesso.`, 'info');
+    showToast(`${isSellTrade(trade) ? 'Venda' : 'Compra'} de ${trade.symbol} excluída com sucesso.`, 'info');
     syncAutomatedDividends();
     renderPortfolioView();
     if (AppState.activeTab === 'calendario') renderCalendarView();
