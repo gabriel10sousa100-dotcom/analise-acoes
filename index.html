@@ -931,7 +931,7 @@
             <p class="page-desc" style="margin-bottom:0">Receitas, despesas, contas e cartão de crédito do dia a dia.</p>
           </div>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <button class="btn btn-secondary btn-sm" onclick="openGenericImportModal()" title="Importe um ou vários CSVs (extrato, fatura, Mobills...) de qualquer banco; o app cruza os arquivos e identifica transferências entre contas">📥 Importar CSV</button>
+            <button class="btn btn-secondary btn-sm" onclick="openGenericImportModal()" title="Importe um ou vários extratos (CSV ou PDF, de qualquer banco ou cartão); o app cruza os arquivos e identifica transferências entre contas">📥 Importar extrato</button>
             <button class="btn btn-secondary btn-sm" onclick="openFinanceHistoryModal()">🕒 Histórico</button>
             <div style="display: flex; gap: 8px; align-items: center;">
               <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(-1)" title="Mês anterior">◀</button>
@@ -2451,18 +2451,18 @@
 <div class="modal-overlay" id="generic-import-modal">
   <div class="modal-box modal-lg" style="max-width: 720px;">
     <div class="modal-header">
-      <div class="modal-title">📥 Importar CSV (um ou vários arquivos)</div>
+      <div class="modal-title">📥 Importar extrato (CSV ou PDF, um ou vários arquivos)</div>
       <button class="modal-close" onclick="closeGenericImportModal()">✕</button>
     </div>
     <div id="generic-import-step-file">
       <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-        Selecione um ou mais CSVs de extrato ou fatura (de qualquer banco ou cartão, ou exportados do Mobills). Dá para escolher vários arquivos de uma vez: o app detecta separador, cabeçalho e colunas de cada um, cruza os lançamentos entre eles e identifica <strong>transferências entre contas</strong> (uma saída numa conta + uma entrada de mesmo valor em outra). Você confere tudo na próxima tela; nada é gravado até confirmar, e reimportar o mesmo arquivo não duplica lançamentos.
+        Selecione um ou mais arquivos de extrato ou fatura: CSV (qualquer banco ou cartão, ou exportado do Mobills) ou PDF com texto selecionável (ex: corretora Genial). Dá para escolher vários arquivos de uma vez: o app detecta separador, cabeçalho e colunas de cada um, cruza os lançamentos entre eles e identifica <strong>transferências entre contas</strong> (uma saída numa conta + uma entrada de mesmo valor em outra). Você confere tudo na próxima tela; nada é gravado até confirmar, e reimportar o mesmo arquivo não duplica lançamentos.
       </p>
-      <input type="file" accept=".csv,.txt,text/csv" multiple id="generic-import-file-input" class="input-field" onchange="handleGenericFilesSelected(event, false)" style="width: 100%;">
+      <input type="file" accept=".csv,.txt,.pdf,text/csv,application/pdf" multiple id="generic-import-file-input" class="input-field" onchange="handleGenericFilesSelected(event, false)" style="width: 100%;">
       <div id="generic-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
     </div>
     <div id="generic-import-preview" style="display:none;"></div>
-    <input type="file" accept=".csv,.txt,text/csv" multiple id="generic-import-add-input" style="display:none;" onchange="handleGenericFilesSelected(event, true)">
+    <input type="file" accept=".csv,.txt,.pdf,text/csv,application/pdf" multiple id="generic-import-add-input" style="display:none;" onchange="handleGenericFilesSelected(event, true)">
   </div>
 </div>
 
@@ -11054,7 +11054,7 @@ function stripNubankAccountDetails(description) {
   return description.replace(NUBANK_ACCOUNT_DETAILS_RE, '').trim();
 }
 
-const INVESTMENT_DESCRIPTION_RE = /\brdb\b|tesouro direto/i;
+const INVESTMENT_DESCRIPTION_RE = /\brdb\b|tesouro direto|opera[cç][oõ]es bolsa/i;
 
 function classifyInvestmentRow(row) {
   return { isInvestment: INVESTMENT_DESCRIPTION_RE.test(row.description || '') };
@@ -11502,6 +11502,142 @@ function readFileAsBuffer(file) {
   });
 }
 
+// ---- Leitura de PDF (extrato em PDF, ex: Genial) ----
+// O PDF e lido no proprio navegador com pdf.js (carregado so quando um PDF e
+// escolhido). O texto de um PDF nao vem em linhas: cada pedaco tem uma posicao
+// (x, y) na pagina. Agrupamos por y para formar linhas e usamos a posicao dos
+// titulos da tabela (Data, Descricao, Debito, Credito...) para saber a qual
+// coluna cada valor pertence. O resultado vira um texto CSV e segue o mesmo
+// fluxo dos CSVs (mapeamento, previa, cruzamento de transferencias).
+const PDFJS_VERSION = '3.11.174';
+const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/`;
+let pdfjsLoadPromise = null;
+
+function loadPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (pdfjsLoadPromise) return pdfjsLoadPromise;
+  pdfjsLoadPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = PDFJS_BASE + 'pdf.min.js';
+    s.onload = async () => {
+      try {
+        // Worker de outro dominio nao pode ser criado direto: baixa e usa como Blob.
+        const res = await fetch(PDFJS_BASE + 'pdf.worker.min.js');
+        const blob = new Blob([await res.text()], { type: 'text/javascript' });
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
+      } catch (e) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.js';
+      }
+      resolve(window.pdfjsLib);
+    };
+    s.onerror = () => { pdfjsLoadPromise = null; reject(new Error('não consegui carregar o leitor de PDF (sem internet?)')); };
+    document.head.appendChild(s);
+  });
+  return pdfjsLoadPromise;
+}
+
+async function extractPdfPages(buffer) {
+  const pdfjsLib = await loadPdfJs();
+  const task = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+  task.onPassword = (update, reason) => {
+    const pwd = window.prompt(reason === 2 ? 'Senha incorreta. Digite a senha do PDF:' : 'Este PDF tem senha. Digite a senha para abrir:');
+    if (pwd === null) task.destroy(); else update(pwd);
+  };
+  const pdf = await task.promise;
+  const pages = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    pages.push(content.items
+      .filter(it => it.str && it.str.trim())
+      .map(it => ({ str: it.str, x: it.transform[4], y: it.transform[5], w: it.width, h: Math.abs(it.height) || Math.abs(it.transform[3]) || 10 })));
+  }
+  return pages;
+}
+
+function groupPdfRows(items) {
+  const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
+  const rows = [];
+  sorted.forEach(it => {
+    const last = rows[rows.length - 1];
+    if (last && Math.abs(last.y - it.y) <= Math.max(2, it.h * 0.5)) last.items.push(it);
+    else rows.push({ y: it.y, items: [it] });
+  });
+  rows.forEach(r => r.items.sort((a, b) => a.x - b.x));
+  return rows;
+}
+
+// Junta pedacos vizinhos (ex: "R$" + "1.852,63") numa celula; vao grande = outra celula.
+function mergePdfCells(items) {
+  const cells = [];
+  items.forEach(it => {
+    const last = cells[cells.length - 1];
+    if (last && it.x - last.x1 <= Math.max(it.h, 6) * 0.9) {
+      last.text += ' ' + it.str.trim();
+      last.x1 = Math.max(last.x1, it.x + it.w);
+    } else {
+      cells.push({ text: it.str.trim(), x0: it.x, x1: it.x + it.w });
+    }
+  });
+  return cells;
+}
+
+function pdfRowLooksLikeHeader(cells) {
+  if (cells.length < 3) return false;
+  if (cells.some(c => parseFlexibleDate(c.text) || parseFlexibleAmount(c.text) !== null)) return false;
+  const m = autoMapColumns(cells.map(c => c.text));
+  return m.date >= 0 && (m.amount >= 0 || m.debit >= 0 || m.credit >= 0);
+}
+
+function assignPdfCellToColumn(cell, cols) {
+  let best = -1, bestOverlap = 0;
+  cols.forEach((col, j) => {
+    const overlap = Math.min(cell.x1, col.x1) - Math.max(cell.x0, col.x0);
+    if (overlap > bestOverlap) { bestOverlap = overlap; best = j; }
+  });
+  if (best >= 0) return best;
+  const center = (cell.x0 + cell.x1) / 2;
+  let bestDist = Infinity;
+  cols.forEach((col, j) => {
+    const d = Math.abs(center - (col.x0 + col.x1) / 2);
+    if (d < bestDist) { bestDist = d; best = j; }
+  });
+  return best;
+}
+
+// Converte as paginas extraidas em texto CSV (delimitador ";").
+function pdfPagesToCsvText(pages) {
+  const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [];
+  let headerCols = null;
+  const looseRows = [];
+
+  pages.forEach(items => {
+    groupPdfRows(items).forEach(r => {
+      const cells = mergePdfCells(r.items);
+      if (pdfRowLooksLikeHeader(cells)) {
+        if (!headerCols) { headerCols = cells; lines.push(cells.map(c => q(c.text)).join(';')); }
+        return; // cabecalho repetido nas outras paginas
+      }
+      if (!headerCols) { looseRows.push(cells); return; }
+      const out = headerCols.map(() => []);
+      cells.forEach(c => out[assignPdfCellToColumn(c, headerCols)].push(c.text));
+      if (out.every(parts => !parts.length)) return;
+      lines.push(out.map(parts => q(parts.join(' '))).join(';'));
+    });
+  });
+
+  // Sem cabecalho reconhecido: uma linha por linha do PDF, celulas separadas por vao.
+  if (!headerCols) looseRows.forEach(cells => lines.push(cells.map(c => q(c.text)).join(';')));
+  return lines.join('\n');
+}
+
+async function pdfBufferToCsvText(buffer) {
+  const pages = await extractPdfPages(buffer);
+  if (!pages.some(p => p.length)) throw new Error('esse PDF não tem texto selecionável (parece uma imagem/escaneado)');
+  return pdfPagesToCsvText(pages);
+}
+
 async function handleGenericFilesSelected(event, append) {
   const files = Array.from(event.target.files || []);
   event.target.value = '';
@@ -11513,7 +11649,9 @@ async function handleGenericFilesSelected(event, append) {
   const errors = [];
   for (const file of files) {
     try {
-      const text = detectAndDecodeText(await readFileAsBuffer(file));
+      const buffer = await readFileAsBuffer(file);
+      const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+      const text = isPdf ? await pdfBufferToCsvText(buffer) : detectAndDecodeText(buffer);
       const entry = buildGenericFileEntry(text, file.name);
       if (entry) entries.push(entry); else errors.push(`${file.name}: não parece um CSV de lançamentos`);
     } catch (err) {
@@ -11719,7 +11857,7 @@ function renderGenericImportPreview() {
       </label>
       <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; cursor:pointer;">
         <input type="checkbox" ${st.markInvestments ? 'checked' : ''} onchange="AppState.genericImportStaging.markInvestments = this.checked; renderGenericImportPreview();" style="margin-top:2px;">
-        <span>Marcar ${investmentCount} lançamento(s) com "RDB"/"Tesouro Direto" como Aporte/Resgate de Investimento</span>
+        <span>Marcar ${investmentCount} lançamento(s) com "RDB", "Tesouro Direto" ou "Operações Bolsa" (corretora) como Aporte/Resgate de Investimento</span>
       </label>
     </div>
     ${st.detectTransfers ? (comp.pairs.length ? `
