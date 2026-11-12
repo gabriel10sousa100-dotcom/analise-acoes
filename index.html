@@ -931,7 +931,7 @@
             <p class="page-desc" style="margin-bottom:0">Receitas, despesas, contas e cartão de crédito do dia a dia.</p>
           </div>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <button class="btn btn-secondary btn-sm" onclick="openGenericImportModal()" title="Importe um ou vários extratos (CSV ou PDF, de qualquer banco ou cartão); o app cruza os arquivos e identifica transferências entre contas">📥 Importar extrato</button>
+            <button class="btn btn-secondary btn-sm" onclick="openGenericImportModal()" title="Importe um ou vários extratos (CSV, PDF ou print, de qualquer banco ou cartão); o app cruza os arquivos e identifica transferências entre contas">📥 Importar extrato</button>
             <button class="btn btn-secondary btn-sm" onclick="openFinanceHistoryModal()">🕒 Histórico</button>
             <div style="display: flex; gap: 8px; align-items: center;">
               <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(-1)" title="Mês anterior">◀</button>
@@ -2451,18 +2451,19 @@
 <div class="modal-overlay" id="generic-import-modal">
   <div class="modal-box modal-lg" style="max-width: 720px;">
     <div class="modal-header">
-      <div class="modal-title">📥 Importar extrato (CSV ou PDF, um ou vários arquivos)</div>
+      <div class="modal-title">📥 Importar extrato (CSV, PDF ou print)</div>
       <button class="modal-close" onclick="closeGenericImportModal()">✕</button>
     </div>
+    <div id="generic-import-status" style="display:none; background:rgba(15,107,76,0.08); color:var(--text-muted); border-radius:8px; padding:8px 12px; font-size:12px; margin-bottom:10px;"></div>
     <div id="generic-import-step-file">
       <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-        Selecione um ou mais arquivos de extrato ou fatura: CSV (qualquer banco ou cartão, ou exportado do Mobills) ou PDF com texto selecionável (ex: corretora Genial). Dá para escolher vários arquivos de uma vez: o app detecta separador, cabeçalho e colunas de cada um, cruza os lançamentos entre eles e identifica <strong>transferências entre contas</strong> (uma saída numa conta + uma entrada de mesmo valor em outra). Você confere tudo na próxima tela; nada é gravado até confirmar, e reimportar o mesmo arquivo não duplica lançamentos.
+        Selecione um ou mais arquivos de extrato ou fatura: CSV (qualquer banco ou cartão, ou exportado do Mobills) PDF com texto selecionável (ex: corretora Genial) ou até um print da tabela de movimentações (o texto é reconhecido no seu aparelho, a imagem não é enviada a ninguém). Dá para escolher vários arquivos de uma vez: o app detecta separador, cabeçalho e colunas de cada um, cruza os lançamentos entre eles e identifica <strong>transferências entre contas</strong> (uma saída numa conta + uma entrada de mesmo valor em outra). Você confere tudo na próxima tela; nada é gravado até confirmar, e reimportar o mesmo arquivo não duplica lançamentos.
       </p>
-      <input type="file" accept=".csv,.txt,.pdf,text/csv,application/pdf" multiple id="generic-import-file-input" class="input-field" onchange="handleGenericFilesSelected(event, false)" style="width: 100%;">
+      <input type="file" accept=".csv,.txt,.pdf,.png,.jpg,.jpeg,.webp,text/csv,application/pdf,image/*" multiple id="generic-import-file-input" class="input-field" onchange="handleGenericFilesSelected(event, false)" style="width: 100%;">
       <div id="generic-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
     </div>
     <div id="generic-import-preview" style="display:none;"></div>
-    <input type="file" accept=".csv,.txt,.pdf,text/csv,application/pdf" multiple id="generic-import-add-input" style="display:none;" onchange="handleGenericFilesSelected(event, true)">
+    <input type="file" accept=".csv,.txt,.pdf,.png,.jpg,.jpeg,.webp,text/csv,application/pdf,image/*" multiple id="generic-import-add-input" style="display:none;" onchange="handleGenericFilesSelected(event, true)">
   </div>
 </div>
 
@@ -11339,7 +11340,9 @@ function buildFileRows(f) {
     if (!date || amount === null || amount === 0) { skipped++; return; }
     if (f.invertSign) amount = -amount;
 
-    const description = stripNubankAccountDetails((m.desc >= 0 ? String(r[m.desc] ?? '') : '').replace(/\s+/g, ' ').trim()) || '(sem descrição)';
+    const rawDesc = (m.desc >= 0 ? String(r[m.desc] ?? '') : '').replace(/\s+/g, ' ').trim();
+    if (/^saldo\b/i.test(importNorm(rawDesc))) { skipped++; return; }
+    const description = stripNubankAccountDetails(rawDesc) || '(sem descrição)';
     const idValue = m.id >= 0 ? String(r[m.id] ?? '').trim() : '';
     const category = m.category >= 0 ? String(r[m.category] ?? '').trim() : '';
     const tag = m.tags >= 0 ? String(r[m.tags] ?? '').trim() : '';
@@ -11638,6 +11641,111 @@ async function pdfBufferToCsvText(buffer) {
   return pdfPagesToCsvText(pages);
 }
 
+// ---- Leitura de print/imagem do extrato (OCR no navegador) ----
+// Usa Tesseract.js: a imagem NAO e enviada a nenhum servidor, o reconhecimento
+// roda no proprio aparelho (so a biblioteca e o dicionario de portugues sao
+// baixados). Cada palavra reconhecida vem com posicao; a partir dai o fluxo e o
+// mesmo do PDF (linhas por altura, colunas pelos titulos da tabela).
+const TESSERACT_VERSION = '5.1.1';
+let tesseractLoadPromise = null;
+
+function loadTesseract() {
+  if (window.Tesseract) return Promise.resolve(window.Tesseract);
+  if (tesseractLoadPromise) return tesseractLoadPromise;
+  tesseractLoadPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = `https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/${TESSERACT_VERSION}/tesseract.min.js`;
+    s.onload = () => resolve(window.Tesseract);
+    s.onerror = () => { tesseractLoadPromise = null; reject(new Error('não consegui carregar o leitor de imagens (sem internet?)')); };
+    document.head.appendChild(s);
+  });
+  return tesseractLoadPromise;
+}
+
+// Faixas escuras (ex: cabecalho da tabela, texto branco sobre azul) fazem o
+// reconhecimento descartar a faixa inteira como se fosse uma figura. Acha as
+// linhas de pixels escuras e inverte so elas (texto escuro sobre fundo claro).
+function normalizeDarkBands(canvas) {
+  const ctx = canvas.getContext('2d');
+  const { width, height } = canvas;
+  const img = ctx.getImageData(0, 0, width, height);
+  const d = img.data;
+  const lum = i => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+  const dark = new Array(height).fill(false);
+  const step = 4;
+  for (let y = 0; y < height; y++) {
+    let sum = 0, n = 0;
+    for (let x = 0; x < width; x += step) { sum += lum((y * width + x) * 4); n++; }
+    dark[y] = sum / n < 170;
+  }
+  let y = 0;
+  while (y < height) {
+    if (!dark[y]) { y++; continue; }
+    let e = y;
+    while (e < height && dark[e]) e++;
+    if (e - y >= 12) {
+      for (let yy = y; yy < e; yy++) {
+        for (let x = 0; x < width; x++) {
+          const i = (yy * width + x) * 4;
+          // inverte e estica o contraste: fundo da faixa vira branco, texto preto
+          const v = Math.max(0, Math.min(255, (255 - lum(i) - 40) * 255 / 80));
+          d[i] = d[i + 1] = d[i + 2] = v;
+        }
+      }
+    }
+    y = e;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// Amplia prints pequenos (texto miudo reconhece pior) e coloca fundo branco.
+async function imageBufferToCanvas(buffer, mime) {
+  const bitmap = await createImageBitmap(new Blob([buffer], { type: mime || 'image/png' }));
+  const scale = bitmap.width < 2400 ? Math.min(3, 2400 / bitmap.width) : 1;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  normalizeDarkBands(canvas);
+  return { canvas, scale };
+}
+
+async function imageBufferToCsvText(buffer, mime, onStatus) {
+  const Tesseract = await loadTesseract();
+  const { canvas, scale } = await imageBufferToCanvas(buffer, mime);
+  const worker = await Tesseract.createWorker('por', 1, {
+    logger: m => { if (onStatus && m && m.status) onStatus(m.status, m.progress); }
+  });
+  try {
+    const toItem = w => ({
+      str: w.text.trim(),
+      x: w.bbox.x0 / scale,
+      y: -((w.bbox.y0 + w.bbox.y1) / 2) / scale,
+      w: (w.bbox.x1 - w.bbox.x0) / scale,
+      h: (w.bbox.y1 - w.bbox.y0) / scale,
+      box: w.bbox
+    });
+    const { data } = await worker.recognize(canvas);
+    let items = (data.words || []).filter(w => w.text && w.text.trim() && w.confidence > 20).map(toItem);
+    if (!items.length) throw new Error('não encontrei texto nessa imagem');
+
+    return pdfPagesToCsvText([items]);
+  } finally {
+    await worker.terminate();
+  }
+}
+
+function setGenericImportStatus(msg) {
+  const el = document.getElementById('generic-import-status');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.display = msg ? 'block' : 'none';
+}
+
 async function handleGenericFilesSelected(event, append) {
   const files = Array.from(event.target.files || []);
   event.target.value = '';
@@ -11649,9 +11757,16 @@ async function handleGenericFilesSelected(event, append) {
   const errors = [];
   for (const file of files) {
     try {
+      setGenericImportStatus('Lendo ' + file.name + '…');
       const buffer = await readFileAsBuffer(file);
       const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
-      const text = isPdf ? await pdfBufferToCsvText(buffer) : detectAndDecodeText(buffer);
+      const isImage = /\.(png|jpe?g|webp|bmp)$/i.test(file.name) || (file.type || '').startsWith('image/');
+      const text = isPdf ? await pdfBufferToCsvText(buffer)
+        : isImage ? await imageBufferToCsvText(buffer, file.type, (status, progress) => {
+            const pct = status === 'recognizing text' ? ' ' + Math.round((progress || 0) * 100) + '%' : '';
+            setGenericImportStatus('Lendo o print (reconhecimento de texto no seu aparelho' + pct + ')… na primeira vez baixa o dicionário de português e pode demorar um pouco.');
+          })
+        : detectAndDecodeText(buffer);
       const entry = buildGenericFileEntry(text, file.name);
       if (entry) entries.push(entry); else errors.push(`${file.name}: não parece um CSV de lançamentos`);
     } catch (err) {
@@ -11659,6 +11774,7 @@ async function handleGenericFilesSelected(event, append) {
     }
   }
 
+  setGenericImportStatus('');
   if (!append || !AppState.genericImportStaging) {
     AppState.genericImportStaging = { files: [], markInvestments: true, detectTransfers: true, pairChoice: {}, errors: [] };
   }
