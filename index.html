@@ -11425,6 +11425,60 @@ function accountDisplayName(f, key) {
 
 // ---- Cruzamento: transferencias entre contas ----
 const TRANSFER_KEYWORD_RE = /\b(pix|ted|doc|tef|transf\w*|transferencia)\b/;
+// Pagamento de fatura de cartao (conta -> cartao) ou o "pagamento recebido" do lado do cartao
+const INVOICE_PAYMENT_RE = /\b(pagamento|pagto|pag)\b.{0,20}\bfatura\b|\bfatura\b.{0,20}\bcartao\b|\bpagamento recebido\b/;
+
+// Procura, nas descricoes de Pix/TED, um nome que aparece tanto recebendo quanto
+// enviando - provavelmente e o proprio dono das contas. So sugere; o usuario confirma.
+function suggestOwnName(rows) {
+  const stats = {};
+  rows.forEach(r => {
+    const n = importNorm(r.description);
+    const m = n.match(/^(?:pix|ted|doc|tef|transf\w*)(?: (?:transf\w*|enviado|enviada|recebido|recebida|pix|ted|doc))* ([a-z ]+?)(?: \d{1,2}\/\d{1,2}(?:\/\d{2,4})?)?$/);
+    if (!m) return;
+    const name = m[1].trim();
+    if (name.split(' ').length < 2) return;
+    const st = stats[name] || (stats[name] = { in: 0, out: 0 });
+    if (r.amount >= 0) st.in++; else st.out++;
+  });
+  const best = Object.entries(stats)
+    .filter(([, v]) => v.in >= 1 && v.out >= 1 && v.in + v.out >= 2)
+    .sort((a, b) => (b[1].in + b[1].out) - (a[1].in + a[1].out))[0];
+  return best ? best[0].toUpperCase() : null;
+}
+
+// Linha importada cuja contrapartida (mesmo valor, sentido oposto, outra conta,
+// ate 3 dias) JA esta lancada no app - vinda de outra importacao ou feita a mao.
+function findExistingCounterparts(rows) {
+  const dayMs = 86400000;
+  const toDay = d => Math.round(new Date(d + 'T00:00:00').getTime() / dayMs);
+  const existing = (AppState.financeTransactions || []).filter(t => (t.type === 'income' || t.type === 'expense') && !t.ignored && !t.pending && t.accountId);
+  const byKey = new Map();
+  existing.forEach(t => {
+    const k = (t.type === 'income' ? '+' : '-') + Math.round((Number(t.amount) || 0) * 100);
+    if (!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k).push(t);
+  });
+  const cands = [];
+  rows.forEach(r => {
+    const k = (r.amount < 0 ? '+' : '-') + Math.round(Math.abs(r.amount) * 100);
+    (byKey.get(k) || []).forEach(t => {
+      if (t.accountId === r.identity) return;
+      const diff = Math.abs(toDay(r.date) - toDay(t.date));
+      if (diff > 3) return;
+      cands.push({ r, t, diff, kw: hasTransferKeyword(r.description) || hasTransferKeyword(t.description) });
+    });
+  });
+  cands.sort((a, b) => a.diff - b.diff || Number(b.kw) - Number(a.kw));
+  const usedR = new Set(), usedT = new Set();
+  const out = [];
+  cands.forEach(c => {
+    if (usedR.has(c.r.id) || usedT.has(c.t.id)) return;
+    usedR.add(c.r.id); usedT.add(c.t.id);
+    out.push({ key: 'ex:' + c.r.id + '|' + c.t.id, row: c.r, tx: c.t, diff: c.diff, kw: c.kw, defaultEnabled: c.kw || c.diff === 0 });
+  });
+  return out;
+}
 function hasTransferKeyword(description) {
   return TRANSFER_KEYWORD_RE.test(importNorm(description));
 }
@@ -11501,7 +11555,23 @@ function computeGenericImport(st) {
     return false;
   });
   pairs.forEach(p => { p.enabled = st.pairChoice[p.key] !== undefined ? st.pairChoice[p.key] : p.defaultEnabled; });
-  return { perFile, all, pairs, existingIds };
+
+  // Pix/TED para o proprio nome e pagamento de fatura de cartao: movimentacao entre
+  // contas do proprio usuario, nao receita/despesa -> entram como "ignorados".
+  const ownNames = (st.ownNames || []).map(importNorm).filter(n => n.length >= 5);
+  all.forEach(r => {
+    r.autoIgnore = null;
+    const d = importNorm(r.description);
+    if (st.ignoreOwn !== false && ownNames.some(n => d.includes(n))) r.autoIgnore = 'own';
+    else if (st.ignoreInvoice !== false && INVOICE_PAYMENT_RE.test(d)) r.autoIgnore = 'invoice';
+  });
+  const pairedIds = new Set();
+  pairs.filter(p => p.enabled).forEach(p => { pairedIds.add(p.o.id); pairedIds.add(p.i.id); });
+  const counterparts = st.detectTransfers
+    ? findExistingCounterparts(all.filter(r => !r.isDup && !r.unset && !pairedIds.has(r.id)))
+    : [];
+  counterparts.forEach(c => { c.enabled = st.pairChoice[c.key] !== undefined ? st.pairChoice[c.key] : c.defaultEnabled; });
+  return { perFile, all, pairs, counterparts, existingIds };
 }
 
 // ---- Tela ----
@@ -11800,7 +11870,9 @@ async function handleGenericFilesSelected(event, append) {
 
   setGenericImportStatus('');
   if (!append || !AppState.genericImportStaging) {
-    AppState.genericImportStaging = { files: [], markInvestments: true, detectTransfers: true, pairChoice: {}, errors: [] };
+    let savedOwnNames = [];
+    try { savedOwnNames = JSON.parse(localStorage.getItem('b3_finance_own_names') || '[]'); } catch (e) { savedOwnNames = []; }
+    AppState.genericImportStaging = { files: [], markInvestments: true, detectTransfers: true, pairChoice: {}, errors: [], ownNames: savedOwnNames, ignoreOwn: true, ignoreInvoice: true };
   }
   const st = AppState.genericImportStaging;
   st.files.push(...entries);
@@ -11868,6 +11940,21 @@ function setGenericAccountName(idx, keyIdx, value) {
 function setGenericFileOpen(idx, open) {
   const f = AppState.genericImportStaging?.files[idx];
   if (f) f.open = open;
+}
+
+function setGenericOwnNames(value) {
+  const st = AppState.genericImportStaging;
+  if (!st) return;
+  st.ownNames = String(value || '').split(';').map(v => v.trim()).filter(Boolean);
+  renderGenericImportPreview();
+}
+
+function adoptSuggestedOwnName(name) {
+  const st = AppState.genericImportStaging;
+  if (!st) return;
+  st.ownNames = [name];
+  st.ignoreOwn = true;
+  renderGenericImportPreview();
 }
 
 function toggleGenericPair(key, checked) {
@@ -11968,14 +12055,22 @@ function renderGenericImportPreview() {
   const willImport = nonDup.length - enabledPairs.length;
   const pendingAccounts = comp.all.some(r => r.unset && !r.isDup);
 
-  let inTotal = 0, outTotal = 0, investmentCount = 0;
+  let inTotal = 0, outTotal = 0, investmentCount = 0, ignoredCount = 0;
   const pairedIds = new Set();
   enabledPairs.forEach(p => { pairedIds.add(p.o.id); pairedIds.add(p.i.id); });
+  const enabledCounterparts = (comp.counterparts || []).filter(c => c.enabled);
+  const counterpartRowIds = new Set(enabledCounterparts.map(c => c.row.id));
   nonDup.forEach(r => {
-    if (classifyInvestmentRow(r).isInvestment) investmentCount++;
+    const isInvestment = classifyInvestmentRow(r).isInvestment;
+    if (isInvestment) investmentCount++;
     if (pairedIds.has(r.id)) return;
+    if (st.markInvestments && isInvestment) return; // investimento nao e entrada/saida
+    if (r.autoIgnore || counterpartRowIds.has(r.id)) { ignoredCount++; return; }
     if (r.amount >= 0) inTotal += r.amount; else outTotal += -r.amount;
   });
+  const ownSuggestion = !(st.ownNames || []).length ? suggestOwnName(comp.all) : null;
+  const invoiceCount = nonDup.filter(r => r.autoIgnore === 'invoice').length;
+  const ownCount = nonDup.filter(r => r.autoIgnore === 'own').length;
   const transferTotal = enabledPairs.reduce((s, p) => s + Math.abs(p.o.amount), 0);
 
   const pairRows = comp.pairs.map(p => `
@@ -12019,10 +12114,38 @@ function renderGenericImportPreview() {
     </div>` : `
     <div style="font-size:12px; color:var(--text-sub); margin-bottom:12px;">Nenhuma transferência entre contas encontrada${st.files.length < 2 ? ' (adicione o extrato da outra conta para cruzar)' : ''}.</div>`) : ''}
     ${pendingAccounts ? `<div style="background:rgba(163,39,31,0.08); color:var(--red); border-radius:var(--radius-md); padding:8px 12px; margin-bottom:10px; font-size:12px;">Escolha a conta cadastrada de cada arquivo (ou crie uma nova) para poder importar.</div>` : ''}
+    <div style="border:1px solid rgba(0,0,0,0.1); border-radius:10px; padding:10px 12px; margin-bottom:12px;">
+      <div style="font-size:12px; font-weight:700; margin-bottom:6px;">🙈 Marcar como ignorados (não contam como receita/despesa; o saldo da conta continua certo)</div>
+      <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; margin-bottom:6px; cursor:pointer;">
+        <input type="checkbox" ${st.ignoreOwn !== false ? 'checked' : ''} onchange="AppState.genericImportStaging.ignoreOwn = this.checked; renderGenericImportPreview();" style="margin-top:2px;">
+        <span>Pix/TED para o meu próprio nome (entre minhas contas)${ownCount ? ` — <strong>${ownCount}</strong> encontrado(s)` : ''}</span>
+      </label>
+      <input type="text" class="input-field" style="width:100%; font-size:12px; margin-bottom:6px;" value="${importEsc((st.ownNames || []).join('; '))}" onchange="setGenericOwnNames(this.value)" placeholder="Meu nome como aparece no extrato (ex: JOAO DA SILVA; separe vários com ;)">
+      ${ownSuggestion ? `<div style="font-size:11.5px; margin-bottom:6px; color:var(--text-muted);">Encontrei <strong>${importEsc(ownSuggestion)}</strong> recebendo e enviando Pix. É você? <button type="button" class="btn btn-secondary btn-sm" onclick="adoptSuggestedOwnName(\'${importEsc(ownSuggestion).replace(/'/g, '')}\')">Sim, usar esse nome</button></div>` : ''}
+      <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; cursor:pointer;">
+        <input type="checkbox" ${st.ignoreInvoice !== false ? 'checked' : ''} onchange="AppState.genericImportStaging.ignoreInvoice = this.checked; renderGenericImportPreview();" style="margin-top:2px;">
+        <span>Pagamento de fatura de cartão${invoiceCount ? ` — <strong>${invoiceCount}</strong> encontrado(s)` : ''} (as compras do cartão contam quando você importar a fatura dele)</span>
+      </label>
+    </div>
+    ${st.detectTransfers && (comp.counterparts || []).length ? `
+    <div style="margin-bottom:12px;">
+      <strong style="font-size:12px;">🔗 ${comp.counterparts.length} lançamento(s) com a outra ponta já lançada no app (${enabledCounterparts.length} marcado(s))</strong>
+      <div style="max-height:200px; overflow:auto; border:1px solid rgba(0,0,0,0.08); border-radius:8px; margin-top:6px;">
+        ${comp.counterparts.map(c => {
+          const acc = (AppState.financeAccounts || []).find(a => a.id === c.tx.accountId);
+          return `<label style="display:flex; align-items:flex-start; gap:8px; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.05); font-size:11.5px; cursor:pointer;">
+            <input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="toggleGenericPair('${c.key}', this.checked)" style="margin-top:2px;">
+            <span style="flex:1;"><strong>${NumFmt.money(Math.abs(c.row.amount))}</strong> · ${NumFmt.date(c.row.date)} ${importEsc(c.row.description)} (${importEsc(c.row.accountName)})<br>
+            <span style="color:var(--text-sub);">já no app: ${NumFmt.date(c.tx.date)} ${importEsc(c.tx.description)} (${importEsc(acc ? acc.name : 'conta removida')})</span></span>
+          </label>`;
+        }).join('')}
+      </div>
+      <div style="font-size:11px; color:var(--text-sub); margin-top:4px;">Marcadas: os dois lados ficam como <strong>ignorados</strong> (não viram receita nem despesa).</div>
+    </div>` : ''}
     <div style="background:rgba(0,0,0,0.03); border-radius:var(--radius-md); padding:10px 14px; margin-bottom:12px; font-size:12.5px; line-height:1.6;">
       <strong>${willImport}</strong> lançamento(s) serão criados${enabledPairs.length ? `, sendo <strong>${enabledPairs.length}</strong> transferência(s) entre contas (${NumFmt.money(transferTotal)})` : ''}.<br>
       <span style="color:var(--green);">Entradas: ${NumFmt.money(inTotal)}</span> ·
-      <span style="color:var(--red);">Saídas: ${NumFmt.money(outTotal)}</span>${dupCount ? `<br>${dupCount} linha(s) já importada(s) antes serão ignoradas.` : ''}
+      <span style="color:var(--red);">Saídas: ${NumFmt.money(outTotal)}</span>${ignoredCount ? `<br>🙈 ${ignoredCount} lançamento(s) entram como ignorados (transferência entre contas próprias / fatura).` : ''}${dupCount ? `<br>${dupCount} linha(s) já importada(s) antes serão ignoradas.` : ''}
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <button type="button" class="btn btn-secondary" style="flex:1 1 120px;" onclick="closeGenericImportModal()">Cancelar</button>
@@ -12117,6 +12240,9 @@ function handleConfirmGenericImport() {
   });
 
   // 2) Demais linhas: receita / despesa / investimento
+  const counterpartByRowId = {};
+  (comp.counterparts || []).filter(c => c.enabled).forEach(c => { counterpartByRowId[c.row.id] = c; });
+  let ignoredCreated = 0, counterpartsIgnored = 0;
   comp.all.forEach(row => {
     if (handledRowIds.has(row.id)) return;
     const accountId = getAccountId(row);
@@ -12128,7 +12254,7 @@ function handleConfirmGenericImport() {
     if (manualMatch) { matchedManual.push(manualMatch); return; }
 
     const amount = Math.abs(row.amount);
-    let type, categoryId = null, investmentDirection = null, rule = null;
+    let type, categoryId = null, investmentDirection = null, rule = null, ignored = false, autoNote = '';
     if (st.markInvestments && classifyInvestmentRow(row).isInvestment) {
       type = 'investment';
       investmentDirection = row.amount >= 0 ? 'redemption' : 'contribution';
@@ -12139,13 +12265,24 @@ function handleConfirmGenericImport() {
       categoryId = isOutros
         ? ((rule && rule.categoryId) || (row.category ? getCategoryId(row.category) : outrosCategoryId))
         : getCategoryId(row.category);
+      const cp = counterpartByRowId[row.id];
+      if (row.autoIgnore === 'own') { ignored = true; autoNote = 'Ignorado automaticamente: Pix/TED entre minhas contas'; }
+      else if (row.autoIgnore === 'invoice') { ignored = true; autoNote = 'Ignorado automaticamente: pagamento de fatura de cartão'; }
+      if (cp) {
+        ignored = true;
+        autoNote = `Ignorado automaticamente: transferência entre contas (outra ponta: "${cp.tx.description}")`;
+        cp.tx.ignored = true;
+        counterpartsIgnored++;
+        logFinanceChange('edit', 'transacao', `Lançamento "${cp.tx.description}" marcado como ignorado: é a outra ponta de uma transferência importada ("${row.description}")`);
+      }
+      if (ignored) ignoredCreated++;
     }
     newTxs.push({
       ...baseTx(),
       id: 'ftx_' + Date.now() + '_' + imported + '_' + Math.floor(Math.random() * 100000),
       type, description: row.description, amount, date: row.date, accountId, categoryId,
       tags: (row.tag || (rule && rule.tag)) ? [row.tag || rule.tag] : [], importId, originalAccountLabel: 'CSV: ' + row.fileLabel,
-      investmentDirection
+      investmentDirection, ignored, notes: autoNote
     });
     imported++;
   });
@@ -12154,6 +12291,7 @@ function handleConfirmGenericImport() {
   localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
   localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
+  localStorage.setItem('b3_finance_own_names', JSON.stringify(st.ownNames || []));
 
   const total = imported + transfersCreated;
   if (total > 0) logFinanceChange('import', 'transacao', `${total} lançamento(s) importados de CSV (${st.files.map(f => f.fileName).join(', ')}), ${transfersCreated} transferência(s) entre contas`);
@@ -12161,7 +12299,7 @@ function handleConfirmGenericImport() {
   AppState.genericImportStaging = null;
   closeGenericImportModal();
   renderFinanceView();
-  showToast(`${total} lançamento(s) importados (${transfersCreated} transferência(s) entre contas, ${skippedDuplicate} já importado(s) antes, ${matchedManual.length} já lançado(s) no app).`, 'success');
+  showToast(`${total} lançamento(s) importados (${transfersCreated} transferência(s) entre contas, ${ignoredCreated} marcado(s) como ignorado(s)${counterpartsIgnored ? `, ${counterpartsIgnored} lançamento(s) antigo(s) ignorado(s)` : ''}, ${skippedDuplicate} já importado(s) antes, ${matchedManual.length} já lançado(s) no app).`, 'success');
 }
 
 // ==========================================
