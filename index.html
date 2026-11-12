@@ -11376,6 +11376,9 @@ function defaultAccountChoice(f, key) {
     match = accounts.filter(a => importNorm(a.name).length >= 3 && nFile.includes(importNorm(a.name)));
   }
   if (match.length === 1) return { mode: 'existing', existingId: match[0].id, newName: label || 'Conta importada' };
+  // Ha contas cadastradas mas nenhuma bate: pede pra escolher (evita criar conta
+  // duplicada sem querer). Sem nenhuma conta cadastrada, cria uma nova.
+  if (accounts.length) return { mode: 'unset', existingId: null, newName: label || 'Conta importada' };
   return { mode: 'create', existingId: null, newName: label || 'Conta importada' };
 }
 
@@ -11388,6 +11391,7 @@ function getAccountChoice(f, key) {
 // da conta nova (dois arquivos que criam "Nubank" caem na mesma conta).
 function accountIdentity(f, key) {
   const c = getAccountChoice(f, key);
+  if (c.mode === 'unset') return 'unset:' + f.id + ':' + key;
   return c.mode === 'existing' && c.existingId ? c.existingId : 'new:' + importNorm(c.newName || key);
 }
 
@@ -11397,6 +11401,7 @@ function accountDisplayName(f, key) {
     const acc = (AppState.financeAccounts || []).find(a => a.id === c.existingId);
     return acc ? acc.name : 'Conta removida';
   }
+  if (c.mode === 'unset') return 'Conta não escolhida';
   return (c.newName || 'Conta importada') + ' (nova)';
 }
 
@@ -11461,12 +11466,13 @@ function computeGenericImport(st) {
       r.identity = accountIdentity(pf.f, r.accKey);
       r.accountName = accountDisplayName(pf.f, r.accKey);
       r.existingAccountId = choice.mode === 'existing' && choice.existingId ? choice.existingId : null;
+      r.unset = choice.mode === 'unset';
       const csvId = choice.mode === 'existing' && choice.existingId ? 'csv_' + choice.existingId + '_' + r.key : null;
       r.isDup = (csvId && existingIds.has(csvId)) || r.legacyIds.some(id => existingIds.has(id));
       all.push(r);
     });
   });
-  let pairs = st.detectTransfers ? findTransferPairs(all.filter(r => !r.isDup)) : [];
+  let pairs = st.detectTransfers ? findTransferPairs(all.filter(r => !r.isDup && !r.unset)) : [];
   // Par que ja foi importado antes como transferencia (contas existentes nas
   // duas pontas): as duas linhas contam como "ja importadas" e o par some.
   pairs = pairs.filter(p => {
@@ -11827,7 +11833,9 @@ function setGenericAccountChoice(idx, keyIdx, value) {
   const cur = getAccountChoice(f, key);
   f.accountMap[key] = value === '__create__'
     ? { mode: 'create', existingId: null, newName: cur.newName }
-    : { mode: 'existing', existingId: value, newName: cur.newName };
+    : value === ''
+      ? { mode: 'unset', existingId: null, newName: cur.newName }
+      : { mode: 'existing', existingId: value, newName: cur.newName };
   renderGenericImportPreview();
 }
 
@@ -11880,7 +11888,8 @@ function renderGenericFileCard(st, pf, idx) {
     return `
       <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:12px; margin-bottom:6px;">
         <span style="flex:1 1 140px;">${label} <span style="color:var(--text-sub);">(${counts[key]})</span></span>
-        <select class="select-field" style="flex:1 1 170px; font-size:11.5px;" onchange="setGenericAccountChoice(${idx}, ${keyIdx}, this.value)">
+        <select class="select-field" style="flex:1 1 170px; font-size:11.5px; ${c.mode === 'unset' ? 'border-color:var(--red);' : ''}" onchange="setGenericAccountChoice(${idx}, ${keyIdx}, this.value)">
+          ${c.mode === 'unset' ? '<option value="" selected>— escolha a conta —</option>' : ''}
           <option value="__create__" ${c.mode === 'create' ? 'selected' : ''}>+ Criar nova conta</option>
           ${opts}
         </select>
@@ -11893,12 +11902,15 @@ function renderGenericFileCard(st, pf, idx) {
     ? `<div style="color:var(--red); font-size:12px; margin-bottom:8px;">Nenhum lançamento válido com esse mapeamento. Escolha as colunas de <strong>Data</strong> e de <strong>Valor</strong> (ou Débito/Crédito).</div>`
     : '';
   return `
-    <details style="border:1px solid rgba(0,0,0,0.1); border-radius:10px; padding:8px 12px; margin-bottom:8px;" ${isOpen ? 'open' : ''} ontoggle="setGenericFileOpen(${idx}, this.open)">
-      <summary style="cursor:pointer; font-size:12.5px; font-weight:600; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+    <div style="border:1px solid rgba(0,0,0,0.1); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; font-weight:600; margin-bottom:8px;">
         <span style="flex:1 1 auto; word-break:break-all;">📄 ${importEsc(f.fileName)}
           <span style="font-weight:400; color:var(--text-sub);">— ${pf.rows.length} lançamento(s)${pf.skipped ? `, ${pf.skipped} linha(s) ignorada(s)` : ''}</span></span>
-        <button type="button" class="btn btn-secondary btn-sm" style="padding:2px 8px;" title="Remover este arquivo" onclick="event.preventDefault(); event.stopPropagation(); removeGenericFile(${idx})">✕</button>
-      </summary>
+        <button type="button" class="btn btn-secondary btn-sm" style="padding:2px 8px;" title="Remover este arquivo" onclick="removeGenericFile(${idx})">✕</button>
+      </div>
+      ${pf.rows.length ? `<div style="margin-bottom:8px;"><div style="font-size:10.5px; font-weight:700; color:var(--text-sub); text-transform:uppercase; margin-bottom:4px;">Conta cadastrada que recebe esses lançamentos</div>${accountRows}</div>` : ''}
+    <details ${isOpen ? 'open' : ''} ontoggle="setGenericFileOpen(${idx}, this.open)">
+      <summary style="cursor:pointer; font-size:12px; color:var(--text-muted);">⚙️ Ajustar colunas do arquivo</summary>
       <div style="margin-top:10px;">
         <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;">
           Separador: ${{ ';': 'ponto e vírgula', ',': 'vírgula', '\t': 'tab', '|': 'barra vertical' }[f.delimiter] || importEsc(f.delimiter)};
@@ -11921,9 +11933,9 @@ function renderGenericFileCard(st, pf, idx) {
           <input type="checkbox" ${f.invertSign ? 'checked' : ''} onchange="setGenericInvertSign(${idx}, this.checked)" style="margin-top:2px;">
           <span>Inverter sinais (fatura de cartão, em que as compras vêm como valor positivo)</span>
         </label>
-        ${pf.rows.length ? `<div style="margin-bottom:4px;"><strong style="font-size:12px;">Conta de destino</strong></div>${accountRows}` : ''}
       </div>
-    </details>`;
+    </details>
+    </div>`;
 }
 
 function renderGenericImportPreview() {
@@ -11936,6 +11948,7 @@ function renderGenericImportPreview() {
   const nonDup = comp.all.filter(r => !r.isDup);
   const dupCount = comp.all.length - nonDup.length;
   const willImport = nonDup.length - enabledPairs.length;
+  const pendingAccounts = comp.all.some(r => r.unset && !r.isDup);
 
   let inTotal = 0, outTotal = 0, investmentCount = 0;
   const pairedIds = new Set();
@@ -11963,7 +11976,7 @@ function renderGenericImportPreview() {
   container.innerHTML = `
     ${errorsHtml}
     <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px; line-height:1.5;">
-      ${st.files.length} arquivo(s). Confira as colunas e a conta de cada um; a prévia atualiza na hora.
+      ${st.files.length} arquivo(s). Escolha a conta cadastrada de cada um e confira as colunas; a prévia atualiza na hora.
     </div>
     ${comp.perFile.map((pf, i) => renderGenericFileCard(st, pf, i)).join('')}
     <div style="margin:12px 0 8px;">
@@ -11987,6 +12000,7 @@ function renderGenericImportPreview() {
       <div style="font-size:11px; color:var(--text-sub); margin-top:4px;">Marcadas viram uma única transferência (não entram como despesa nem como receita). As com "pix/ted/transferência" na descrição ou no mesmo dia já vêm marcadas; confira as demais.</div>
     </div>` : `
     <div style="font-size:12px; color:var(--text-sub); margin-bottom:12px;">Nenhuma transferência entre contas encontrada${st.files.length < 2 ? ' (adicione o extrato da outra conta para cruzar)' : ''}.</div>`) : ''}
+    ${pendingAccounts ? `<div style="background:rgba(163,39,31,0.08); color:var(--red); border-radius:var(--radius-md); padding:8px 12px; margin-bottom:10px; font-size:12px;">Escolha a conta cadastrada de cada arquivo (ou crie uma nova) para poder importar.</div>` : ''}
     <div style="background:rgba(0,0,0,0.03); border-radius:var(--radius-md); padding:10px 14px; margin-bottom:12px; font-size:12.5px; line-height:1.6;">
       <strong>${willImport}</strong> lançamento(s) serão criados${enabledPairs.length ? `, sendo <strong>${enabledPairs.length}</strong> transferência(s) entre contas (${NumFmt.money(transferTotal)})` : ''}.<br>
       <span style="color:var(--green);">Entradas: ${NumFmt.money(inTotal)}</span> ·
@@ -11995,7 +12009,7 @@ function renderGenericImportPreview() {
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <button type="button" class="btn btn-secondary" style="flex:1 1 120px;" onclick="closeGenericImportModal()">Cancelar</button>
       <button type="button" class="btn btn-secondary" style="flex:1 1 160px;" onclick="document.getElementById('generic-import-add-input').click()">＋ Adicionar arquivos</button>
-      <button type="button" class="btn btn-success" style="flex:2 1 200px;" ${willImport > 0 ? '' : 'disabled'} onclick="handleConfirmGenericImport()">Importar ${willImport} Lançamentos</button>
+      <button type="button" class="btn btn-success" style="flex:2 1 200px;" ${willImport > 0 && !pendingAccounts ? '' : 'disabled'} onclick="handleConfirmGenericImport()">Importar ${willImport} Lançamentos</button>
     </div>
   `;
 }
@@ -12004,6 +12018,7 @@ function handleConfirmGenericImport() {
   const st = AppState.genericImportStaging;
   if (!st) return;
   const comp = computeGenericImport(st);
+  if (comp.all.some(r => r.unset && !r.isDup)) { showToast('Escolha a conta de cada arquivo antes de importar.', 'error'); return; }
   const existingImportIds = comp.existingIds;
   const rowFile = {};
   comp.perFile.forEach(pf => pf.rows.forEach(r => { rowFile[r.id] = pf.f; }));
