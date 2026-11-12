@@ -921,9 +921,7 @@
             <p class="page-desc" style="margin-bottom:0">Receitas, despesas, contas e cartão de crédito do dia a dia.</p>
           </div>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <button class="btn btn-secondary btn-sm" onclick="openFinanceImportModal()">📥 Importar CSV do Mobills</button>
-            <button class="btn btn-secondary btn-sm" onclick="openNubankImportModal()">📥 Importar Extrato do Nubank</button>
-            <button class="btn btn-secondary btn-sm" onclick="openGenericImportModal()" title="CSV de qualquer banco ou cartão: o app detecta as colunas e você confere antes de importar">📥 Importar CSV (qualquer banco)</button>
+            <button class="btn btn-secondary btn-sm" onclick="openGenericImportModal()" title="Importe um ou vários CSVs (extrato, fatura, Mobills...) de qualquer banco; o app cruza os arquivos e identifica transferências entre contas">📥 Importar CSV</button>
             <button class="btn btn-secondary btn-sm" onclick="openFinanceHistoryModal()">🕒 Histórico</button>
             <div style="display: flex; gap: 8px; align-items: center;">
               <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(-1)" title="Mês anterior">◀</button>
@@ -2431,62 +2429,23 @@
 </div>
 
 <!-- ========================================== -->
-<!-- MODAL: IMPORTAR CSV DO MOBILLS             -->
-<!-- ========================================== -->
-<div class="modal-overlay" id="finance-import-modal">
-  <div class="modal-box modal-lg" style="max-width: 680px;">
-    <div class="modal-header">
-      <div class="modal-title">📥 Importar CSV do Mobills</div>
-      <button class="modal-close" onclick="closeFinanceImportModal()">✕</button>
-    </div>
-    <div id="finance-import-step-file">
-      <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-        Selecione o CSV exportado do Mobills (colunas Data;Descrição;Valor;Conta;Categoria;Subcategoria;Tags). Nada é gravado até você conferir e confirmar na próxima tela.
-      </p>
-      <input type="file" accept=".csv,text/csv" id="finance-import-file-input" class="input-field" onchange="handleMobillsFileSelected(event)" style="width: 100%;">
-      <div id="finance-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
-    </div>
-    <div id="finance-import-preview" style="display:none;"></div>
-  </div>
-</div>
-
-<!-- ========================================== -->
-<!-- MODAL: IMPORTAR EXTRATO NATIVO DO NUBANK   -->
-<!-- ========================================== -->
-<div class="modal-overlay" id="finance-import-nubank-modal">
-  <div class="modal-box modal-lg" style="max-width: 680px;">
-    <div class="modal-header">
-      <div class="modal-title">📥 Importar Extrato do Nubank</div>
-      <button class="modal-close" onclick="closeNubankImportModal()">✕</button>
-    </div>
-    <div id="nubank-import-step-file">
-      <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-        Selecione o CSV de extrato exportado direto do app/site do Nubank (colunas Data,Valor,Identificador,Descrição). Esse formato não tem categoria nem nome de conta - você escolhe a conta na próxima tela e tudo entra como "Outros" pra você recategorizar depois. Nada é gravado até confirmar.
-      </p>
-      <input type="file" accept=".csv,text/csv" id="nubank-import-file-input" class="input-field" onchange="handleNubankFileSelected(event)" style="width: 100%;">
-      <div id="nubank-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
-    </div>
-    <div id="nubank-import-preview" style="display:none;"></div>
-  </div>
-</div>
-
-<!-- ========================================== -->
-<!-- MODAL: IMPORTAR CSV DE QUALQUER BANCO      -->
+<!-- MODAL: IMPORTAR CSV (UM OU VARIOS ARQUIVOS) -->
 <!-- ========================================== -->
 <div class="modal-overlay" id="generic-import-modal">
-  <div class="modal-box modal-lg" style="max-width: 680px;">
+  <div class="modal-box modal-lg" style="max-width: 720px;">
     <div class="modal-header">
-      <div class="modal-title">📥 Importar CSV de qualquer banco</div>
+      <div class="modal-title">📥 Importar CSV (um ou vários arquivos)</div>
       <button class="modal-close" onclick="closeGenericImportModal()">✕</button>
     </div>
     <div id="generic-import-step-file">
       <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-        Selecione o CSV de extrato ou fatura exportado do seu banco ou cartão. O app detecta sozinho o separador, a linha de cabeçalho e as colunas de data, descrição e valor (ou débito/crédito); você confere e ajusta na próxima tela. Nada é gravado até confirmar, e reimportar o mesmo arquivo não duplica lançamentos.
+        Selecione um ou mais CSVs de extrato ou fatura (de qualquer banco ou cartão, ou exportados do Mobills). Dá para escolher vários arquivos de uma vez: o app detecta separador, cabeçalho e colunas de cada um, cruza os lançamentos entre eles e identifica <strong>transferências entre contas</strong> (uma saída numa conta + uma entrada de mesmo valor em outra). Você confere tudo na próxima tela; nada é gravado até confirmar, e reimportar o mesmo arquivo não duplica lançamentos.
       </p>
-      <input type="file" accept=".csv,.txt,text/csv" id="generic-import-file-input" class="input-field" onchange="handleGenericFileSelected(event)" style="width: 100%;">
+      <input type="file" accept=".csv,.txt,text/csv" multiple id="generic-import-file-input" class="input-field" onchange="handleGenericFilesSelected(event, false)" style="width: 100%;">
       <div id="generic-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
     </div>
     <div id="generic-import-preview" style="display:none;"></div>
+    <input type="file" accept=".csv,.txt,text/csv" multiple id="generic-import-add-input" style="display:none;" onchange="handleGenericFilesSelected(event, true)">
   </div>
 </div>
 
@@ -4468,8 +4427,6 @@ const AppState = {
   financeCategoryChartInstance: null,
   financeTagChartInstance: null,
   financeTrendChartInstance: null,
-  financeImportStaging: null,
-  nubankImportStaging: null,
   genericImportStaging: null,
   financeCategoryEditingId: null,
   financeGoals: JSON.parse(localStorage.getItem('b3_finance_goals') || '[]'),
@@ -10915,7 +10872,11 @@ function toggleArchiveFinanceCategory(id) {
   populateFinanceAccountAndCategorySelects();
 }
 
-// ---------- IMPORTAR CSV DO MOBILLS ----------
+// ---------- IMPORTAR CSV (UM OU VARIOS ARQUIVOS, QUALQUER BANCO) ----------
+// Um unico importador para tudo (extrato de conta, fatura de cartao, export do
+// Mobills...). Aceita varios arquivos de uma vez e cruza os lancamentos entre
+// eles: uma saida numa conta + uma entrada de mesmo valor, em outra conta, ate
+// 3 dias de diferenca, vira UMA transferencia (e nao despesa + receita).
 // Le o arquivo como ArrayBuffer (nao texto direto) pra poder detectar a
 // codificacao real pelos bytes - exports do Mobills em algumas plataformas
 // saem em UTF-16 com BOM, que vira "lixo" (um espaco fantasma entre cada
@@ -10930,297 +10891,6 @@ function detectAndDecodeText(buffer) {
   const replacementCount = (text.match(/�/g) || []).length;
   if (replacementCount > 3) text = new TextDecoder('windows-1252').decode(buffer);
   return text;
-}
-
-function parseMobillsCsvRow(line) {
-  const cells = [];
-  let cur = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (inQuotes) {
-      if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else inQuotes = false; }
-      else cur += c;
-    } else {
-      if (c === '"') inQuotes = true;
-      else if (c === ';') { cells.push(cur); cur = ''; }
-      else cur += c;
-    }
-  }
-  cells.push(cur);
-  return cells;
-}
-
-// "-2,00" / "336,00" (formato BR, sinal ja embutido no valor - Mobills nao
-// tem um campo "tipo" separado).
-function parseMobillsAmount(raw) {
-  const s = (raw || '').trim();
-  if (!s) return 0;
-  const n = parseFloat(s.replace(/\./g, '').replace(',', '.'));
-  return isNaN(n) ? 0 : n;
-}
-
-function parseMobillsDate(raw) {
-  const parts = (raw || '').trim().split('/');
-  if (parts.length !== 3) return null;
-  const [d, m, y] = parts;
-  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-}
-
-function parseMobillsCsv(text) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
-  let headerIdx = lines.findIndex(l => l.replace(/"/g, '').trim().toUpperCase().startsWith('DATA;'));
-  if (headerIdx === -1) headerIdx = 0;
-  const result = [];
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    const cells = parseMobillsCsvRow(lines[i]);
-    if (cells.length < 5) continue;
-    const date = parseMobillsDate(cells[0]);
-    const description = (cells[1] || '').trim();
-    const amount = parseMobillsAmount(cells[2]);
-    const account = (cells[3] || '').trim();
-    const category = (cells[4] || '').trim();
-    const tags = (cells[6] || '').trim();
-    if (!date || !description || !account) continue;
-    result.push({ date, description, amount, account, category, tags });
-  }
-  return result;
-}
-
-// Categorias do Mobills que normalmente sao Pix/transferencia pra si mesmo
-// entre contas proprias (nao da pra saber a conta de destino so com esse
-// CSV, entao a opcao mais segura e nao importar como despesa/receita real).
-const MOBILLS_TRANSFER_CATEGORIES = ['pix', 'transferência enviada', 'transferencia enviada', 'operação bancária', 'operacao bancaria'];
-const MOBILLS_INVESTMENT_KEYWORDS = ['rdb', 'tesouro direto'];
-
-function classifyMobillsRow(row) {
-  const descLower = row.description.toLowerCase();
-  const catLower = (row.category || '').toLowerCase();
-  const isInvestment = catLower === 'investimento' || MOBILLS_INVESTMENT_KEYWORDS.some(k => descLower.includes(k));
-  const isTransferCandidate = !isInvestment && MOBILLS_TRANSFER_CATEGORIES.includes(catLower);
-  return { isInvestment, isTransferCandidate };
-}
-
-function buildMobillsImportStaging(rows) {
-  const accounts = {};
-  const categories = {};
-  let transferCount = 0, investmentCount = 0, minDate = null, maxDate = null;
-
-  rows.forEach(row => {
-    accounts[row.account] = (accounts[row.account] || 0) + 1;
-    const { isInvestment, isTransferCandidate } = classifyMobillsRow(row);
-    if (isTransferCandidate) transferCount++;
-    else if (isInvestment) investmentCount++;
-    else categories[row.category || 'Outros'] = (categories[row.category || 'Outros'] || 0) + 1;
-    if (!minDate || row.date < minDate) minDate = row.date;
-    if (!maxDate || row.date > maxDate) maxDate = row.date;
-  });
-
-  return {
-    rows,
-    accountNames: Object.keys(accounts),
-    accountCounts: accounts,
-    categoryCounts: categories,
-    transferCount, investmentCount, minDate, maxDate,
-    skipTransfers: true,
-    markInvestments: true,
-    accountMapping: {}
-  };
-}
-
-function openFinanceImportModal() {
-  AppState.financeImportStaging = null;
-  document.getElementById('finance-import-step-file').style.display = 'block';
-  document.getElementById('finance-import-preview').style.display = 'none';
-  document.getElementById('finance-import-preview').innerHTML = '';
-  document.getElementById('finance-import-file-input').value = '';
-  document.getElementById('finance-import-file-error').textContent = '';
-  document.getElementById('finance-import-modal').classList.add('active');
-}
-
-function closeFinanceImportModal() {
-  const modal = document.getElementById('finance-import-modal');
-  if (modal) modal.classList.remove('active');
-}
-
-function handleMobillsFileSelected(event) {
-  const file = event.target.files[0];
-  const errorEl = document.getElementById('finance-import-file-error');
-  errorEl.textContent = '';
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const text = detectAndDecodeText(e.target.result);
-      const rows = parseMobillsCsv(text);
-      if (rows.length === 0) {
-        errorEl.textContent = 'Não encontrei lançamentos nesse arquivo. Confira se é o CSV exportado do Mobills.';
-        return;
-      }
-      AppState.financeImportStaging = buildMobillsImportStaging(rows);
-      document.getElementById('finance-import-step-file').style.display = 'none';
-      document.getElementById('finance-import-preview').style.display = 'block';
-      renderMobillsImportPreview();
-    } catch (err) {
-      errorEl.textContent = 'Erro ao ler o arquivo: ' + err.message;
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-function setMobillsAccountMapping(name, value) {
-  const staging = AppState.financeImportStaging;
-  if (!staging) return;
-  staging.accountMapping[name] = value === '__create__' ? { mode: 'create' } : { mode: 'existing', existingId: value };
-}
-
-function renderMobillsImportPreview() {
-  const staging = AppState.financeImportStaging;
-  const container = document.getElementById('finance-import-preview');
-  if (!staging || !container) return;
-
-  const existingAccounts = (AppState.financeAccounts || []).filter(a => !a.archived);
-  const accountRowsHtml = staging.accountNames.map(name => {
-    const mapping = staging.accountMapping[name] || { mode: 'create' };
-    const optionsHtml = existingAccounts.map(a => `<option value="${a.id}" ${mapping.existingId === a.id ? 'selected' : ''}>${a.icon || ''} ${a.name}</option>`).join('');
-    return `
-      <div style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:6px;">
-        <span style="flex:1;">${name} <span style="color:var(--text-sub);">(${staging.accountCounts[name]} lançamentos)</span></span>
-        <select class="select-field" style="width:230px; font-size:11px;" onchange="setMobillsAccountMapping('${name.replace(/'/g, "\\'")}', this.value)">
-          <option value="__create__" ${mapping.mode === 'create' ? 'selected' : ''}>+ Criar nova conta "${name}"</option>
-          ${optionsHtml}
-        </select>
-      </div>`;
-  }).join('');
-
-  const categoryList = Object.entries(staging.categoryCounts).map(([cat, count]) => {
-    const existing = (AppState.financeCategories || []).find(c => c.name.toLowerCase() === cat.toLowerCase());
-    return `<li>${cat} (${count})${existing ? ' — já existe ✅' : ' — será criada automaticamente 🆕'}</li>`;
-  }).join('');
-
-  const totalRows = staging.rows.length;
-  const willSkip = staging.skipTransfers ? staging.transferCount : 0;
-  const willImport = totalRows - willSkip;
-
-  container.innerHTML = `
-    <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:12px;">
-      ${totalRows} lançamentos lidos, de ${NumFmt.date(staging.minDate)} a ${NumFmt.date(staging.maxDate)}.
-    </div>
-    <div style="margin-bottom:14px;">
-      <strong style="font-size:12px;">Contas encontradas</strong>
-      <div style="margin-top:6px;">${accountRowsHtml}</div>
-    </div>
-    <div style="margin-bottom:14px;">
-      <strong style="font-size:12px;">Categorias (${Object.keys(staging.categoryCounts).length})</strong>
-      <ul style="font-size:11.5px; color:var(--text-muted); margin:6px 0 0 16px; max-height:120px; overflow-y:auto;">${categoryList}</ul>
-    </div>
-    <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin-bottom:8px; cursor:pointer;">
-      <input type="checkbox" id="finance-import-skip-transfers" ${staging.skipTransfers ? 'checked' : ''} onchange="AppState.financeImportStaging.skipTransfers = this.checked; renderMobillsImportPreview();">
-      Não importar ${staging.transferCount} lançamento(s) de Pix/Transferência/Operação bancária (parecem movimentação entre suas próprias contas - não dá pra saber a conta de destino automaticamente a partir do CSV)
-    </label>
-    <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin-bottom:14px; cursor:pointer;">
-      <input type="checkbox" id="finance-import-mark-investments" ${staging.markInvestments ? 'checked' : ''} onchange="AppState.financeImportStaging.markInvestments = this.checked; renderMobillsImportPreview();">
-      Marcar ${staging.investmentCount} lançamento(s) com "RDB"/"Tesouro Direto" como Aporte/Resgate de Investimento (não como despesa/receita)
-    </label>
-    <div style="background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px; font-size:12.5px;">
-      <strong>${willImport}</strong> lançamento(s) serão importados${willSkip > 0 ? `, <strong>${willSkip}</strong> ficarão de fora` : ''}.
-    </div>
-    <div style="display:flex; gap:10px;">
-      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeFinanceImportModal()">Cancelar</button>
-      <button type="button" class="btn btn-success" style="flex:1;" onclick="handleConfirmMobillsImport()">Importar ${willImport} Lançamentos</button>
-    </div>
-  `;
-}
-
-function handleConfirmMobillsImport() {
-  const staging = AppState.financeImportStaging;
-  if (!staging) return;
-
-  const accountIdByName = {};
-  staging.accountNames.forEach(name => {
-    const mapping = staging.accountMapping[name] || { mode: 'create' };
-    if (mapping.mode === 'existing' && mapping.existingId) {
-      accountIdByName[name] = mapping.existingId;
-    } else {
-      const newAcc = {
-        id: 'facc_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-        name, type: 'checking', icon: '🏦',
-        color: CHART_COLOR_PALETTE[AppState.financeAccounts.length % CHART_COLOR_PALETTE.length],
-        initialBalance: 0, initialBalanceDate: new Date().toISOString().slice(0, 10),
-        archived: false, createdAt: new Date().toISOString(),
-        creditLimit: null, closingDay: null, dueDay: null, paidInvoiceMonths: []
-      };
-      AppState.financeAccounts.push(newAcc);
-      accountIdByName[name] = newAcc.id;
-    }
-  });
-
-  const categoryIdByName = {};
-  Object.keys(staging.categoryCounts).forEach(catName => {
-    const existing = AppState.financeCategories.find(c => c.name.toLowerCase() === catName.toLowerCase());
-    if (existing) { categoryIdByName[catName] = existing.id; return; }
-    const newCat = {
-      id: 'cat_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-      name: catName, icon: '📥', color: CHART_COLOR_PALETTE[AppState.financeCategories.length % CHART_COLOR_PALETTE.length],
-      appliesTo: ['expense', 'income'], isCustom: true, archived: false
-    };
-    AppState.financeCategories.push(newCat);
-    categoryIdByName[catName] = newCat.id;
-  });
-
-  const existingImportIds = new Set((AppState.financeTransactions || []).filter(t => t.importId).map(t => t.importId));
-  let imported = 0, skippedTransfer = 0, skippedDuplicate = 0;
-  const newTxs = [];
-  const matchedManualIds = new Set();
-  const matchedManual = [];
-
-  staging.rows.forEach(row => {
-    const { isInvestment, isTransferCandidate } = classifyMobillsRow(row);
-    if (staging.skipTransfers && isTransferCandidate) { skippedTransfer++; return; }
-
-    const importId = 'mobills_' + row.date + '_' + row.description + '_' + row.amount + '_' + row.account;
-    if (existingImportIds.has(importId)) { skippedDuplicate++; return; }
-    existingImportIds.add(importId);
-
-    const accountId = accountIdByName[row.account];
-    const manualMatch = findManualMatchForImportRow(matchedManualIds, accountId, row.amount, row.date);
-    if (manualMatch) { matchedManual.push(manualMatch); return; }
-    const amount = Math.abs(row.amount);
-    let type, categoryId = null, investmentDirection = null;
-    if (staging.markInvestments && isInvestment) {
-      type = 'investment';
-      investmentDirection = row.amount >= 0 ? 'redemption' : 'contribution';
-    } else {
-      type = row.amount >= 0 ? 'income' : 'expense';
-      const mobillsCatName = row.category || 'Outros';
-      categoryId = mobillsCatName.toLowerCase() === 'outros'
-        ? (matchFinanceCategoryRule(row.description) || categoryIdByName[mobillsCatName] || null)
-        : (categoryIdByName[mobillsCatName] || null);
-    }
-
-    newTxs.push({
-      id: 'ftx_' + Date.now() + '_' + imported + '_' + Math.floor(Math.random() * 100000),
-      type, description: row.description, amount, date: row.date, accountId, categoryId,
-      notes: '', tags: row.tags ? [row.tags] : [], source: 'import', importId, originalAccountLabel: row.account,
-      transferAccountId: null, investmentDirection,
-      isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-      fixedCostId: null, goalId: null, goalDirection: null, ignored: false, pending: false, splitGroupId: null
-    });
-    imported++;
-  });
-
-  AppState.financeTransactions.unshift(...newTxs);
-  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
-  localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
-  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
-
-  if (imported > 0) logFinanceChange('import', 'transacao', `${imported} lançamento(s) importados do Mobills`);
-  logImportManualMatches(matchedManual);
-  AppState.financeImportStaging = null;
-  closeFinanceImportModal();
-  renderFinanceView();
-  showToast(`${imported} lançamento(s) importados do Mobills (${skippedTransfer} transferência(s) ignorada(s), ${skippedDuplicate} duplicado(s) ignorado(s), ${matchedManual.length} já lançado(s) no app).`, 'success');
 }
 
 // Acha um lancamento feito no app (nao importado) que represente a mesma
@@ -11250,34 +10920,22 @@ function findManualMatchForImportRow(usedIds, accountId, signedAmount, date) {
   return best;
 }
 
-// ---------- IMPORTAR EXTRATO NATIVO DO NUBANK ----------
-// Formato diferente do Mobills: delimitador virgula (nao ponto-e-virgula),
-// valor com PONTO decimal (nao virgula - ja vem pronto pro parseFloat),
-// um Identificador UUID por linha (dedupe muito mais confiavel que o hash
-// composto usado no importador do Mobills), SEM coluna de Conta (o
-// extrato e sempre de UMA conta so, escolhida manualmente na tela de
-// preview) e SEM coluna de Categoria (tudo entra como "Outros" - sem
-// Categoria/Subcategoria no arquivo, categorizar automaticamente seria
-// chute sobre o nome do estabelecimento, que e exatamente o tipo de
-// suposicao que ja deu problema antes nesse projeto).
-
-function parseNubankCsvRow(line) {
-  const cells = [];
-  let cur = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (inQuotes) {
-      if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else inQuotes = false; }
-      else cur += c;
-    } else {
-      if (c === '"') inQuotes = true;
-      else if (c === ',') { cells.push(cur); cur = ''; }
-      else cur += c;
-    }
-  }
-  cells.push(cur);
-  return cells;
+// Mesma ideia, para transferencias: ja existe um lancamento manual de
+// transferencia entre as mesmas duas contas, mesmo valor, data ate 3 dias.
+function findManualTransferMatch(usedIds, fromId, toId, amount, date) {
+  if (!fromId || !toId) return null;
+  const dayMs = 86400000;
+  const rowTime = new Date(date + 'T00:00:00').getTime();
+  let best = null, bestDiff = Infinity;
+  (AppState.financeTransactions || []).forEach(tx => {
+    if (tx.type !== 'transfer' || tx.source === 'import' || tx.pending || usedIds.has(tx.id)) return;
+    if (tx.accountId !== fromId || tx.transferAccountId !== toId) return;
+    if (Math.abs((Number(tx.amount) || 0) - amount) >= 0.01) return;
+    const diff = Math.abs(new Date((tx.date || '') + 'T00:00:00').getTime() - rowTime) / dayMs;
+    if (diff <= 3 && diff < bestDiff) { best = tx; bestDiff = diff; }
+  });
+  if (best) usedIds.add(best.id);
+  return best;
 }
 
 // Descricao nativa do Nubank pra Pix/transferencia vem com os dados
@@ -11292,202 +10950,10 @@ function stripNubankAccountDetails(description) {
   return description.replace(NUBANK_ACCOUNT_DETAILS_RE, '').trim();
 }
 
-// So os 3 primeiros campos sao fixos (Data, Valor, Identificador) - o
-// resto da linha, mesmo com virgulas dentro (raro mas possivel em nome
-// de estabelecimento), e tudo Descricao.
-function parseNubankCsv(text) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
-  let headerIdx = lines.findIndex(l => l.toLowerCase().replace(/"/g, '').startsWith('data,valor,identificador'));
-  if (headerIdx === -1) headerIdx = 0;
-  const result = [];
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    const cells = parseNubankCsvRow(lines[i]);
-    if (cells.length < 4) continue;
-    const date = parseMobillsDate(cells[0]);
-    const amount = parseFloat(cells[1]);
-    const identifier = (cells[2] || '').trim();
-    const description = stripNubankAccountDetails(cells.slice(3).join(',').trim());
-    if (!date || isNaN(amount) || !identifier || !description) continue;
-    result.push({ date, amount, identifier, description });
-  }
-  return result;
-}
+const INVESTMENT_DESCRIPTION_RE = /\brdb\b|tesouro direto/i;
 
-const NUBANK_INVESTMENT_KEYWORDS = ['aplicação rdb', 'aplicacao rdb', 'resgate rdb', 'tesouro direto'];
-
-function classifyNubankRow(row) {
-  const descLower = row.description.toLowerCase();
-  return { isInvestment: NUBANK_INVESTMENT_KEYWORDS.some(k => descLower.includes(k)) };
-}
-
-function buildNubankImportStaging(rows) {
-  let investmentCount = 0, minDate = null, maxDate = null;
-  rows.forEach(row => {
-    if (classifyNubankRow(row).isInvestment) investmentCount++;
-    if (!minDate || row.date < minDate) minDate = row.date;
-    if (!maxDate || row.date > maxDate) maxDate = row.date;
-  });
-  return {
-    rows, investmentCount, minDate, maxDate,
-    markInvestments: true,
-    accountMapping: { mode: 'create', existingId: null }
-  };
-}
-
-function openNubankImportModal() {
-  AppState.nubankImportStaging = null;
-  document.getElementById('nubank-import-step-file').style.display = 'block';
-  document.getElementById('nubank-import-preview').style.display = 'none';
-  document.getElementById('nubank-import-preview').innerHTML = '';
-  document.getElementById('nubank-import-file-input').value = '';
-  document.getElementById('nubank-import-file-error').textContent = '';
-  document.getElementById('finance-import-nubank-modal').classList.add('active');
-}
-
-function closeNubankImportModal() {
-  const modal = document.getElementById('finance-import-nubank-modal');
-  if (modal) modal.classList.remove('active');
-}
-
-function handleNubankFileSelected(event) {
-  const file = event.target.files[0];
-  const errorEl = document.getElementById('nubank-import-file-error');
-  errorEl.textContent = '';
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const text = detectAndDecodeText(e.target.result);
-      const rows = parseNubankCsv(text);
-      if (rows.length === 0) {
-        errorEl.textContent = 'Não encontrei lançamentos nesse arquivo. Confira se é o extrato CSV exportado direto do Nubank.';
-        return;
-      }
-      AppState.nubankImportStaging = buildNubankImportStaging(rows);
-      document.getElementById('nubank-import-step-file').style.display = 'none';
-      document.getElementById('nubank-import-preview').style.display = 'block';
-      renderNubankImportPreview();
-    } catch (err) {
-      errorEl.textContent = 'Erro ao ler o arquivo: ' + err.message;
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-function setNubankAccountMapping(value) {
-  const staging = AppState.nubankImportStaging;
-  if (!staging) return;
-  staging.accountMapping = value === '__create__' ? { mode: 'create', existingId: null } : { mode: 'existing', existingId: value };
-  renderNubankImportPreview();
-}
-
-function renderNubankImportPreview() {
-  const staging = AppState.nubankImportStaging;
-  const container = document.getElementById('nubank-import-preview');
-  if (!staging || !container) return;
-
-  const existingAccounts = (AppState.financeAccounts || []).filter(a => !a.archived);
-  const optionsHtml = existingAccounts.map(a => `<option value="${a.id}" ${staging.accountMapping.existingId === a.id ? 'selected' : ''}>${a.icon || ''} ${a.name}</option>`).join('');
-
-  container.innerHTML = `
-    <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:12px;">
-      ${staging.rows.length} lançamentos lidos, de ${NumFmt.date(staging.minDate)} a ${NumFmt.date(staging.maxDate)}.
-    </div>
-    <div style="margin-bottom:14px;">
-      <label style="display:block; font-size:11px; font-weight:700; color:var(--text-sub); text-transform:uppercase; margin-bottom:5px;">Conta de destino</label>
-      <select class="select-field" style="width:100%; margin-bottom:8px;" onchange="setNubankAccountMapping(this.value)">
-        <option value="__create__" ${staging.accountMapping.mode === 'create' ? 'selected' : ''}>+ Criar nova conta</option>
-        ${optionsHtml}
-      </select>
-      ${staging.accountMapping.mode === 'create' ? `
-      <input type="text" class="input-field" id="nubank-import-new-account-name" value="Nubank" placeholder="Nome da nova conta" style="width:100%;">
-      ` : ''}
-    </div>
-    <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin-bottom:14px; cursor:pointer;">
-      <input type="checkbox" id="nubank-import-mark-investments" ${staging.markInvestments ? 'checked' : ''} onchange="AppState.nubankImportStaging.markInvestments = this.checked; renderNubankImportPreview();">
-      Marcar ${staging.investmentCount} lançamento(s) com "RDB"/"Tesouro Direto" como Aporte/Resgate de Investimento (não como despesa/receita)
-    </label>
-    <div style="background: rgba(0,0,0,0.03); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px; font-size:12.5px;">
-      Sem coluna de categoria nesse formato: tudo entra em <strong>"Outros"</strong> (exceto o que for marcado como investimento acima). Você pode recategorizar clicando em cada lançamento depois.
-    </div>
-    <div style="display:flex; gap:10px;">
-      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeNubankImportModal()">Cancelar</button>
-      <button type="button" class="btn btn-success" style="flex:1;" onclick="handleConfirmNubankImport()">Importar ${staging.rows.length} Lançamentos</button>
-    </div>
-  `;
-}
-
-function handleConfirmNubankImport() {
-  const staging = AppState.nubankImportStaging;
-  if (!staging) return;
-
-  let accountId;
-  if (staging.accountMapping.mode === 'existing' && staging.accountMapping.existingId) {
-    accountId = staging.accountMapping.existingId;
-  } else {
-    const name = (document.getElementById('nubank-import-new-account-name')?.value || 'Nubank').trim() || 'Nubank';
-    const newAcc = {
-      id: 'facc_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-      name, type: 'checking', icon: '🏦',
-      color: CHART_COLOR_PALETTE[AppState.financeAccounts.length % CHART_COLOR_PALETTE.length],
-      initialBalance: 0, initialBalanceDate: new Date().toISOString().slice(0, 10),
-      archived: false, createdAt: new Date().toISOString(),
-      creditLimit: null, closingDay: null, dueDay: null, paidInvoiceMonths: []
-    };
-    AppState.financeAccounts.push(newAcc);
-    accountId = newAcc.id;
-  }
-
-  const outrosCategory = (AppState.financeCategories || []).find(c => c.name.toLowerCase() === 'outros');
-  const outrosCategoryId = outrosCategory ? outrosCategory.id : null;
-
-  const existingImportIds = new Set((AppState.financeTransactions || []).filter(t => t.importId).map(t => t.importId));
-  let imported = 0, skippedDuplicate = 0;
-  const newTxs = [];
-  const matchedManualIds = new Set();
-  const matchedManual = [];
-
-  staging.rows.forEach(row => {
-    const importId = 'nubank_' + row.identifier;
-    if (existingImportIds.has(importId)) { skippedDuplicate++; return; }
-    existingImportIds.add(importId);
-
-    const manualMatch = findManualMatchForImportRow(matchedManualIds, accountId, row.amount, row.date);
-    if (manualMatch) { matchedManual.push(manualMatch); return; }
-
-    const { isInvestment } = classifyNubankRow(row);
-    const amount = Math.abs(row.amount);
-    let type, categoryId = null, investmentDirection = null;
-    if (staging.markInvestments && isInvestment) {
-      type = 'investment';
-      investmentDirection = row.amount >= 0 ? 'redemption' : 'contribution';
-    } else {
-      type = row.amount >= 0 ? 'income' : 'expense';
-      categoryId = matchFinanceCategoryRule(row.description) || outrosCategoryId;
-    }
-
-    newTxs.push({
-      id: 'ftx_' + Date.now() + '_' + imported + '_' + Math.floor(Math.random() * 100000),
-      type, description: row.description, amount, date: row.date, accountId, categoryId,
-      notes: '', tags: [], source: 'import', importId, originalAccountLabel: 'Nubank (extrato nativo)',
-      transferAccountId: null, investmentDirection,
-      isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-      fixedCostId: null, goalId: null, goalDirection: null, ignored: false, pending: false, splitGroupId: null
-    });
-    imported++;
-  });
-
-  AppState.financeTransactions.unshift(...newTxs);
-  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
-  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
-
-  if (imported > 0) logFinanceChange('import', 'transacao', `${imported} lançamento(s) importados do extrato Nubank`);
-  logImportManualMatches(matchedManual);
-  AppState.nubankImportStaging = null;
-  closeNubankImportModal();
-  renderFinanceView();
-  showToast(`${imported} lançamento(s) importados do extrato Nubank (${skippedDuplicate} duplicado(s) ignorado(s), ${matchedManual.length} já lançado(s) no app).`, 'success');
+function classifyInvestmentRow(row) {
+  return { isInvestment: INVESTMENT_DESCRIPTION_RE.test(row.description || '') };
 }
 
 // Registra no Historico quais linhas do extrato nao entraram por ja
@@ -11499,12 +10965,9 @@ function logImportManualMatches(matchedManual) {
   });
 }
 
-// ---------- IMPORTAR CSV GENERICO (QUALQUER BANCO) ----------
-// Nao depende de um layout fixo: detecta codificacao, delimitador (; , tab |),
-// linha de cabecalho (ignora textos antes dela), e adivinha quais colunas sao
-// Data / Descricao / Valor (ou Debito+Credito) / Tipo D-C / Identificador /
-// Categoria. O usuario confere e ajusta o mapeamento na tela de previa antes
-// de gravar qualquer coisa.
+// Detecta codificacao, delimitador (; , tab |), linha de cabecalho (ignora textos
+// antes dela) e adivinha as colunas de cada arquivo; o usuario confere tudo na
+// tela de previa antes de gravar qualquer coisa.
 
 function importEsc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -11642,13 +11105,15 @@ const IMPORT_HEADER_ALIASES = {
   credit: ['credito', 'creditos', 'entrada', 'entradas', 'credit', 'deposito', 'valor credito'],
   type: ['tipo', 'tipo lancamento', 'tipo de lancamento', 'tipo transacao', 'tipo de transacao', 'natureza', 'd/c', 'dc', 'debito/credito', 'cred/deb', 'operacao'],
   id: ['identificador', 'id', 'codigo', 'documento', 'numero documento', 'nsu', 'autenticacao', 'protocolo', 'id transacao'],
-  category: ['categoria', 'category']
+  category: ['categoria', 'category'],
+  account: ['conta', 'account', 'nome da conta'],
+  tags: ['tags', 'tag', 'etiquetas', 'etiqueta']
 };
 
 function autoMapColumns(headers) {
   const norm = headers.map(importNorm);
   const used = new Set();
-  const map = { date: -1, desc: -1, amount: -1, debit: -1, credit: -1, type: -1, id: -1, category: -1 };
+  const map = { date: -1, desc: -1, amount: -1, debit: -1, credit: -1, type: -1, id: -1, category: -1, account: -1, tags: -1 };
   const take = (key, test) => {
     if (map[key] >= 0) return;
     const i = norm.findIndex((h, idx) => h && !used.has(idx) && !/\bsaldo\b/.test(h) && test(h));
@@ -11656,7 +11121,7 @@ function autoMapColumns(headers) {
   };
   // 1a passada: nome exato, respeitando a ordem de preferencia dos apelidos
   // (ex: "Descricao" vence "Historico" quando o arquivo tem as duas colunas).
-  ['date', 'amount', 'debit', 'credit', 'type', 'id', 'category', 'desc'].forEach(k => {
+  ['date', 'amount', 'debit', 'credit', 'type', 'id', 'category', 'account', 'tags', 'desc'].forEach(k => {
     for (const alias of IMPORT_HEADER_ALIASES[k]) {
       const i = norm.findIndex((h, idx) => h === alias && !used.has(idx));
       if (i >= 0) { map[k] = i; used.add(i); return; }
@@ -11684,7 +11149,7 @@ function guessColumnsByContent(rows, width) {
     });
     stats.push({ c, dates: filled ? dates / filled : 0, nums: filled ? nums / filled : 0, avgLen: filled ? len / filled : 0 });
   }
-  const map = { date: -1, desc: -1, amount: -1, debit: -1, credit: -1, type: -1, id: -1, category: -1 };
+  const map = { date: -1, desc: -1, amount: -1, debit: -1, credit: -1, type: -1, id: -1, category: -1, account: -1, tags: -1 };
   const dateCol = stats.filter(s => s.dates >= 0.6).sort((a, b) => b.dates - a.dates || a.c - b.c)[0];
   if (dateCol) map.date = dateCol.c;
   const amountCol = stats.find(s => s.c !== map.date && s.nums >= 0.6);
@@ -11694,7 +11159,12 @@ function guessColumnsByContent(rows, width) {
   return map;
 }
 
-function buildGenericImportStaging(text, fileName) {
+let genericImportFileSeq = 0;
+
+// Le um arquivo ja decodificado e monta a "ficha" dele: delimitador,
+// cabecalho, colunas adivinhadas. Retorna null se nao parecer um CSV de
+// lancamentos.
+function buildGenericFileEntry(text, fileName) {
   const clean = text.replace(/^﻿/, '');
   const delimiter = detectCsvDelimiter(clean);
   const all = parseCsvText(clean, delimiter);
@@ -11717,18 +11187,16 @@ function buildGenericImportStaging(text, fileName) {
     headers = Array.from({ length: width }, (_, i) => `Coluna ${i + 1}`);
     mapping = guessColumnsByContent(dataRows, width);
   }
-
-  const baseName = String(fileName || '').replace(/\.[^.]+$/, '').trim();
   // Fatura de cartao do Nubank (date,category,title,amount): compra vem positiva.
   const isNubankCard = headerIdx >= 0 && headers.map(importNorm).join('|') === 'date|category|title|amount';
+
   return {
+    id: ++genericImportFileSeq,
     fileName: fileName || '',
     delimiter, headerIdx, headers, dataRows, mapping,
     invertSign: isNubankCard,
-    markInvestments: true,
-    accountMapping: { mode: 'create', existingId: null },
-    newAccountName: baseName || 'Conta importada',
-    parsed: []
+    accountMap: {},
+    open: undefined
   };
 }
 
@@ -11740,16 +11208,17 @@ function interpretImportTypeCell(raw) {
   return 0;
 }
 
-// Aplica o mapeamento atual as linhas cruas. Retorna { rows, skipped }.
-function buildGenericRows(st) {
-  const m = st.mapping;
+// Aplica o mapeamento atual de UM arquivo as linhas cruas. Retorna { rows, skipped }.
+function buildFileRows(f) {
+  const m = f.mapping;
   const rows = [];
   let skipped = 0;
-  if (m.date < 0 || (m.amount < 0 && m.debit < 0 && m.credit < 0)) return { rows, skipped: st.dataRows.length };
+  if (m.date < 0 || (m.amount < 0 && m.debit < 0 && m.credit < 0)) return { rows, skipped: f.dataRows.length };
 
-  const dayFirst = detectDayFirst(st.dataRows.map(r => r[m.date]));
+  const dayFirst = detectDayFirst(f.dataRows.map(r => r[m.date]));
+  const fileLabel = f.fileName.replace(/\.[^.]+$/, '');
   const seen = {};
-  st.dataRows.forEach(r => {
+  f.dataRows.forEach((r, idx) => {
     const date = parseFlexibleDate(r[m.date], dayFirst);
     let amount = null;
     if (m.debit >= 0 || m.credit >= 0) {
@@ -11764,21 +11233,147 @@ function buildGenericRows(st) {
       }
     }
     if (!date || amount === null || amount === 0) { skipped++; return; }
-    if (st.invertSign) amount = -amount;
+    if (f.invertSign) amount = -amount;
 
-    const description = (m.desc >= 0 ? String(r[m.desc] ?? '') : '').replace(/\s+/g, ' ').trim() || '(sem descrição)';
+    const description = stripNubankAccountDetails((m.desc >= 0 ? String(r[m.desc] ?? '') : '').replace(/\s+/g, ' ').trim()) || '(sem descrição)';
     const idValue = m.id >= 0 ? String(r[m.id] ?? '').trim() : '';
     const category = m.category >= 0 ? String(r[m.category] ?? '').trim() : '';
+    const tag = m.tags >= 0 ? String(r[m.tags] ?? '').trim() : '';
+    const accKey = (m.account >= 0 && String(r[m.account] ?? '').trim()) || '__file__';
     // Linhas realmente iguais no mesmo arquivo (2 cafes iguais no mesmo dia)
     // continuam sendo 2 lancamentos: o contador diferencia, e reimportar o
     // mesmo arquivo gera as mesmas chaves (sem duplicar).
-    const base = `${date}|${description}|${amount.toFixed(2)}|${idValue}`;
+    const base = `${date}|${description}|${amount.toFixed(2)}|${idValue}|${accKey === '__file__' ? '' : accKey}`;
     seen[base] = (seen[base] || 0) + 1;
-    rows.push({ date, description, amount, category, key: `${base}#${seen[base]}` });
+    // Ids de importacoes feitas pelos antigos botoes Mobills/Nubank: evita
+    // duplicar o que o usuario ja importou antes.
+    const legacyIds = [];
+    if (idValue) legacyIds.push('nubank_' + idValue);
+    legacyIds.push('mobills_' + date + '_' + description + '_' + amount + '_' + accKey);
+    rows.push({
+      id: `${f.id}:${idx}`, fileId: f.id, date, description, amount, category, tag, accKey,
+      key: `${base}#${seen[base]}`, legacyIds, fileLabel
+    });
   });
   return { rows, skipped };
 }
 
+// ---- Contas de destino (por arquivo ou, se houver coluna Conta, por valor) ----
+function defaultAccountChoice(f, key) {
+  const accounts = (AppState.financeAccounts || []).filter(a => !a.archived);
+  const label = key === '__file__' ? f.fileName.replace(/\.[^.]+$/, '').trim() : key;
+  const nLabel = importNorm(label);
+  let match = accounts.filter(a => importNorm(a.name) === nLabel);
+  if (!match.length && key === '__file__') {
+    const nFile = importNorm(f.fileName);
+    match = accounts.filter(a => importNorm(a.name).length >= 3 && nFile.includes(importNorm(a.name)));
+  }
+  if (match.length === 1) return { mode: 'existing', existingId: match[0].id, newName: label || 'Conta importada' };
+  return { mode: 'create', existingId: null, newName: label || 'Conta importada' };
+}
+
+function getAccountChoice(f, key) {
+  if (!f.accountMap[key]) f.accountMap[key] = defaultAccountChoice(f, key);
+  return f.accountMap[key];
+}
+
+// Identidade da conta de destino: id da conta existente, ou o nome normalizado
+// da conta nova (dois arquivos que criam "Nubank" caem na mesma conta).
+function accountIdentity(f, key) {
+  const c = getAccountChoice(f, key);
+  return c.mode === 'existing' && c.existingId ? c.existingId : 'new:' + importNorm(c.newName || key);
+}
+
+function accountDisplayName(f, key) {
+  const c = getAccountChoice(f, key);
+  if (c.mode === 'existing' && c.existingId) {
+    const acc = (AppState.financeAccounts || []).find(a => a.id === c.existingId);
+    return acc ? acc.name : 'Conta removida';
+  }
+  return (c.newName || 'Conta importada') + ' (nova)';
+}
+
+// ---- Cruzamento: transferencias entre contas ----
+const TRANSFER_KEYWORD_RE = /\b(pix|ted|doc|tef|transf\w*|transferencia)\b/;
+function hasTransferKeyword(description) {
+  return TRANSFER_KEYWORD_RE.test(importNorm(description));
+}
+
+// Casa saidas com entradas de mesmo valor em contas DIFERENTES, ate 3 dias de
+// diferenca. Cada linha entra em no maximo um par (os mais proximos primeiro).
+function findTransferPairs(rows) {
+  const dayMs = 86400000;
+  const toDay = d => Math.round(new Date(d + 'T00:00:00').getTime() / dayMs);
+  const insByCents = new Map();
+  rows.forEach(r => {
+    if (r.amount <= 0) return;
+    const k = Math.round(r.amount * 100);
+    if (!insByCents.has(k)) insByCents.set(k, []);
+    insByCents.get(k).push(r);
+  });
+  const candidates = [];
+  rows.forEach(o => {
+    if (o.amount >= 0) return;
+    const list = insByCents.get(Math.round(-o.amount * 100));
+    if (!list) return;
+    list.forEach(i => {
+      if (i.identity === o.identity) return;
+      const diff = Math.abs(toDay(o.date) - toDay(i.date));
+      if (diff > 3) return;
+      const kw = hasTransferKeyword(o.description) || hasTransferKeyword(i.description);
+      candidates.push({ o, i, diff, kw });
+    });
+  });
+  candidates.sort((a, b) => a.diff - b.diff || Number(b.kw) - Number(a.kw));
+  const usedO = new Set(), usedI = new Set();
+  const pairs = [];
+  candidates.forEach(c => {
+    if (usedO.has(c.o.id) || usedI.has(c.i.id)) return;
+    usedO.add(c.o.id); usedI.add(c.i.id);
+    // Marcado por padrao quando e bem provavel: tem "pix/ted/transferencia" na
+    // descricao ou as duas pontas caem no mesmo dia. O resto o usuario decide.
+    pairs.push({ key: c.o.id + '|' + c.i.id, o: c.o, i: c.i, diff: c.diff, kw: c.kw, defaultEnabled: c.kw || c.diff === 0 });
+  });
+  pairs.sort((a, b) => (a.o.date < b.o.date ? -1 : a.o.date > b.o.date ? 1 : 0));
+  return pairs;
+}
+
+// Junta tudo: linhas de todos os arquivos, duplicatas ja importadas e pares.
+function computeGenericImport(st) {
+  const existingIds = new Set((AppState.financeTransactions || []).filter(t => t.importId).map(t => t.importId));
+  const perFile = st.files.map(f => {
+    const { rows, skipped } = buildFileRows(f);
+    const keys = [...new Set(rows.map(r => r.accKey))];
+    f.keys = keys;
+    return { f, rows, skipped, keys };
+  });
+  const all = [];
+  perFile.forEach(pf => {
+    pf.rows.forEach(r => {
+      const choice = getAccountChoice(pf.f, r.accKey);
+      r.identity = accountIdentity(pf.f, r.accKey);
+      r.accountName = accountDisplayName(pf.f, r.accKey);
+      r.existingAccountId = choice.mode === 'existing' && choice.existingId ? choice.existingId : null;
+      const csvId = choice.mode === 'existing' && choice.existingId ? 'csv_' + choice.existingId + '_' + r.key : null;
+      r.isDup = (csvId && existingIds.has(csvId)) || r.legacyIds.some(id => existingIds.has(id));
+      all.push(r);
+    });
+  });
+  let pairs = st.detectTransfers ? findTransferPairs(all.filter(r => !r.isDup)) : [];
+  // Par que ja foi importado antes como transferencia (contas existentes nas
+  // duas pontas): as duas linhas contam como "ja importadas" e o par some.
+  pairs = pairs.filter(p => {
+    if (!p.o.existingAccountId || !p.i.existingAccountId) return true;
+    const importId = `csvtr_${p.o.existingAccountId}_${p.o.key}__${p.i.existingAccountId}_${p.i.key}`;
+    if (!existingIds.has(importId)) return true;
+    p.o.isDup = true; p.i.isDup = true;
+    return false;
+  });
+  pairs.forEach(p => { p.enabled = st.pairChoice[p.key] !== undefined ? st.pairChoice[p.key] : p.defaultEnabled; });
+  return { perFile, all, pairs, existingIds };
+}
+
+// ---- Tela ----
 function openGenericImportModal() {
   AppState.genericImportStaging = null;
   document.getElementById('generic-import-step-file').style.display = 'block';
@@ -11794,47 +11389,183 @@ function closeGenericImportModal() {
   if (modal) modal.classList.remove('active');
 }
 
-function handleGenericFileSelected(event) {
-  const file = event.target.files[0];
+function readFileAsBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('não consegui ler o arquivo'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function handleGenericFilesSelected(event, append) {
+  const files = Array.from(event.target.files || []);
+  event.target.value = '';
+  if (!files.length) return;
   const errorEl = document.getElementById('generic-import-file-error');
   errorEl.textContent = '';
-  if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = function(e) {
+  const entries = [];
+  const errors = [];
+  for (const file of files) {
     try {
-      const text = detectAndDecodeText(e.target.result);
-      const staging = buildGenericImportStaging(text, file.name);
-      if (!staging) {
-        errorEl.textContent = 'Esse arquivo parece vazio ou não é um CSV com linhas de lançamentos.';
-        return;
-      }
-      AppState.genericImportStaging = staging;
-      document.getElementById('generic-import-step-file').style.display = 'none';
-      document.getElementById('generic-import-preview').style.display = 'block';
-      renderGenericImportPreview();
+      const text = detectAndDecodeText(await readFileAsBuffer(file));
+      const entry = buildGenericFileEntry(text, file.name);
+      if (entry) entries.push(entry); else errors.push(`${file.name}: não parece um CSV de lançamentos`);
     } catch (err) {
-      errorEl.textContent = 'Erro ao ler o arquivo: ' + err.message;
+      errors.push(`${file.name}: ${err.message}`);
     }
-  };
-  reader.readAsArrayBuffer(file);
+  }
+
+  if (!append || !AppState.genericImportStaging) {
+    AppState.genericImportStaging = { files: [], markInvestments: true, detectTransfers: true, pairChoice: {}, errors: [] };
+  }
+  const st = AppState.genericImportStaging;
+  st.files.push(...entries);
+  st.errors = errors;
+
+  if (!st.files.length) {
+    AppState.genericImportStaging = null;
+    errorEl.textContent = errors.join(' · ') || 'Nenhum arquivo válido.';
+    return;
+  }
+  document.getElementById('generic-import-step-file').style.display = 'none';
+  document.getElementById('generic-import-preview').style.display = 'block';
+  renderGenericImportPreview();
 }
 
-function setGenericImportMapping(key, value) {
+function removeGenericFile(idx) {
   const st = AppState.genericImportStaging;
   if (!st) return;
-  st.mapping[key] = parseInt(value, 10);
+  st.files.splice(idx, 1);
+  st.pairChoice = {};
+  if (!st.files.length) { openGenericImportModal(); return; }
+  renderGenericImportPreview();
+}
+
+function setGenericImportMapping(idx, key, value) {
+  const st = AppState.genericImportStaging;
+  const f = st && st.files[idx];
+  if (!f) return;
+  f.mapping[key] = parseInt(value, 10);
   // Valor unico OU Debito/Credito separados - nunca os dois ao mesmo tempo.
-  if (key === 'amount' && st.mapping.amount >= 0) { st.mapping.debit = -1; st.mapping.credit = -1; }
-  if ((key === 'debit' || key === 'credit') && st.mapping[key] >= 0) st.mapping.amount = -1;
+  if (key === 'amount' && f.mapping.amount >= 0) { f.mapping.debit = -1; f.mapping.credit = -1; }
+  if ((key === 'debit' || key === 'credit') && f.mapping[key] >= 0) f.mapping.amount = -1;
+  if (key === 'account') f.accountMap = {};
   renderGenericImportPreview();
 }
 
-function setGenericAccountMapping(value) {
+function setGenericInvertSign(idx, checked) {
+  const f = AppState.genericImportStaging?.files[idx];
+  if (!f) return;
+  f.invertSign = checked;
+  renderGenericImportPreview();
+}
+
+function setGenericAccountChoice(idx, keyIdx, value) {
+  const f = AppState.genericImportStaging?.files[idx];
+  const key = f?.keys?.[keyIdx];
+  if (!f || key === undefined) return;
+  const cur = getAccountChoice(f, key);
+  f.accountMap[key] = value === '__create__'
+    ? { mode: 'create', existingId: null, newName: cur.newName }
+    : { mode: 'existing', existingId: value, newName: cur.newName };
+  renderGenericImportPreview();
+}
+
+function setGenericAccountName(idx, keyIdx, value) {
+  const f = AppState.genericImportStaging?.files[idx];
+  const key = f?.keys?.[keyIdx];
+  if (!f || key === undefined) return;
+  getAccountChoice(f, key).newName = value.trim() || 'Conta importada';
+  renderGenericImportPreview();
+}
+
+function setGenericFileOpen(idx, open) {
+  const f = AppState.genericImportStaging?.files[idx];
+  if (f) f.open = open;
+}
+
+function toggleGenericPair(key, checked) {
   const st = AppState.genericImportStaging;
   if (!st) return;
-  st.accountMapping = value === '__create__' ? { mode: 'create', existingId: null } : { mode: 'existing', existingId: value };
+  st.pairChoice[key] = checked;
   renderGenericImportPreview();
+}
+
+function setAllGenericPairs(checked) {
+  const st = AppState.genericImportStaging;
+  if (!st) return;
+  computeGenericImport(st).pairs.forEach(p => { st.pairChoice[p.key] = checked; });
+  renderGenericImportPreview();
+}
+
+function renderGenericFileCard(st, pf, idx) {
+  const f = pf.f;
+  const colSelect = (key, label) => {
+    const opts = `<option value="-1" ${f.mapping[key] === -1 ? 'selected' : ''}>— nenhuma —</option>` +
+      f.headers.map((h, i) => `<option value="${i}" ${f.mapping[key] === i ? 'selected' : ''}>${importEsc(h)}</option>`).join('');
+    return `
+      <div>
+        <label style="display:block; font-size:10.5px; font-weight:700; color:var(--text-sub); text-transform:uppercase; margin-bottom:3px;">${label}</label>
+        <select class="select-field" style="width:100%; font-size:12px;" onchange="setGenericImportMapping(${idx}, '${key}', this.value)">${opts}</select>
+      </div>`;
+  };
+
+  const existingAccounts = (AppState.financeAccounts || []).filter(a => !a.archived);
+  const counts = {};
+  pf.rows.forEach(r => { counts[r.accKey] = (counts[r.accKey] || 0) + 1; });
+  const accountRows = pf.keys.map((key, keyIdx) => {
+    const c = getAccountChoice(f, key);
+    const label = key === '__file__' ? 'Conta deste arquivo' : `Conta "${importEsc(key)}"`;
+    const opts = existingAccounts.map(a => `<option value="${a.id}" ${c.mode === 'existing' && c.existingId === a.id ? 'selected' : ''}>${a.icon || ''} ${importEsc(a.name)}</option>`).join('');
+    return `
+      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:12px; margin-bottom:6px;">
+        <span style="flex:1 1 140px;">${label} <span style="color:var(--text-sub);">(${counts[key]})</span></span>
+        <select class="select-field" style="flex:1 1 170px; font-size:11.5px;" onchange="setGenericAccountChoice(${idx}, ${keyIdx}, this.value)">
+          <option value="__create__" ${c.mode === 'create' ? 'selected' : ''}>+ Criar nova conta</option>
+          ${opts}
+        </select>
+        ${c.mode === 'create' ? `<input type="text" class="input-field" style="flex:1 1 150px; font-size:11.5px;" value="${importEsc(c.newName)}" onchange="setGenericAccountName(${idx}, ${keyIdx}, this.value)" placeholder="Nome da nova conta">` : ''}
+      </div>`;
+  }).join('');
+
+  const isOpen = f.open === undefined ? (st.files.length === 1 || pf.rows.length === 0) : f.open;
+  const warn = pf.rows.length === 0
+    ? `<div style="color:var(--red); font-size:12px; margin-bottom:8px;">Nenhum lançamento válido com esse mapeamento. Escolha as colunas de <strong>Data</strong> e de <strong>Valor</strong> (ou Débito/Crédito).</div>`
+    : '';
+  return `
+    <details style="border:1px solid rgba(0,0,0,0.1); border-radius:10px; padding:8px 12px; margin-bottom:8px;" ${isOpen ? 'open' : ''} ontoggle="setGenericFileOpen(${idx}, this.open)">
+      <summary style="cursor:pointer; font-size:12.5px; font-weight:600; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <span style="flex:1 1 auto; word-break:break-all;">📄 ${importEsc(f.fileName)}
+          <span style="font-weight:400; color:var(--text-sub);">— ${pf.rows.length} lançamento(s)${pf.skipped ? `, ${pf.skipped} linha(s) ignorada(s)` : ''}</span></span>
+        <button type="button" class="btn btn-secondary btn-sm" style="padding:2px 8px;" title="Remover este arquivo" onclick="event.preventDefault(); event.stopPropagation(); removeGenericFile(${idx})">✕</button>
+      </summary>
+      <div style="margin-top:10px;">
+        <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;">
+          Separador: ${{ ';': 'ponto e vírgula', ',': 'vírgula', '\t': 'tab', '|': 'barra vertical' }[f.delimiter] || importEsc(f.delimiter)};
+          ${f.headerIdx >= 0 ? `cabeçalho na linha ${f.headerIdx + 1}` : 'sem cabeçalho reconhecido (colunas adivinhadas pelo conteúdo)'}.
+        </div>
+        ${warn}
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+          ${colSelect('date', 'Data')}
+          ${colSelect('desc', 'Descrição')}
+          ${colSelect('amount', 'Valor (com sinal)')}
+          ${colSelect('type', 'Tipo (D/C) — opcional')}
+          ${colSelect('debit', 'Débito (se separado)')}
+          ${colSelect('credit', 'Crédito (se separado)')}
+          ${colSelect('account', 'Conta — opcional')}
+          ${colSelect('category', 'Categoria — opcional')}
+          ${colSelect('tags', 'Tag — opcional')}
+          ${colSelect('id', 'Identificador — opcional')}
+        </div>
+        <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; margin-bottom:10px; cursor:pointer;">
+          <input type="checkbox" ${f.invertSign ? 'checked' : ''} onchange="setGenericInvertSign(${idx}, this.checked)" style="margin-top:2px;">
+          <span>Inverter sinais (fatura de cartão, em que as compras vêm como valor positivo)</span>
+        </label>
+        ${pf.rows.length ? `<div style="margin-bottom:4px;"><strong style="font-size:12px;">Conta de destino</strong></div>${accountRows}` : ''}
+      </div>
+    </details>`;
 }
 
 function renderGenericImportPreview() {
@@ -11842,140 +11573,162 @@ function renderGenericImportPreview() {
   const container = document.getElementById('generic-import-preview');
   if (!st || !container) return;
 
-  const { rows, skipped } = buildGenericRows(st);
-  st.parsed = rows;
+  const comp = computeGenericImport(st);
+  const enabledPairs = comp.pairs.filter(p => p.enabled);
+  const nonDup = comp.all.filter(r => !r.isDup);
+  const dupCount = comp.all.length - nonDup.length;
+  const willImport = nonDup.length - enabledPairs.length;
 
-  const colSelect = (key, label) => {
-    const opts = `<option value="-1" ${st.mapping[key] === -1 ? 'selected' : ''}>— nenhuma —</option>` +
-      st.headers.map((h, i) => `<option value="${i}" ${st.mapping[key] === i ? 'selected' : ''}>${importEsc(h)}</option>`).join('');
-    return `
-      <div>
-        <label style="display:block; font-size:10.5px; font-weight:700; color:var(--text-sub); text-transform:uppercase; margin-bottom:3px;">${label}</label>
-        <select class="select-field" style="width:100%; font-size:12px;" onchange="setGenericImportMapping('${key}', this.value)">${opts}</select>
-      </div>`;
-  };
-
-  const existingAccounts = (AppState.financeAccounts || []).filter(a => !a.archived);
-  const accountOpts = existingAccounts.map(a => `<option value="${a.id}" ${st.accountMapping.existingId === a.id ? 'selected' : ''}>${a.icon || ''} ${importEsc(a.name)}</option>`).join('');
-
-  let inTotal = 0, outTotal = 0, inCount = 0, outCount = 0, investmentCount = 0;
-  const categories = {};
-  rows.forEach(r => {
-    if (r.amount >= 0) { inTotal += r.amount; inCount++; } else { outTotal += -r.amount; outCount++; }
-    if (classifyNubankRow(r).isInvestment) investmentCount++;
-    if (r.category) categories[r.category] = (categories[r.category] || 0) + 1;
+  let inTotal = 0, outTotal = 0, investmentCount = 0;
+  const pairedIds = new Set();
+  enabledPairs.forEach(p => { pairedIds.add(p.o.id); pairedIds.add(p.i.id); });
+  nonDup.forEach(r => {
+    if (classifyInvestmentRow(r).isInvestment) investmentCount++;
+    if (pairedIds.has(r.id)) return;
+    if (r.amount >= 0) inTotal += r.amount; else outTotal += -r.amount;
   });
-  const minDate = rows.reduce((a, r) => (!a || r.date < a ? r.date : a), null);
-  const maxDate = rows.reduce((a, r) => (!a || r.date > a ? r.date : a), null);
-  const delimName = { ';': 'ponto e vírgula', ',': 'vírgula', '\t': 'tab', '|': 'barra vertical' }[st.delimiter] || st.delimiter;
+  const transferTotal = enabledPairs.reduce((s, p) => s + Math.abs(p.o.amount), 0);
 
-  const sampleRows = rows.slice(0, 8).map(r => `
-    <tr>
-      <td style="padding:4px 6px; white-space:nowrap;">${NumFmt.date(r.date)}</td>
-      <td style="padding:4px 6px;">${importEsc(r.description)}</td>
-      <td style="padding:4px 6px; text-align:right; white-space:nowrap; font-weight:600; color:${r.amount >= 0 ? 'var(--green)' : 'var(--red)'};">${NumFmt.money(r.amount)}</td>
-    </tr>`).join('');
+  const pairRows = comp.pairs.map(p => `
+    <label style="display:flex; align-items:flex-start; gap:8px; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.05); font-size:11.5px; cursor:pointer;">
+      <input type="checkbox" ${p.enabled ? 'checked' : ''} onchange="toggleGenericPair('${p.key}', this.checked)" style="margin-top:2px;">
+      <span style="flex:1;">
+        <strong>${NumFmt.money(Math.abs(p.o.amount))}</strong> · ${importEsc(p.o.accountName)} → ${importEsc(p.i.accountName)}
+        <span style="color:var(--text-sub);">· ${NumFmt.date(p.o.date)}${p.diff ? ` / ${NumFmt.date(p.i.date)}` : ''}</span><br>
+        <span style="color:var(--text-sub);">${importEsc(p.o.description)} ↔ ${importEsc(p.i.description)}</span>
+      </span>
+    </label>`).join('');
 
-  const canImport = rows.length > 0;
+  const errorsHtml = (st.errors || []).length
+    ? `<div style="color:var(--red); font-size:12px; margin-bottom:8px;">${st.errors.map(importEsc).join('<br>')}</div>` : '';
 
   container.innerHTML = `
-    <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px; line-height:1.5;">
-      Arquivo <strong>${importEsc(st.fileName)}</strong> — separador: ${delimName}; ${st.headerIdx >= 0 ? `cabeçalho encontrado na linha ${st.headerIdx + 1}` : 'sem cabeçalho reconhecido (colunas adivinhadas pelo conteúdo)'}.
-      Confira se as colunas abaixo estão certas; a prévia atualiza na hora.
+    ${errorsHtml}
+    <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px; line-height:1.5;">
+      ${st.files.length} arquivo(s). Confira as colunas e a conta de cada um; a prévia atualiza na hora.
     </div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
-      ${colSelect('date', 'Data')}
-      ${colSelect('desc', 'Descrição')}
-      ${colSelect('amount', 'Valor (com sinal)')}
-      ${colSelect('type', 'Tipo (D/C) — opcional')}
-      ${colSelect('debit', 'Débito (se separado)')}
-      ${colSelect('credit', 'Crédito (se separado)')}
-      ${colSelect('id', 'Identificador — opcional')}
-      ${colSelect('category', 'Categoria — opcional')}
+    ${comp.perFile.map((pf, i) => renderGenericFileCard(st, pf, i)).join('')}
+    <div style="margin:12px 0 8px;">
+      <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; margin-bottom:8px; cursor:pointer;">
+        <input type="checkbox" ${st.detectTransfers ? 'checked' : ''} onchange="AppState.genericImportStaging.detectTransfers = this.checked; renderGenericImportPreview();" style="margin-top:2px;">
+        <span>Identificar transferências entre contas (saída numa conta + entrada de mesmo valor em outra, até 3 dias de diferença)</span>
+      </label>
+      <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; cursor:pointer;">
+        <input type="checkbox" ${st.markInvestments ? 'checked' : ''} onchange="AppState.genericImportStaging.markInvestments = this.checked; renderGenericImportPreview();" style="margin-top:2px;">
+        <span>Marcar ${investmentCount} lançamento(s) com "RDB"/"Tesouro Direto" como Aporte/Resgate de Investimento</span>
+      </label>
     </div>
-    <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; margin-bottom:8px; cursor:pointer;">
-      <input type="checkbox" ${st.invertSign ? 'checked' : ''} onchange="AppState.genericImportStaging.invertSign = this.checked; renderGenericImportPreview();" style="margin-top:2px;">
-      <span>Inverter sinais (use em fatura de cartão, em que as compras vêm como valor positivo)</span>
-    </label>
-    <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; margin-bottom:12px; cursor:pointer;">
-      <input type="checkbox" ${st.markInvestments ? 'checked' : ''} onchange="AppState.genericImportStaging.markInvestments = this.checked; renderGenericImportPreview();" style="margin-top:2px;">
-      <span>Marcar ${investmentCount} lançamento(s) com "RDB"/"Tesouro Direto" como Aporte/Resgate de Investimento</span>
-    </label>
+    ${st.detectTransfers ? (comp.pairs.length ? `
     <div style="margin-bottom:12px;">
-      <label style="display:block; font-size:11px; font-weight:700; color:var(--text-sub); text-transform:uppercase; margin-bottom:5px;">Conta de destino</label>
-      <select class="select-field" style="width:100%; margin-bottom:8px;" onchange="setGenericAccountMapping(this.value)">
-        <option value="__create__" ${st.accountMapping.mode === 'create' ? 'selected' : ''}>+ Criar nova conta</option>
-        ${accountOpts}
-      </select>
-      ${st.accountMapping.mode === 'create' ? `<input type="text" class="input-field" value="${importEsc(st.newAccountName)}" oninput="AppState.genericImportStaging.newAccountName = this.value" placeholder="Nome da nova conta" style="width:100%;">` : ''}
-    </div>
-    ${canImport ? `
-    <div style="background:rgba(0,0,0,0.03); border-radius:var(--radius-md); padding:10px 14px; margin-bottom:12px; font-size:12.5px; line-height:1.6;">
-      <strong>${rows.length}</strong> lançamentos lidos, de ${NumFmt.date(minDate)} a ${NumFmt.date(maxDate)}${skipped > 0 ? ` (${skipped} linha(s) ignorada(s): cabeçalhos extras, totais, saldos ou sem data/valor)` : ''}.<br>
-      <span style="color:var(--green);">Entradas: ${inCount} (${NumFmt.money(inTotal)})</span> ·
-      <span style="color:var(--red);">Saídas: ${outCount} (${NumFmt.money(outTotal)})</span>
-      ${Object.keys(categories).length ? `<br>${Object.keys(categories).length} categoria(s) do arquivo serão usadas (as que não existirem serão criadas).` : '<br>Sem coluna de categoria: entram como "Outros" (ou pela sua regra de categorização automática).'}
-    </div>
-    <div style="max-height:190px; overflow:auto; margin-bottom:12px; border:1px solid rgba(0,0,0,0.08); border-radius:8px;">
-      <table style="width:100%; font-size:11.5px; border-collapse:collapse;">
-        <tbody>${sampleRows}</tbody>
-      </table>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+        <strong style="font-size:12px; flex:1;">🔁 ${comp.pairs.length} possível(is) transferência(s) entre contas (${enabledPairs.length} marcada(s))</strong>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="setAllGenericPairs(true)">Marcar todas</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="setAllGenericPairs(false)">Desmarcar todas</button>
+      </div>
+      <div style="max-height:220px; overflow:auto; border:1px solid rgba(0,0,0,0.08); border-radius:8px;">${pairRows}</div>
+      <div style="font-size:11px; color:var(--text-sub); margin-top:4px;">Marcadas viram uma única transferência (não entram como despesa nem como receita). As com "pix/ted/transferência" na descrição ou no mesmo dia já vêm marcadas; confira as demais.</div>
     </div>` : `
-    <div style="background:rgba(163,39,31,0.08); color:var(--red); border-radius:var(--radius-md); padding:10px 14px; margin-bottom:12px; font-size:12.5px;">
-      Nenhum lançamento válido com esse mapeamento. Escolha as colunas de <strong>Data</strong> e de <strong>Valor</strong> (ou Débito/Crédito) acima.
-    </div>`}
-    <div style="display:flex; gap:10px;">
-      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeGenericImportModal()">Cancelar</button>
-      <button type="button" class="btn btn-success" style="flex:1;" ${canImport ? '' : 'disabled'} onclick="handleConfirmGenericImport()">Importar ${rows.length} Lançamentos</button>
+    <div style="font-size:12px; color:var(--text-sub); margin-bottom:12px;">Nenhuma transferência entre contas encontrada${st.files.length < 2 ? ' (adicione o extrato da outra conta para cruzar)' : ''}.</div>`) : ''}
+    <div style="background:rgba(0,0,0,0.03); border-radius:var(--radius-md); padding:10px 14px; margin-bottom:12px; font-size:12.5px; line-height:1.6;">
+      <strong>${willImport}</strong> lançamento(s) serão criados${enabledPairs.length ? `, sendo <strong>${enabledPairs.length}</strong> transferência(s) entre contas (${NumFmt.money(transferTotal)})` : ''}.<br>
+      <span style="color:var(--green);">Entradas: ${NumFmt.money(inTotal)}</span> ·
+      <span style="color:var(--red);">Saídas: ${NumFmt.money(outTotal)}</span>${dupCount ? `<br>${dupCount} linha(s) já importada(s) antes serão ignoradas.` : ''}
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button type="button" class="btn btn-secondary" style="flex:1 1 120px;" onclick="closeGenericImportModal()">Cancelar</button>
+      <button type="button" class="btn btn-secondary" style="flex:1 1 160px;" onclick="document.getElementById('generic-import-add-input').click()">＋ Adicionar arquivos</button>
+      <button type="button" class="btn btn-success" style="flex:2 1 200px;" ${willImport > 0 ? '' : 'disabled'} onclick="handleConfirmGenericImport()">Importar ${willImport} Lançamentos</button>
     </div>
   `;
 }
 
 function handleConfirmGenericImport() {
   const st = AppState.genericImportStaging;
-  if (!st || !st.parsed.length) return;
+  if (!st) return;
+  const comp = computeGenericImport(st);
+  const existingImportIds = comp.existingIds;
+  const rowFile = {};
+  comp.perFile.forEach(pf => pf.rows.forEach(r => { rowFile[r.id] = pf.f; }));
 
-  let accountId;
-  if (st.accountMapping.mode === 'existing' && st.accountMapping.existingId) {
-    accountId = st.accountMapping.existingId;
-  } else {
-    const name = (st.newAccountName || '').trim() || 'Conta importada';
+  // Contas: as existentes direto; as novas sao criadas na hora (uma so por nome).
+  const accountIdByIdentity = {};
+  const getAccountId = (row) => {
+    const f = rowFile[row.id];
+    const choice = getAccountChoice(f, row.accKey);
+    if (choice.mode === 'existing' && choice.existingId) return choice.existingId;
+    if (accountIdByIdentity[row.identity]) return accountIdByIdentity[row.identity];
     const newAcc = {
       id: 'facc_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-      name, type: 'checking', icon: '🏦',
+      name: (choice.newName || 'Conta importada').trim() || 'Conta importada',
+      type: 'checking', icon: '🏦',
       color: CHART_COLOR_PALETTE[AppState.financeAccounts.length % CHART_COLOR_PALETTE.length],
       initialBalance: 0, initialBalanceDate: new Date().toISOString().slice(0, 10),
       archived: false, createdAt: new Date().toISOString(),
       creditLimit: null, closingDay: null, dueDay: null, paidInvoiceMonths: []
     };
     AppState.financeAccounts.push(newAcc);
-    accountId = newAcc.id;
-  }
+    accountIdByIdentity[row.identity] = newAcc.id;
+    return newAcc.id;
+  };
 
   const categoryIdByName = {};
-  st.parsed.forEach(r => {
-    if (!r.category || categoryIdByName[r.category]) return;
-    const existing = AppState.financeCategories.find(c => c.name.toLowerCase() === r.category.toLowerCase());
-    if (existing) { categoryIdByName[r.category] = existing.id; return; }
-    const newCat = {
-      id: 'cat_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-      name: r.category, icon: '📥', color: CHART_COLOR_PALETTE[AppState.financeCategories.length % CHART_COLOR_PALETTE.length],
-      appliesTo: ['expense', 'income'], isCustom: true, archived: false
-    };
-    AppState.financeCategories.push(newCat);
-    categoryIdByName[r.category] = newCat.id;
-  });
-
+  const getCategoryId = (name) => {
+    if (!name) return null;
+    const lower = name.toLowerCase();
+    if (categoryIdByName[lower]) return categoryIdByName[lower];
+    let cat = AppState.financeCategories.find(c => c.name.toLowerCase() === lower);
+    if (!cat) {
+      cat = {
+        id: 'cat_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
+        name, icon: '📥', color: CHART_COLOR_PALETTE[AppState.financeCategories.length % CHART_COLOR_PALETTE.length],
+        appliesTo: ['expense', 'income'], isCustom: true, archived: false
+      };
+      AppState.financeCategories.push(cat);
+    }
+    categoryIdByName[lower] = cat.id;
+    return cat.id;
+  };
   const outrosCategory = (AppState.financeCategories || []).find(c => c.name.toLowerCase() === 'outros');
   const outrosCategoryId = outrosCategory ? outrosCategory.id : null;
 
-  const existingImportIds = new Set((AppState.financeTransactions || []).filter(t => t.importId).map(t => t.importId));
-  let imported = 0, skippedDuplicate = 0;
+  const baseTx = () => ({
+    notes: '', tags: [], source: 'import', transferAccountId: null, investmentDirection: null,
+    isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
+    fixedCostId: null, goalId: null, goalDirection: null, ignored: false, pending: false, splitGroupId: null
+  });
+
+  let imported = 0, transfersCreated = 0, skippedDuplicate = 0;
   const newTxs = [];
   const matchedManualIds = new Set();
   const matchedManual = [];
+  const handledRowIds = new Set();
+  comp.all.forEach(r => { if (r.isDup) { skippedDuplicate++; handledRowIds.add(r.id); } });
 
-  st.parsed.forEach(row => {
+  // 1) Transferencias entre contas (pares marcados)
+  comp.pairs.filter(p => p.enabled).forEach(p => {
+    handledRowIds.add(p.o.id); handledRowIds.add(p.i.id);
+    const fromId = getAccountId(p.o), toId = getAccountId(p.i);
+    const amount = Math.abs(p.o.amount);
+    const importId = `csvtr_${fromId}_${p.o.key}__${toId}_${p.i.key}`;
+    if (existingImportIds.has(importId)) { skippedDuplicate++; return; }
+    existingImportIds.add(importId);
+    const manual = findManualTransferMatch(matchedManualIds, fromId, toId, amount, p.o.date);
+    if (manual) { matchedManual.push(manual); return; }
+    newTxs.push({
+      ...baseTx(),
+      id: 'ftx_' + Date.now() + '_t' + transfersCreated + '_' + Math.floor(Math.random() * 100000),
+      type: 'transfer', description: p.o.description, amount, date: p.o.date,
+      accountId: fromId, transferAccountId: toId, categoryId: null,
+      notes: p.i.description && p.i.description !== p.o.description ? `Entrada na outra conta: ${p.i.description}` : '',
+      importId, originalAccountLabel: `CSV: ${p.o.fileLabel} ↔ ${p.i.fileLabel}`
+    });
+    transfersCreated++;
+  });
+
+  // 2) Demais linhas: receita / despesa / investimento
+  comp.all.forEach(row => {
+    if (handledRowIds.has(row.id)) return;
+    const accountId = getAccountId(row);
     const importId = 'csv_' + accountId + '_' + row.key;
     if (existingImportIds.has(importId)) { skippedDuplicate++; return; }
     existingImportIds.add(importId);
@@ -11985,21 +11738,22 @@ function handleConfirmGenericImport() {
 
     const amount = Math.abs(row.amount);
     let type, categoryId = null, investmentDirection = null;
-    if (st.markInvestments && classifyNubankRow(row).isInvestment) {
+    if (st.markInvestments && classifyInvestmentRow(row).isInvestment) {
       type = 'investment';
       investmentDirection = row.amount >= 0 ? 'redemption' : 'contribution';
     } else {
       type = row.amount >= 0 ? 'income' : 'expense';
-      categoryId = (row.category && categoryIdByName[row.category]) || matchFinanceCategoryRule(row.description) || outrosCategoryId;
+      const isOutros = !row.category || row.category.toLowerCase() === 'outros';
+      categoryId = isOutros
+        ? (matchFinanceCategoryRule(row.description) || (row.category ? getCategoryId(row.category) : outrosCategoryId))
+        : getCategoryId(row.category);
     }
-
     newTxs.push({
+      ...baseTx(),
       id: 'ftx_' + Date.now() + '_' + imported + '_' + Math.floor(Math.random() * 100000),
       type, description: row.description, amount, date: row.date, accountId, categoryId,
-      notes: '', tags: [], source: 'import', importId, originalAccountLabel: 'CSV: ' + st.fileName,
-      transferAccountId: null, investmentDirection,
-      isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-      fixedCostId: null, goalId: null, goalDirection: null, ignored: false, pending: false, splitGroupId: null
+      tags: row.tag ? [row.tag] : [], importId, originalAccountLabel: 'CSV: ' + row.fileLabel,
+      investmentDirection
     });
     imported++;
   });
@@ -12009,12 +11763,13 @@ function handleConfirmGenericImport() {
   localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
   localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
 
-  if (imported > 0) logFinanceChange('import', 'transacao', `${imported} lançamento(s) importados de CSV (${st.fileName})`);
+  const total = imported + transfersCreated;
+  if (total > 0) logFinanceChange('import', 'transacao', `${total} lançamento(s) importados de CSV (${st.files.map(f => f.fileName).join(', ')}), ${transfersCreated} transferência(s) entre contas`);
   logImportManualMatches(matchedManual);
   AppState.genericImportStaging = null;
   closeGenericImportModal();
   renderFinanceView();
-  showToast(`${imported} lançamento(s) importados do CSV (${skippedDuplicate} duplicado(s) ignorado(s), ${matchedManual.length} já lançado(s) no app).`, 'success');
+  showToast(`${total} lançamento(s) importados (${transfersCreated} transferência(s) entre contas, ${skippedDuplicate} já importado(s) antes, ${matchedManual.length} já lançado(s) no app).`, 'success');
 }
 
 // ==========================================
@@ -16672,8 +16427,7 @@ async function initApp() {
       closeFinanceTransactionModal();
       closeFinanceAccountModal();
       closeFinanceCategoryModal();
-      closeFinanceImportModal();
-      closeNubankImportModal();
+      closeGenericImportModal();
       closeFinanceHistoryModal();
       closeFinanceGoalModal();
       closeFinanceFixedCostModal();
