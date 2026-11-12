@@ -8,7 +8,14 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "iniciar_servidor_mobile.bat"
+      "iniciar_servidor_mobile.bat",
+      "**/*.csv",
+      "**/*.ofx",
+      "**/*.qif",
+      "**/*.xls",
+      "**/*.xlsx",
+      "**/extrato*",
+      "**/fatura*"
     ],
     "rewrites": [
       {

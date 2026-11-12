@@ -2,3 +2,12 @@
 Thumbs.db
 *.tmp
 .firebase/
+
+# Extratos/faturas bancarios nunca devem ir pro Git nem pro site publico
+*.csv
+*.ofx
+*.qif
+*.xls
+*.xlsx
+extrato*
+fatura*
