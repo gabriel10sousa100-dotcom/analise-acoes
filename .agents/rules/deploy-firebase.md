@@ -2,12 +2,11 @@
 trigger: always_on
 ---
 
-# Publicar sempre no Firebase
+# Publicação automática no Firebase
 
 O usuário usa o app pelo link publicado https://analise-acoes-b3.web.app (Firebase Hosting, site `analise-acoes-b3`).
 
-- Depois de QUALQUER alteração no app (index.html, sw.js, manifest.json, ícones etc.), publique no Firebase sem perguntar:
-  `firebase.cmd deploy --only hosting` (use `firebase.cmd`, pois o `firebase.ps1` é bloqueado pela política de execução do PowerShell; precisa de rede).
-- Antes de publicar, valide a sintaxe do JavaScript inline do index.html.
-- Ao terminar, informe que foi publicado e que basta recarregar o site.
+- A publicação é feita pelo GitHub Actions quando uma alteração entra na branch `main`. O fluxo valida o JavaScript do `index.html`, publica somente o Firebase Hosting e confere a versão servida pelo site.
+- Confira o resultado da execução **Publicar site no Firebase** antes de informar que a atualização está no ar.
+- A conexão inicial com o projeto do Google Cloud é configurada por `.github/scripts/autorizar-firebase.sh`.
 
