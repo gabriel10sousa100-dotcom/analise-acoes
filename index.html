@@ -432,17 +432,17 @@
     .modal-close { background: transparent; border: none; font-size: 18px; color: var(--text-sub); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-sm); transition: all 0.15s; }
     .modal-close:hover { color: var(--text); background: rgba(0, 0, 0, 0.08); }
 
-    .import-review-dialog {
+    .finance-dialog {
       position: fixed;
       inset: 0;
       margin: auto;
-      width: min(920px, calc(100% - 24px));
-      max-width: none;
+      width: calc(100% - 24px);
       height: fit-content;
       max-height: calc(100dvh - 24px);
       color: var(--text);
     }
-    .import-review-dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+    .finance-dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+    .import-review-dialog { max-width: 920px; }
     .import-review-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
     .import-review-table { max-height: 34vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
     .import-review-table th, .import-review-table td { padding: 8px; vertical-align: top; }
@@ -1060,6 +1060,7 @@
               </select>
               <button class="btn btn-secondary btn-sm" id="finance-calendar-toggle-btn" onclick="toggleFinanceCalendar()">📅 Ver Calendário</button>
               <button class="btn btn-secondary btn-sm" onclick="handleExportFinanceCsv()">📤 Exportar CSV</button>
+              <button class="btn btn-secondary btn-sm" style="color:var(--red);" onclick="openFinanceMonthDeleteDialog()">Excluir movimentações do mês</button>
               <button class="btn btn-success btn-sm" onclick="openFinanceTransactionModal()">+ Novo Lançamento</button>
             </div>
           </div>
@@ -2411,6 +2412,27 @@
   </div>
 </div>
 
+<dialog class="modal-box finance-dialog" id="finance-month-delete-dialog" aria-labelledby="finance-month-delete-title"
+        onkeydown="if (event.key === 'Escape') event.stopPropagation()">
+  <div class="modal-header">
+    <h2 class="modal-title" id="finance-month-delete-title">Excluir movimentações do mês</h2>
+  </div>
+  <form onsubmit="handleDeleteFinanceMonth(event)" onchange="updateFinanceMonthDeletePreview(this)">
+    <p style="font-size:13px; margin-bottom:12px;">Mês selecionado: <strong id="finance-month-delete-period"></strong>.</p>
+    <div style="display:grid; gap:8px; margin-bottom:12px; font-size:13px;">
+      <label for="finance-month-delete-account">Conta</label>
+      <select class="select-field" id="finance-month-delete-account" name="accountId"></select>
+      <label><input type="checkbox" name="importedOnly"> Apenas importadas</label>
+    </div>
+    <p id="finance-month-delete-preview" style="font-size:13px; margin-bottom:8px;" aria-live="polite"></p>
+    <p style="font-size:12px; color:var(--red); margin-bottom:14px;">A exclusão usa a data do lançamento e é definitiva.</p>
+    <div style="display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px;">
+      <button type="button" class="btn btn-secondary" autofocus onclick="this.closest('dialog').close()">Cancelar</button>
+      <button type="submit" class="btn btn-danger" id="finance-month-delete-confirm">Excluir movimentações</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- ========================================== -->
 <!-- MODAL: LANÇAR / EDITAR CONTA FINANCEIRA    -->
 <!-- ========================================== -->
@@ -2534,7 +2556,7 @@
     <div id="generic-import-preview" style="display:none;"></div>
     <input type="file" accept=".csv,.txt,.pdf,.png,.jpg,.jpeg,.webp,text/csv,application/pdf,image/*" multiple id="generic-import-add-input" style="display:none;" onchange="handleGenericFilesSelected(event, true)">
   </div>
-  <dialog id="generic-import-review" class="modal-box import-review-dialog" aria-labelledby="generic-import-review-title"
+  <dialog id="generic-import-review" class="modal-box finance-dialog import-review-dialog" aria-labelledby="generic-import-review-title"
           onkeydown="if (event.key === 'Escape') event.stopPropagation()">
     <div class="modal-header">
       <h2 class="modal-title" id="generic-import-review-title">Revisar movimentações</h2>
@@ -4679,6 +4701,9 @@ const AppState = {
   txs.forEach(tx => {
     const card = cards.get(tx.accountId);
     if (!card || tx.type !== 'expense' || !tx.isCardPurchase || !tx.date) return;
+    // Sem a primeira parcela, a data encurtada da parcela restante não
+    // basta para reconstruir o ciclo que já foi calculado e salvo.
+    if (tx.installmentNumber > 1 && tx.invoiceMonth && !firstDates[tx.installmentGroupId]) return;
     const expected = getExpectedCardInvoiceMonth(card, tx, firstDates);
     if (tx.invoiceMonth !== expected) { tx.invoiceMonth = expected; txDirty = true; }
   });
@@ -9160,15 +9185,17 @@ function renderFinanceUsageChart(kind) {
 function renderFinanceCardUsageChart() { renderFinanceUsageChart('card'); }
 function renderFinanceAccountUsageChart() { renderFinanceUsageChart('account'); }
 
+function formatFinanceMonth(month) {
+  const [year, number] = month.split('-').map(Number);
+  const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  return `${months[number - 1]} ${year}`;
+}
+
 async function renderFinanceView() {
   applyFinanceLayout();
   ensureDefaultFinanceCategoriesPresent();
   const monthLabel = document.getElementById('finance-active-month-label');
-  if (monthLabel) {
-    const [y, m] = AppState.financeActiveMonth.split('-').map(Number);
-    const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    monthLabel.textContent = `${monthNames[m - 1]} ${y}`;
-  }
+  if (monthLabel) monthLabel.textContent = formatFinanceMonth(AppState.financeActiveMonth);
   // Garante stockMap atualizado pra o Patrimonio Liquido usar cotacao de
   // mercado real, nao a que por acaso ja estava em cache de uma visita
   // anterior a outra aba (mesmo padrao de renderPortfolioView).
@@ -10937,6 +10964,127 @@ function handleDeleteFinanceInstallmentGroup(groupId) {
   logFinanceChange('delete', 'transacao', `Lançamento parcelado "${baseDesc}" (${count} parcelas) excluído`);
   renderFinanceView();
   showToast('Lançamento parcelado excluído.', 'info');
+}
+
+function getFinanceMonthDeletion(form) {
+  const month = form.closest('dialog').dataset.month;
+  const accountId = form.elements.accountId.value;
+  const importedOnly = form.elements.importedOnly.checked;
+  const transactions = (AppState.financeTransactions || []).filter(tx =>
+    (tx.date || '').slice(0, 7) === month
+    && (accountId === 'all' || tx.accountId === accountId || tx.transferAccountId === accountId)
+    && (!importedOnly || tx.source === 'import' || tx.importId));
+  return { month, accountId, importedOnly, transactions };
+}
+
+function openFinanceMonthDeleteDialog() {
+  const dialog = document.getElementById('finance-month-delete-dialog');
+  const form = dialog.querySelector('form');
+  dialog.dataset.month = AppState.financeActiveMonth;
+  document.getElementById('finance-month-delete-period').textContent = formatFinanceMonth(dialog.dataset.month);
+  form.elements.accountId.replaceChildren(new Option('Todas as contas', 'all'),
+    ...(AppState.financeAccounts || []).map(account =>
+      new Option(account.name + (account.archived ? ' (arquivada)' : ''), account.id)));
+  form.reset();
+  updateFinanceMonthDeletePreview(form);
+  dialog.showModal();
+}
+
+function updateFinanceMonthDeletePreview(form, prefix = '') {
+  const { transactions, accountId } = getFinanceMonthDeletion(form);
+  const count = transactions.length;
+  const scheduled = transactions.filter(tx => tx.pending).length;
+  const preview = [];
+  if (prefix) preview.push(prefix);
+  if (count === 0) preview.push('Nenhuma movimentação para excluir com esta seleção.');
+  else preview.push(count === 1 ? '1 movimentação será excluída.' : `${count} movimentações serão excluídas.`);
+  if (scheduled) preview.push(scheduled === 1 ? 'Inclui 1 pagamento programado.' : `Inclui ${scheduled} pagamentos programados.`);
+  if (accountId !== 'all' && transactions.some(tx => tx.type === 'transfer' && tx.transferAccountId)) {
+    preview.push('Excluir uma transferência altera o saldo das duas contas envolvidas.');
+  }
+  document.getElementById('finance-month-delete-preview').textContent = preview.join(' ');
+  const button = document.getElementById('finance-month-delete-confirm');
+  button.disabled = !count;
+  button.textContent = count === 1 ? 'Excluir 1 movimentação' : `Excluir ${count} movimentações`;
+  form.closest('dialog').dataset.selection = JSON.stringify(transactions.map(tx => tx.id));
+}
+
+function getFinancePaymentMarks(transactions) {
+  const invoices = new Set();
+  const fixedCosts = new Set();
+  for (const tx of transactions) {
+    if (tx.cardInvoicePayment) {
+      const { cardId, invoiceMonth } = tx.cardInvoicePayment;
+      invoices.add(`${cardId}|${invoiceMonth}`);
+    }
+    if (tx.fixedCostId) fixedCosts.add(`${tx.fixedCostId}|${tx.fixedCostMonth || getEffectiveMonth(tx)}`);
+  }
+  return { invoices, fixedCosts };
+}
+
+function clearDeletedFinancePaymentMarks(deleted, remaining) {
+  const removed = getFinancePaymentMarks(deleted);
+  if (!removed.invoices.size && !removed.fixedCosts.size) return;
+  const retained = getFinancePaymentMarks(remaining);
+  let accountsChanged = false;
+  for (const account of AppState.financeAccounts || []) {
+    const paid = account.paidInvoiceMonths || [];
+    const kept = paid.filter(month => {
+      const key = `${account.id}|${month}`;
+      return !removed.invoices.has(key) || retained.invoices.has(key);
+    });
+    if (kept.length !== paid.length) {
+      account.paidInvoiceMonths = kept;
+      accountsChanged = true;
+    }
+  }
+  if (accountsChanged) localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+
+  let costsChanged = false;
+  for (const cost of AppState.financeFixedCosts || []) {
+    const paid = cost.paidMonths || [];
+    const kept = paid.filter(month => {
+      const key = `${cost.id}|${month}`;
+      return !removed.fixedCosts.has(key) || retained.fixedCosts.has(key);
+    });
+    if (kept.length !== paid.length) {
+      cost.paidMonths = kept;
+      costsChanged = true;
+    }
+  }
+  if (costsChanged) localStorage.setItem('b3_finance_fixed_costs', JSON.stringify(AppState.financeFixedCosts));
+}
+
+function handleDeleteFinanceMonth(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const dialog = form.closest('dialog');
+  if (!dialog.open) return;
+  const { month, importedOnly, transactions } = getFinanceMonthDeletion(form);
+  const ids = transactions.map(tx => tx.id);
+  if (JSON.stringify(ids) !== dialog.dataset.selection) {
+    updateFinanceMonthDeletePreview(form, 'Os lançamentos mudaram. Confira a seleção atualizada.');
+    return;
+  }
+  if (!ids.length) return;
+  const stored = localStorage.getItem('b3_finance_transactions');
+  if (stored && stored !== JSON.stringify(AppState.financeTransactions)) {
+    dialog.close();
+    showToast('Os lançamentos mudaram em outra aba. Recarregue a página para conferir antes de excluir.', 'warn');
+    return;
+  }
+  const deleted = new Set(transactions);
+  const remaining = AppState.financeTransactions.filter(tx => !deleted.has(tx));
+  localStorage.setItem('b3_finance_transactions', JSON.stringify(remaining));
+  AppState.financeTransactions = remaining;
+  clearDeletedFinancePaymentMarks(transactions, remaining);
+  const description = ids.length === 1
+    ? `1 movimentação${importedOnly ? ' importada' : ''} de ${formatFinanceMonth(month)} excluída.`
+    : `${ids.length} movimentações${importedOnly ? ' importadas' : ''} de ${formatFinanceMonth(month)} excluídas.`;
+  logFinanceChange('delete', 'transacao', description);
+  dialog.close();
+  renderFinanceView();
+  showToast(description, 'info');
 }
 
 // ---------- MODAL: CONTA ----------
