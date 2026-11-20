@@ -444,6 +444,7 @@
     .finance-dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
     .import-review-dialog { max-width: 920px; }
     .import-review-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .import-review-controls [aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
     .import-review-table { max-height: 34vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
     .import-review-table th, .import-review-table td { padding: 8px; vertical-align: top; }
     .import-review-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; margin: 8px 0; }
@@ -2568,6 +2569,8 @@
     <div class="import-review-controls">
       <input type="search" id="generic-import-review-search" class="input-field" aria-label="Buscar descrição"
              placeholder="Buscar descrição" autofocus style="flex:1 1 180px;" oninput="renderGenericImportReview()">
+      <button type="button" class="btn btn-secondary btn-sm" id="generic-import-review-others" aria-pressed="false"
+              aria-controls="generic-import-review-rows" onclick="toggleImportReviewOthers()">Só Outros</button>
       <label style="font-size:12px;"><input type="checkbox" id="generic-import-review-selected" onchange="renderGenericImportReview()"> Só selecionadas</label>
       <button type="button" class="btn btn-secondary btn-sm" onclick="selectVisibleImportRows()">Marcar visíveis</button>
       <button type="button" class="btn btn-secondary btn-sm" onclick="clearImportRowSelection()">Limpar seleção</button>
@@ -12592,7 +12595,8 @@ function openGenericImportReview() {
       similarName: getImportDescriptionName(row.description)
     };
   });
-  st.review = { rows, selected: new Set() };
+  const categoryNames = new Map((AppState.financeCategories || []).map(c => [c.id, c.name]));
+  st.review = { rows, categoryNames, selected: new Set(), othersOnly: false };
   document.getElementById('generic-import-review-search').value = '';
   document.getElementById('generic-import-review-selected').checked = false;
   document.getElementById('generic-import-review-form').reset();
@@ -12600,8 +12604,22 @@ function openGenericImportReview() {
   document.getElementById('generic-import-review').showModal();
 }
 
-function getVisibleImportReviewRows(st) {
-  const { rows, selected } = st.review;
+function getImportReviewCategoryName(st, row, details) {
+  if (details.categoryId === undefined) return row.category || 'Outros';
+  return st.review.categoryNames.get(details.categoryId) || 'Sem categoria';
+}
+
+function getImportReviewCategoryRows(st) {
+  if (!st.review.othersOnly) return st.review.rows;
+  return st.review.rows.filter(row => {
+    if (row.locked) return false;
+    const details = getGenericImportRowDetails(st, row);
+    return importNorm(getImportReviewCategoryName(st, row, details)) === 'outros';
+  });
+}
+
+function getVisibleImportReviewRows(st, rows = getImportReviewCategoryRows(st)) {
+  const { selected } = st.review;
   const query = importNorm(document.getElementById('generic-import-review-search').value);
   const selectedOnly = document.getElementById('generic-import-review-selected').checked;
   return rows.filter(row => (!selectedOnly || selected.has(row.id))
@@ -12609,17 +12627,27 @@ function getVisibleImportReviewRows(st) {
       || importNorm(st.rowEdits.get(row.id)?.description).includes(query)));
 }
 
+function toggleImportReviewOthers() {
+  const review = AppState.genericImportStaging.review;
+  review.othersOnly = !review.othersOnly;
+  renderGenericImportReview();
+}
+
 function renderGenericImportReview(message = '') {
   const st = AppState.genericImportStaging;
   if (!st?.review) return;
-  const { selected } = st.review;
-  const categories = new Map((AppState.financeCategories || []).map(c => [c.id, c.name]));
-  const rows = getVisibleImportReviewRows(st);
+  const { selected, othersOnly } = st.review;
+  const categoryRows = getImportReviewCategoryRows(st);
+  document.getElementById('generic-import-review-others').setAttribute('aria-pressed', String(othersOnly));
+  if (othersOnly && selected.size) {
+    const categoryIds = new Set(categoryRows.map(row => row.id));
+    selected.forEach(id => { if (!categoryIds.has(id)) selected.delete(id); });
+    if (!selected.size) document.getElementById('generic-import-review-selected').checked = false;
+  }
+  const rows = getVisibleImportReviewRows(st, categoryRows);
   document.getElementById('generic-import-review-rows').innerHTML = rows.map(row => {
     const details = getGenericImportRowDetails(st, row);
-    const category = details.categoryId !== undefined
-      ? categories.get(details.categoryId)
-      : row.category || 'Outros';
+    const category = getImportReviewCategoryName(st, row, details);
     const type = row.type === 'expense' ? 'Despesa' : 'Receita';
     const id = importEsc(row.id);
     const sub = details.description === row.description ? '' : `<br><small>Original: ${importEsc(row.description)}</small>`;
@@ -12630,7 +12658,7 @@ function renderGenericImportReview(message = '') {
         ${row.locked || !row.similarName ? '' : `<br><button type="button" class="btn btn-secondary btn-sm" data-row-id="${id}"
           onclick="selectSimilarImportRows(this.dataset.rowId)">Selecionar semelhantes</button>`}</td>
       <td style="white-space:nowrap;">${NumFmt.money(row.amount)}</td>
-      <td>${row.locked ? row.locked : `${type}${row.ignored ? ' · Ignorada' : ''}<br>${importEsc(category || 'Sem categoria')}
+      <td>${row.locked ? row.locked : `${type}${row.ignored ? ' · Ignorada' : ''}<br>${importEsc(category)}
         ${details.tag ? `<br><small>Tag: ${importEsc(details.tag)}</small>` : ''}
         ${details.notes ? `<br><small>Obs.: ${importEsc(details.notes)}</small>` : ''}
         ${st.rowEdits.has(row.id) ? '<br><small>Ajustada na prévia</small>' : ''}`}</td>
@@ -12665,7 +12693,9 @@ function toggleImportReviewRow(input) {
 }
 
 function selectSimilarImportRows(id) {
-  const { rows, selected } = AppState.genericImportStaging.review;
+  const st = AppState.genericImportStaging;
+  const { selected } = st.review;
+  const rows = getImportReviewCategoryRows(st);
   const anchor = rows.find(row => row.id === id && !row.locked);
   if (!anchor) return;
   selected.clear();
