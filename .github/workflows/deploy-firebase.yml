@@ -1,0 +1,71 @@
+name: Publicar site no Firebase
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: firebase-hosting-production
+  cancel-in-progress: false
+
+jobs:
+  hosting:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Validar JavaScript do aplicativo
+        run: |
+          node <<'JS'
+          const { readFileSync } = require('node:fs');
+          const { Script } = require('node:vm');
+          const html = readFileSync('index.html', 'utf8');
+          const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+            .map(match => match[1]).filter(script => script.trim());
+          if (!scripts.length) throw new Error('Nenhum script encontrado no index.html');
+          scripts.forEach((script, index) => new Script(script, { filename: `index.html (script ${index + 1})` }));
+          JS
+      - name: Preparar arquivos e Firebase CLI
+        run: |
+          # O diretório de publicação recebe somente arquivos do commit.
+          mkdir "$RUNNER_TEMP/firebase-hosting"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/firebase-hosting"
+          npm install --global --prefix "$RUNNER_TEMP/firebase-cli" firebase-tools@14.27.0
+      - name: Autorizar publicação no Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: analise-de-acoes-531a3
+          workload_identity_provider: projects/324263476770/locations/global/workloadIdentityPools/github-b3-hosting/providers/github
+          service_account: github-b3-hosting-deploy@analise-de-acoes-531a3.iam.gserviceaccount.com
+      - name: Publicar e conferir versão no ar
+        run: |
+          main_sha=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
+          if [[ "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo 'Uma versão mais recente já está na main.'
+            exit 0
+          fi
+          cd "$RUNNER_TEMP/firebase-hosting"
+          "$RUNNER_TEMP/firebase-cli/bin/firebase" deploy --only hosting --project analise-de-acoes-531a3 --non-interactive
+          for tentativa in 1 2 3 4 5; do
+            if curl --fail --silent --show-error --max-time 15 \
+              "https://analise-acoes-b3.web.app/?revisao=$GITHUB_SHA-$tentativa" -o "$RUNNER_TEMP/index-publicado.html" \
+              && cmp --silent index.html "$RUNNER_TEMP/index-publicado.html"; then
+              echo 'Versão confirmada em https://analise-acoes-b3.web.app/' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'O Firebase concluiu a publicação, mas o site ainda não serviu o arquivo esperado.' >&2
+          exit 1
