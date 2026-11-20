@@ -2533,6 +2533,11 @@
         <button class="btn btn-success btn-sm" onclick="handleAddFinanceCategoryRule()">+ Adicionar</button>
       </div>
       <div id="finance-catrule-list" style="display:flex; flex-direction:column; gap:6px; max-height: 200px; overflow-y:auto;"></div>
+      <div style="margin-top:12px;">
+        <button type="button" class="btn btn-secondary btn-sm" aria-controls="finance-catrule-suggestions"
+                onclick="renderFinanceCategoryRuleSuggestions()">Sugerir regras</button>
+        <div id="finance-catrule-suggestions" hidden aria-live="polite" style="margin-top:8px; max-height:220px; overflow:auto;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -11386,6 +11391,7 @@ function handleDeleteCurrentFinanceAccount() {
 
 function openFinanceCategoryModal() {
   AppState.financeCategoryEditingId = null;
+  document.getElementById('finance-catrule-suggestions').hidden = true;
   renderFinanceCategoryModalList();
   renderFinanceCategoryRulesList();
   document.getElementById('finance-category-modal').classList.add('active');
@@ -11397,18 +11403,26 @@ function closeFinanceCategoryModal() {
   closeEmojiPicker();
 }
 
-// Regra de categorizacao automatica: so bate por substring (case-insensitive)
-// na descricao do lancamento - primeira regra que bater vence. Usada nos 2
-// importadores (so quando a categoria original e desconhecida/"Outros", no
-// caso do Mobills - o Nubank nativo nao tem categoria nenhuma) e como
-// sugestao no lancamento manual.
-function matchFinanceRule(description) {
-  const descLower = (description || '').toLowerCase();
-  return (AppState.financeCategoryRules || []).find(r => descLower.includes(r.keyword.toLowerCase())) || null;
+function hasFinanceNamePrefix(name, prefix) {
+  return name === prefix || name.startsWith(prefix + ' ');
 }
 
-function matchFinanceCategoryRule(description) {
-  const rule = matchFinanceRule(description);
+// A primeira regra que bate vence. Regras cadastradas a partir do histórico
+// usam o início do nome normalizado e o tipo do lançamento.
+function matchFinanceRule(description, type) {
+  const descLower = (description || '').toLowerCase();
+  let name;
+  return (AppState.financeCategoryRules || []).find(rule => {
+    if (!rule.transactionType) return descLower.includes(rule.keyword.toLowerCase());
+    if (rule.transactionType !== type) return false;
+    name ??= getImportDescriptionName(stripNubankAccountDetails(description || ''));
+    return hasFinanceNamePrefix(name, rule.keyword) && (AppState.financeCategories || []).some(category =>
+      category.id === rule.categoryId && !category.archived && (category.appliesTo || []).includes(type));
+  }) || null;
+}
+
+function matchFinanceCategoryRule(description, type) {
+  const rule = matchFinanceRule(description, type);
   return rule ? rule.categoryId : null;
 }
 
@@ -11419,13 +11433,93 @@ function autoApplyFinanceCategoryRule() {
   const type = document.getElementById('finance-tx-type').value;
   if (type !== 'expense' && type !== 'income') return;
   const description = document.getElementById('finance-tx-description').value;
-  const rule = matchFinanceRule(description);
+  const rule = matchFinanceRule(description, type);
   if (!rule) return;
   const catSel = document.getElementById('finance-tx-category');
   if ([...catSel.options].some(o => o.value === rule.categoryId)) catSel.value = rule.categoryId;
   // Tag da regra: so preenche se o campo estiver vazio (nao sobrescreve o que o usuario digitou)
   const tagEl = document.getElementById('finance-tx-tags');
   if (rule.tag && tagEl && !tagEl.value.trim()) tagEl.value = rule.tag;
+}
+
+function getFinanceCategoryRuleSuggestions() {
+  const categories = new Map((AppState.financeCategories || []).map(category => [category.id, category]));
+  const groups = new Map();
+  const genericName = /^(?:pix|ted|doc|tef|compra|compra no debito|compra no credito|compra com cartao|transferencia|pagamento|boleto|saque|deposito|sem descricao)$/;
+  for (const tx of AppState.financeTransactions || []) {
+    if (tx.ignored || tx.pending || (tx.type !== 'expense' && tx.type !== 'income')) continue;
+    const name = getImportDescriptionName(stripNubankAccountDetails(tx.description || ''));
+    const category = categories.get(tx.categoryId);
+    const classified = category && category.id !== 'cat_outros' && importNorm(category.name) !== 'outros';
+    const covered = !!matchFinanceRule(tx.description, tx.type);
+    let prefix = '';
+    let wordCount = 0;
+    for (const word of name.split(' ')) {
+      prefix = prefix ? prefix + ' ' + word : word;
+      wordCount++;
+      if (prefix.length > 80) break;
+      if (prefix.length < 4 || !/[a-z]/.test(prefix) || genericName.test(prefix)) continue;
+      const key = tx.type + ':' + prefix;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          keyword: prefix, transactionType: tx.type, wordCount, covered: false,
+          categories: new Set(), occurrences: new Set(), names: new Set(), shortestName: name
+        });
+      }
+      const group = groups.get(key);
+      group.covered ||= covered;
+      group.names.add(name);
+      if (name.length < group.shortestName.length) group.shortestName = name;
+      if (classified) {
+        group.categories.add(category.id);
+        group.occurrences.add(tx.installmentGroupId || tx.splitGroupId || tx.id || tx);
+      }
+    }
+  }
+  const candidates = [];
+  for (const group of groups.values()) {
+    if (group.covered || group.categories.size !== 1 || group.occurrences.size < 2) continue;
+    // Um prefixo que não aparece sozinho exige nomes parecidos para evitar
+    // regras genéricas geradas pela parte que o banco repete em vários Pix.
+    const match = group.names.has(group.keyword) || (group.wordCount >= 3 && group.keyword.length >= 12
+      && [...group.names].every(name => haveSimilarImportDescriptions(group.shortestName, name)));
+    if (!match) continue;
+    const [categoryId] = group.categories;
+    const category = categories.get(categoryId);
+    if (category.archived || !(category.appliesTo || []).includes(group.transactionType)) continue;
+    candidates.push({ keyword: group.keyword, transactionType: group.transactionType, category, count: group.occurrences.size });
+  }
+  candidates.sort((a, b) => b.count - a.count || b.keyword.length - a.keyword.length || a.keyword.localeCompare(b.keyword, 'pt-BR'));
+  const suggestions = [];
+  for (const candidate of candidates) {
+    const overlaps = suggestions.some(suggestion => suggestion.transactionType === candidate.transactionType
+      && (hasFinanceNamePrefix(suggestion.keyword, candidate.keyword) || hasFinanceNamePrefix(candidate.keyword, suggestion.keyword)));
+    if (!overlaps) suggestions.push(candidate);
+  }
+  return suggestions;
+}
+
+function renderFinanceCategoryRuleSuggestions() {
+  const container = document.getElementById('finance-catrule-suggestions');
+  container.hidden = false;
+  const suggestions = getFinanceCategoryRuleSuggestions();
+  container.innerHTML = suggestions.map(({ keyword, transactionType, category, count }) => `
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; padding:7px 0; border-top:1px solid var(--border);">
+      <span style="font-size:12px; overflow-wrap:anywhere;">
+        <strong>${importEsc(keyword)}</strong> → ${importEsc(category.name)}<br>
+        <small style="color:var(--text-sub);">${transactionType === 'expense' ? 'Despesa' : 'Receita'} · ${count} lançamentos</small>
+      </span>
+      <button type="button" class="btn btn-success btn-sm" data-keyword="${importEsc(keyword)}" data-type="${transactionType}"
+              data-category="${importEsc(category.id)}" onclick="handleAddSuggestedFinanceCategoryRule(this)">Cadastrar regra</button>
+    </div>`).join('') || '<p style="font-size:12px; color:var(--text-muted);">Nenhuma regra nova sugerida a partir dos lançamentos categorizados.</p>';
+}
+
+function handleAddSuggestedFinanceCategoryRule(button) {
+  const { keyword, type, category } = button.dataset;
+  const suggestion = getFinanceCategoryRuleSuggestions().find(row =>
+    row.keyword === keyword && row.transactionType === type && row.category.id === category);
+  if (!suggestion) { renderFinanceCategoryRuleSuggestions(); return; }
+  saveFinanceCategoryRule({ keyword, categoryId: category, transactionType: type, tag: null });
 }
 
 function renderFinanceCategoryRulesList() {
@@ -11443,6 +11537,7 @@ function renderFinanceCategoryRulesList() {
 
   const list = document.getElementById('finance-catrule-list');
   if (!list) return;
+  if (!document.getElementById('finance-catrule-suggestions').hidden) renderFinanceCategoryRuleSuggestions();
   const rules = AppState.financeCategoryRules || [];
   if (rules.length === 0) {
     list.innerHTML = `<div style="font-size:11.5px; color:var(--text-muted); padding:4px;">Nenhuma regra cadastrada ainda.</div>`;
@@ -11452,10 +11547,17 @@ function renderFinanceCategoryRulesList() {
     const cat = (AppState.financeCategories || []).find(c => c.id === r.categoryId);
     return `
     <div style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--radius-md); background: rgba(0,0,0,0.02);">
-      <span style="flex:1; font-size:12.5px;"><strong>"${r.keyword}"</strong> → ${cat ? cat.icon + ' ' + cat.name : 'Categoria removida'}${r.tag ? ` <span class="badge badge-flat" style="font-size:10px; color:var(--accent);">🏷️ ${r.tag}</span>` : ''}</span>
-      <button class="btn btn-icon btn-sm" style="color:var(--red);" onclick="handleDeleteFinanceCategoryRule('${r.id}')" title="Excluir">✕</button>
+      <span style="flex:1; font-size:12.5px;"><strong>"${importEsc(r.keyword)}"</strong> → ${cat ? importEsc(cat.icon + ' ' + cat.name) : 'Categoria removida'}${r.transactionType ? ` · ${r.transactionType === 'expense' ? 'Despesa' : 'Receita'}` : ''}${r.tag ? ` <span class="badge badge-flat" style="font-size:10px; color:var(--accent);">🏷️ ${importEsc(r.tag)}</span>` : ''}</span>
+      <button class="btn btn-icon btn-sm" style="color:var(--red);" data-rule-id="${importEsc(r.id)}" onclick="handleDeleteFinanceCategoryRule(this.dataset.ruleId)" title="Excluir regra">✕</button>
     </div>`;
   }).join('');
+}
+
+function saveFinanceCategoryRule(rule) {
+  AppState.financeCategoryRules.push({ id: 'frule_' + Date.now() + '_' + Math.floor(Math.random() * 1000), ...rule });
+  localStorage.setItem('b3_finance_category_rules', JSON.stringify(AppState.financeCategoryRules));
+  renderFinanceCategoryRulesList();
+  showToast('Regra adicionada!', 'success');
 }
 
 function handleAddFinanceCategoryRule() {
@@ -11466,12 +11568,9 @@ function handleAddFinanceCategoryRule() {
   // Uma tag por lancamento (mesma regra do formulario de lancamento)
   const tag = document.getElementById('finance-catrule-new-tag').value.trim();
   if (tag.includes(',')) { showToast('Só uma tag por regra.', 'error'); return; }
-  AppState.financeCategoryRules.push({ id: 'frule_' + Date.now() + '_' + Math.floor(Math.random() * 1000), keyword, categoryId, tag: tag || null });
-  localStorage.setItem('b3_finance_category_rules', JSON.stringify(AppState.financeCategoryRules));
   document.getElementById('finance-catrule-new-keyword').value = '';
   document.getElementById('finance-catrule-new-tag').value = '';
-  renderFinanceCategoryRulesList();
-  showToast('Regra adicionada!', 'success');
+  saveFinanceCategoryRule({ keyword, categoryId, tag: tag || null });
 }
 
 function handleDeleteFinanceCategoryRule(id) {
@@ -12549,7 +12648,7 @@ function setAllGenericPairs(checked) {
 
 function getGenericImportRowDetails(st, row) {
   const edits = st.rowEdits.get(row.id) || {};
-  const rule = matchFinanceRule(row.description);
+  const rule = matchFinanceRule(row.description, row.amount < 0 ? 'expense' : 'income');
   const useRuleCategory = !row.category || row.category.toLowerCase() === 'outros';
   return {
     description: edits.description ?? row.description,
