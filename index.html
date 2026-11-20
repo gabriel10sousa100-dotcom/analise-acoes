@@ -432,6 +432,24 @@
     .modal-close { background: transparent; border: none; font-size: 18px; color: var(--text-sub); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-sm); transition: all 0.15s; }
     .modal-close:hover { color: var(--text); background: rgba(0, 0, 0, 0.08); }
 
+    .import-review-dialog {
+      position: fixed;
+      inset: 0;
+      margin: auto;
+      width: min(920px, calc(100% - 24px));
+      max-width: none;
+      height: fit-content;
+      max-height: calc(100dvh - 24px);
+      color: var(--text);
+    }
+    .import-review-dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+    .import-review-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .import-review-table { max-height: 34vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
+    .import-review-table th, .import-review-table td { padding: 8px; vertical-align: top; }
+    .import-review-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; margin: 8px 0; }
+    .import-review-fields > * { display: grid; gap: 4px; min-width: 0; }
+    .import-review-fields input, .import-review-fields select { width: 100%; }
+
     /* AUDIT POPUP KPI CARDS & SECTIONS */
     .audit-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
     .audit-kpi-card { background: rgba(0, 0, 0, 0.03); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
@@ -2516,6 +2534,47 @@
     <div id="generic-import-preview" style="display:none;"></div>
     <input type="file" accept=".csv,.txt,.pdf,.png,.jpg,.jpeg,.webp,text/csv,application/pdf,image/*" multiple id="generic-import-add-input" style="display:none;" onchange="handleGenericFilesSelected(event, true)">
   </div>
+  <dialog id="generic-import-review" class="modal-box import-review-dialog" aria-labelledby="generic-import-review-title"
+          onkeydown="if (event.key === 'Escape') event.stopPropagation()">
+    <div class="modal-header">
+      <h2 class="modal-title" id="generic-import-review-title">Revisar movimentações</h2>
+      <button type="button" class="modal-close" aria-label="Fechar revisão" onclick="this.closest('dialog').close()">✕</button>
+    </div>
+    <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">
+      Marque uma ou mais linhas. Use <strong>Selecionar semelhantes</strong> para marcar descrições próximas. Confira a seleção antes de aplicar.
+    </p>
+    <div class="import-review-controls">
+      <input type="search" id="generic-import-review-search" class="input-field" aria-label="Buscar descrição"
+             placeholder="Buscar descrição" autofocus style="flex:1 1 180px;" oninput="renderGenericImportReview()">
+      <label style="font-size:12px;"><input type="checkbox" id="generic-import-review-selected" onchange="renderGenericImportReview()"> Só selecionadas</label>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="selectVisibleImportRows()">Marcar visíveis</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="clearImportRowSelection()">Limpar seleção</button>
+    </div>
+    <div class="table-responsive import-review-table" role="region" aria-label="Movimentações do extrato" tabindex="0">
+      <table style="width:100%; font-size:12px;">
+        <thead><tr><th scope="col">Marcar</th><th scope="col">Movimentação</th><th scope="col">Valor</th><th scope="col">Classificação</th></tr></thead>
+        <tbody id="generic-import-review-rows"></tbody>
+      </table>
+    </div>
+    <form id="generic-import-review-form" onsubmit="applyGenericImportReview(event)">
+      <div id="generic-import-review-count" style="font-size:12px; margin-top:10px;" aria-live="polite"></div>
+      <div class="import-review-fields" style="font-size:12px;">
+        <label>Descrição <input class="input-field" name="description" placeholder="Manter descrição"></label>
+        <div>
+          <label for="generic-import-review-category">Categoria</label>
+          <select class="select-field" id="generic-import-review-category" name="categoryId"></select>
+        </div>
+        <label>Tag (etiqueta) <input class="input-field" name="tag" placeholder="Manter tag" list="finance-tags-datalist"></label>
+        <label>Observação <input class="input-field" name="notes" placeholder="Manter observação"></label>
+      </div>
+      <div class="import-review-controls">
+        <button type="submit" class="btn btn-success btn-sm" id="generic-import-review-apply">Aplicar à seleção</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="generic-import-review-reset" onclick="resetGenericImportReview()">Desfazer ajustes da seleção</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="this.closest('dialog').close()">Voltar à importação</button>
+      </div>
+      <output id="generic-import-review-message" style="font-size:12px; display:block;" aria-live="polite"></output>
+    </form>
+  </dialog>
 </div>
 
 <!-- ========================================== -->
@@ -9391,7 +9450,7 @@ function renderFinanceTransactionsList() {
     return `
       <tr class="fav-table-row" style="cursor:pointer; ${tx.ignored ? 'opacity:0.55;' : ''}" onclick="openFinanceTransactionModal('${tx.id}')" title="Clique para editar">
         <td class="text-mono" style="font-size:12px;">${NumFmt.date(tx.date)}</td>
-        <td>${displayDescription} ${installmentBadge} ${splitBadge} ${ignoredBadge} ${invoiceBadge} ${(tx.tags || []).map(tag => `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);">🏷️ ${tag}</span>`).join(' ')}</td>
+        <td>${importEsc(displayDescription)} ${installmentBadge} ${splitBadge} ${ignoredBadge} ${invoiceBadge} ${(tx.tags || []).map(tag => `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);">🏷️ ${importEsc(tag)}</span>`).join(' ')}</td>
         <td style="font-size:12px; color:var(--text-sub);">${cat ? cat.icon + ' ' + cat.name : '—'}</td>
         <td style="font-size:12px; color:var(--text-sub);">${acc ? (acc.icon || '') + ' ' + acc.name : 'Conta removida'}${tx.type === 'transfer' ? ' → ' + destAccName : ''}</td>
         <td class="text-right text-mono" style="font-weight:700; color:${amountColor};">${amountSign}${NumFmt.money(tx.amount)}</td>
@@ -9826,7 +9885,7 @@ function renderFinanceInvoiceModalContent() {
         return `
           <tr>
             <td class="text-mono" style="font-size:12px;">${NumFmt.date(tx.date)}</td>
-            <td>${tx.description}${installmentBadge}</td>
+            <td>${importEsc(tx.description)}${installmentBadge}</td>
             <td style="font-size:12px; color:var(--text-sub);">${cat ? cat.icon + ' ' + cat.name : '—'}</td>
             <td class="text-right text-mono" style="font-weight:700;">${NumFmt.money(tx.amount)}</td>
           </tr>`;
@@ -10570,7 +10629,7 @@ function openFinanceTransactionModal(editId = '') {
   document.getElementById('finance-tx-tags').value = tx && tx.tags ? tx.tags.join(', ') : '';
   const allTags = new Set();
   (AppState.financeTransactions || []).forEach(t => (t.tags || []).forEach(tag => allTags.add(tag)));
-  document.getElementById('finance-tags-datalist').innerHTML = [...allTags].sort().map(tag => `<option value="${tag}">`).join('');
+  document.getElementById('finance-tags-datalist').innerHTML = [...allTags].sort().map(tag => `<option value="${importEsc(tag)}">`).join('');
 
   document.getElementById('finance-tx-notes').value = tx ? (tx.notes || '') : '';
   document.getElementById('finance-tx-ignored').checked = !!(tx && tx.ignored);
@@ -11951,6 +12010,7 @@ function openGenericImportModal() {
 }
 
 function closeGenericImportModal() {
+  document.getElementById('generic-import-review')?.close();
   const modal = document.getElementById('generic-import-modal');
   if (modal) modal.classList.remove('active');
 }
@@ -12237,7 +12297,7 @@ async function handleGenericFilesSelected(event, append) {
   if (!append || !AppState.genericImportStaging) {
     let savedOwnNames = [];
     try { savedOwnNames = JSON.parse(localStorage.getItem('b3_finance_own_names') || '[]'); } catch (e) { savedOwnNames = []; }
-    AppState.genericImportStaging = { files: [], markInvestments: true, detectTransfers: true, pairChoice: {}, errors: [], ownNames: savedOwnNames, ignoreOwn: true, ignoreInvoice: true };
+    AppState.genericImportStaging = { files: [], rowEdits: new Map(), markInvestments: true, detectTransfers: true, pairChoice: {}, errors: [], ownNames: savedOwnNames, ignoreOwn: true, ignoreInvoice: true };
   }
   const st = AppState.genericImportStaging;
   st.files.push(...entries);
@@ -12334,6 +12394,183 @@ function setAllGenericPairs(checked) {
   if (!st) return;
   computeGenericImport(st).pairs.forEach(p => { st.pairChoice[p.key] = checked; });
   renderGenericImportPreview();
+}
+
+function getGenericImportRowDetails(st, row) {
+  const edits = st.rowEdits.get(row.id) || {};
+  const rule = matchFinanceRule(row.description);
+  const useRuleCategory = !row.category || row.category.toLowerCase() === 'outros';
+  return {
+    description: edits.description ?? row.description,
+    categoryId: edits.categoryId ?? (useRuleCategory ? rule?.categoryId || undefined : undefined),
+    tag: edits.tag ?? (row.tag || rule?.tag || ''),
+    notes: edits.notes || ''
+  };
+}
+
+function getImportDescriptionName(description) {
+  if (description === '(sem descrição)') return '';
+  return importNorm(description)
+    .replace(/^(?:compra (?:no debito|no credito|com cartao)|(?:pix|transferencia) (?:enviad[oa]|recebid[oa])) /, '');
+}
+
+function haveSimilarImportDescriptions(a, b) {
+  if (a === b) return true;
+  const first = a.split(' ');
+  const second = b.split(' ');
+  const [shorter, longer] = a.length <= b.length ? [first, second] : [second, first];
+  if (shorter.length < 3 || shorter.length > longer.length) return false;
+  const last = shorter.length - 1;
+  // Permite um final truncado pelo banco se o começo do nome for igual.
+  return shorter.slice(0, last).join(' ') === longer.slice(0, last).join(' ')
+    && shorter[last].length >= 4 && longer[last].startsWith(shorter[last]);
+}
+
+function openGenericImportReview() {
+  const st = AppState.genericImportStaging;
+  if (!st) return;
+  const comp = computeGenericImport(st);
+  const transfers = new Set(comp.pairs.filter(p => p.enabled).flatMap(p => [p.o.id, p.i.id]));
+  const ignoredCounterparts = new Set(comp.counterparts.filter(c => c.enabled).map(c => c.row.id));
+  const rows = comp.all.map(row => {
+    let locked = '';
+    if (row.isDup) locked = 'Já importada';
+    else if (transfers.has(row.id)) locked = 'Transferência vinculada';
+    else if (st.markInvestments && classifyInvestmentRow(row).isInvestment) locked = 'Investimento';
+    return {
+      ...row, locked,
+      type: row.amount < 0 ? 'expense' : 'income',
+      ignored: !!row.autoIgnore || ignoredCounterparts.has(row.id),
+      similarName: getImportDescriptionName(row.description)
+    };
+  });
+  st.review = { rows, selected: new Set() };
+  document.getElementById('generic-import-review-search').value = '';
+  document.getElementById('generic-import-review-selected').checked = false;
+  document.getElementById('generic-import-review-form').reset();
+  renderGenericImportReview();
+  document.getElementById('generic-import-review').showModal();
+}
+
+function getVisibleImportReviewRows(st) {
+  const { rows, selected } = st.review;
+  const query = importNorm(document.getElementById('generic-import-review-search').value);
+  const selectedOnly = document.getElementById('generic-import-review-selected').checked;
+  return rows.filter(row => (!selectedOnly || selected.has(row.id))
+    && (!query || importNorm(row.description).includes(query)
+      || importNorm(st.rowEdits.get(row.id)?.description).includes(query)));
+}
+
+function renderGenericImportReview(message = '') {
+  const st = AppState.genericImportStaging;
+  if (!st?.review) return;
+  const { selected } = st.review;
+  const categories = new Map((AppState.financeCategories || []).map(c => [c.id, c.name]));
+  const rows = getVisibleImportReviewRows(st);
+  document.getElementById('generic-import-review-rows').innerHTML = rows.map(row => {
+    const details = getGenericImportRowDetails(st, row);
+    const category = details.categoryId !== undefined
+      ? categories.get(details.categoryId)
+      : row.category || 'Outros';
+    const type = row.type === 'expense' ? 'Despesa' : 'Receita';
+    const id = importEsc(row.id);
+    const sub = details.description === row.description ? '' : `<br><small>Original: ${importEsc(row.description)}</small>`;
+    return `<tr>
+      <td>${row.locked ? '—' : `<input type="checkbox" data-row-id="${id}" ${selected.has(row.id) ? 'checked' : ''}
+        aria-label="Marcar ${importEsc(row.description)} em ${NumFmt.date(row.date)}" onchange="toggleImportReviewRow(this)">`}</td>
+      <td><strong>${importEsc(details.description)}</strong>${sub}<br><small>${NumFmt.date(row.date)} · ${importEsc(row.accountName)}</small>
+        ${row.locked || !row.similarName ? '' : `<br><button type="button" class="btn btn-secondary btn-sm" data-row-id="${id}"
+          onclick="selectSimilarImportRows(this.dataset.rowId)">Selecionar semelhantes</button>`}</td>
+      <td style="white-space:nowrap;">${NumFmt.money(row.amount)}</td>
+      <td>${row.locked ? row.locked : `${type}${row.ignored ? ' · Ignorada' : ''}<br>${importEsc(category || 'Sem categoria')}
+        ${details.tag ? `<br><small>Tag: ${importEsc(details.tag)}</small>` : ''}
+        ${details.notes ? `<br><small>Obs.: ${importEsc(details.notes)}</small>` : ''}
+        ${st.rowEdits.has(row.id) ? '<br><small>Ajustada na prévia</small>' : ''}`}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4">Nenhuma movimentação para mostrar.</td></tr>';
+  renderGenericImportReviewSelection(message);
+}
+
+function renderGenericImportReviewSelection(message = '') {
+  const { rows, selected } = AppState.genericImportStaging.review;
+  const form = document.getElementById('generic-import-review-form');
+  const categorySelect = form.elements.categoryId;
+  const previousCategory = categorySelect.value;
+  const selectedTypes = new Set(rows.filter(row => selected.has(row.id)).map(row => row.type));
+  const categories = (AppState.financeCategories || []).filter(c =>
+    !c.archived && [...selectedTypes].every(type => (c.appliesTo || []).includes(type)));
+  categorySelect.innerHTML = '<option value="">Manter categoria</option><option value="__none__">Sem categoria</option>'
+    + categories.map(c => `<option value="${importEsc(c.id)}">${importEsc(c.name)}</option>`).join('');
+  categorySelect.value = [...categorySelect.options].some(o => o.value === previousCategory) ? previousCategory : '';
+  document.getElementById('generic-import-review-count').textContent = `${selected.size} de ${rows.length} movimentação(ões) selecionada(s)`;
+  document.getElementById('generic-import-review-apply').disabled = !selected.size;
+  document.getElementById('generic-import-review-reset').disabled = !selected.size;
+  document.getElementById('generic-import-review-message').textContent = message;
+}
+
+function toggleImportReviewRow(input) {
+  const { selected } = AppState.genericImportStaging.review;
+  if (input.checked) selected.add(input.dataset.rowId);
+  else selected.delete(input.dataset.rowId);
+  if (document.getElementById('generic-import-review-selected').checked) renderGenericImportReview();
+  else renderGenericImportReviewSelection();
+}
+
+function selectSimilarImportRows(id) {
+  const { rows, selected } = AppState.genericImportStaging.review;
+  const anchor = rows.find(row => row.id === id && !row.locked);
+  if (!anchor) return;
+  selected.clear();
+  rows.forEach(row => {
+    if (!row.locked && row.type === anchor.type && haveSimilarImportDescriptions(anchor.similarName, row.similarName)) selected.add(row.id);
+  });
+  document.getElementById('generic-import-review-search').value = '';
+  document.getElementById('generic-import-review-selected').checked = true;
+  renderGenericImportReview();
+  document.getElementById('generic-import-review-selected').focus();
+}
+
+function selectVisibleImportRows() {
+  const st = AppState.genericImportStaging;
+  getVisibleImportReviewRows(st).forEach(row => {
+    if (!row.locked) st.review.selected.add(row.id);
+  });
+  renderGenericImportReview();
+}
+
+function clearImportRowSelection() {
+  AppState.genericImportStaging.review.selected.clear();
+  document.getElementById('generic-import-review-selected').checked = false;
+  renderGenericImportReview();
+}
+
+function applyGenericImportReview(event) {
+  event.preventDefault();
+  const st = AppState.genericImportStaging;
+  if (!st?.review?.selected.size) return;
+  const data = new FormData(event.currentTarget);
+  const changes = {};
+  ['description', 'categoryId', 'tag', 'notes'].forEach(field => {
+    const value = data.get(field).trim();
+    if (value) changes[field] = value;
+  });
+  if (changes.tag?.includes(',')) {
+    renderGenericImportReviewSelection('Informe apenas uma tag por movimentação.');
+    return;
+  }
+  if (!Object.keys(changes).length) {
+    renderGenericImportReviewSelection('Preencha pelo menos um campo para aplicar.');
+    return;
+  }
+  st.review.selected.forEach(id => st.rowEdits.set(id, { ...st.rowEdits.get(id), ...changes }));
+  event.currentTarget.reset();
+  renderGenericImportReview(`Ajustes aplicados a ${st.review.selected.size} movimentação(ões) na prévia.`);
+}
+
+function resetGenericImportReview() {
+  const st = AppState.genericImportStaging;
+  st.review.selected.forEach(id => st.rowEdits.delete(id));
+  renderGenericImportReview('Ajustes da seleção desfeitos.');
 }
 
 function renderGenericFileCard(st, pf, idx) {
@@ -12457,6 +12694,9 @@ function renderGenericImportPreview() {
       ${st.files.length} arquivo(s). Escolha a conta cadastrada de cada um e confira as colunas; a prévia atualiza na hora.
     </div>
     ${comp.perFile.map((pf, i) => renderGenericFileCard(st, pf, i)).join('')}
+    ${comp.all.length ? `<div style="margin:12px 0;">
+      <button type="button" class="btn btn-secondary" onclick="openGenericImportReview()">Revisar movimentações (${comp.all.length})</button>
+    </div>` : ''}
     <div style="margin:12px 0 8px;">
       <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; margin-bottom:8px; cursor:pointer;">
         <input type="checkbox" ${st.detectTransfers ? 'checked' : ''} onchange="AppState.genericImportStaging.detectTransfers = this.checked; renderGenericImportPreview();" style="margin-top:2px;">
@@ -12619,17 +12859,16 @@ function handleConfirmGenericImport() {
     if (manualMatch) { matchedManual.push(manualMatch); return; }
 
     const amount = Math.abs(row.amount);
-    let type, categoryId = null, investmentDirection = null, rule = null, ignored = false, autoNote = '';
+    let type, categoryId = null, investmentDirection = null, ignored = false, autoNote = '';
+    let details = { description: row.description, tag: row.tag, notes: '' };
     if (st.markInvestments && classifyInvestmentRow(row).isInvestment) {
       type = 'investment';
       investmentDirection = row.amount >= 0 ? 'redemption' : 'contribution';
     } else {
       type = row.amount >= 0 ? 'income' : 'expense';
-      const isOutros = !row.category || row.category.toLowerCase() === 'outros';
-      rule = matchFinanceRule(row.description);
-      categoryId = isOutros
-        ? ((rule && rule.categoryId) || (row.category ? getCategoryId(row.category) : outrosCategoryId))
-        : getCategoryId(row.category);
+      details = getGenericImportRowDetails(st, row);
+      categoryId = details.categoryId === '__none__' ? null
+        : details.categoryId ?? (row.category ? getCategoryId(row.category) : outrosCategoryId);
       const cp = counterpartByRowId[row.id];
       if (row.autoIgnore === 'own') { ignored = true; autoNote = 'Ignorado automaticamente: Pix/TED entre minhas contas'; }
       else if (row.autoIgnore === 'invoice') { ignored = true; autoNote = 'Ignorado automaticamente: pagamento de fatura de cartão'; }
@@ -12645,9 +12884,9 @@ function handleConfirmGenericImport() {
     newTxs.push({
       ...baseTx(),
       id: 'ftx_' + Date.now() + '_' + imported + '_' + Math.floor(Math.random() * 100000),
-      type, description: row.description, amount, date: row.date, accountId, categoryId,
-      tags: (row.tag || (rule && rule.tag)) ? [row.tag || rule.tag] : [], importId, originalAccountLabel: 'CSV: ' + row.fileLabel,
-      investmentDirection, ignored, notes: autoNote
+      type, description: details.description, amount, date: row.date, accountId, categoryId,
+      tags: details.tag ? [details.tag] : [], importId, originalAccountLabel: 'CSV: ' + row.fileLabel,
+      investmentDirection, ignored, notes: [details.notes, autoNote].filter(Boolean).join('\n')
     });
     imported++;
   });
