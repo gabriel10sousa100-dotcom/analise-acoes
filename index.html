@@ -9294,11 +9294,7 @@ function renderFinanceAccountsList() {
   const typeLabel = { checking: 'Conta Corrente', savings: 'Poupança', cash: 'Dinheiro' };
   grid.innerHTML = accounts.map(a => {
     if (a.type === 'credit_card') {
-      const usage = getCardLimitUsage(a.id);
-      const pct = Math.min(100, Math.max(0, usage.pct));
-      const barColor = usage.pct >= 90 ? 'var(--red)' : usage.pct >= 70 ? 'var(--yellow)' : 'var(--green)';
       const due = getCardAmountDue(a.id);
-      const futureTotal = getCardFutureCommitted(a.id);
       const dueTitle = due.closedUnpaid
         ? `Fatura fechada ${due.closedCycle} a pagar: ${NumFmt.money(due.closedUnpaid)} + fatura aberta ${due.openCycle}: ${NumFmt.money(due.openTotal)}`
         : `Fatura aberta ${due.openCycle}`;
@@ -9310,13 +9306,6 @@ function renderFinanceAccountsList() {
           <div class="finance-card-invoices">
             <div class="stat-meta"><span>Fatura aberta (${due.openCycle})</span><strong>${NumFmt.money(due.openTotal)}</strong></div>
             ${due.closedUnpaid ? `<div class="stat-meta"><span>Fatura fechada pendente</span><strong>${NumFmt.money(due.closedUnpaid)}</strong></div>` : ''}
-            <div class="stat-meta"><span>Faturas futuras</span><strong>${NumFmt.money(futureTotal)}</strong></div>
-          </div>
-          <div title="Usado ${NumFmt.money(usage.used)} · Disponível ${NumFmt.money(usage.available)} · Limite ${NumFmt.money(usage.limit)}" style="margin-top: 8px;">
-            <div style="height: 8px; border-radius: 100px; background: rgba(0,0,0,0.08); overflow: hidden;">
-              <div style="height: 100%; width: ${pct}%; background: ${barColor}; border-radius: 100px;"></div>
-            </div>
-            <div class="stat-meta" style="margin-top: 4px;">${NumFmt.num(usage.pct, 0)}% do limite usado</div>
           </div>
         </div>`;
     }
