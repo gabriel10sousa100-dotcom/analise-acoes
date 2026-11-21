@@ -445,7 +445,12 @@
       color: var(--text);
     }
     .finance-dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
-    .import-review-dialog { max-width: 920px; }
+    .import-dialog-steps { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    .import-dialog-steps [aria-current="step"] { border-color:var(--accent); color:var(--accent); }
+    .import-settings { margin:12px 0; padding:8px 0; border-top:1px solid var(--border); }
+    .import-settings summary { cursor:pointer; color:var(--text-muted); font-size:12.5px; }
+    #finance-transaction-modal.import-transaction-editor { z-index:1050; }
+    .toast-container.import-transaction-editor { z-index:1060; }
     .import-review-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
     .import-review-controls [aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
     .import-review-table { max-height: 34vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
@@ -2308,7 +2313,7 @@
 <!-- ========================================== -->
 <!-- MODAL: LANÇAR / EDITAR LANÇAMENTO FINANCEIRO -->
 <!-- ========================================== -->
-<div class="modal-overlay" id="finance-transaction-modal">
+<div class="modal-overlay" id="finance-transaction-modal" role="dialog" aria-modal="true" aria-labelledby="finance-tx-modal-title">
   <div class="modal-box" style="max-width: 540px;">
     <div class="modal-header">
       <div class="modal-title" id="finance-tx-modal-title">➕ Novo Lançamento</div>
@@ -2318,7 +2323,7 @@
       <input type="hidden" id="finance-tx-edit-id" value="">
       <div style="display: flex; flex-direction: column; gap: 14px;">
         <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Tipo</label>
+          <label for="finance-tx-type" style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Tipo</label>
           <select class="select-field" id="finance-tx-type" style="width: 100%;" onchange="onFinanceTransactionTypeChange()">
             <option value="expense">🔴 Despesa</option>
             <option value="income">🟢 Receita</option>
@@ -2327,7 +2332,7 @@
           </select>
         </div>
         <div>
-          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Descrição</label>
+          <label for="finance-tx-description" style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Descrição</label>
           <input type="text" class="input-field" id="finance-tx-description" placeholder="ex: Supermercado, Salário, Aplicação RDB" required style="width: 100%;" onblur="autoApplyFinanceCategoryRule()">
         </div>
         <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 12px;">
@@ -2355,7 +2360,7 @@
           </div>
         </div>
         <div id="finance-tx-category-box">
-          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Categoria</label>
+          <label for="finance-tx-category" style="display: block; font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 5px;">Categoria</label>
           <select class="select-field" id="finance-tx-category" style="width: 100%;"></select>
         </div>
         <div id="finance-tx-split-toggle-box" style="display:none;">
@@ -2406,6 +2411,13 @@
             🙈 Ignorar (não contar em receita/despesa)
           </label>
         </div>
+        <div id="finance-tx-import-rule" style="display:none; font-size:12.5px;">
+          <label><input type="checkbox" id="finance-tx-create-import-rule" onchange="updateFinanceImportRuleFields()"> Criar regra para próximas importações</label>
+          <label id="finance-tx-import-keyword-box" hidden style="margin-top:8px;">Trecho da descrição no extrato
+            <input type="text" class="input-field" id="finance-tx-import-keyword" style="width:100%;">
+          </label>
+        </div>
+        <p id="finance-tx-import-pair-note" hidden style="font-size:12px; color:var(--text-muted);">Para separar esta transferência, desmarque o vínculo em Transferências e detecção, na etapa Arquivo.</p>
         <div style="display: flex; gap: 10px; margin-top: 10px;">
           <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeFinanceTransactionModal()">Cancelar</button>
           <button type="button" class="btn btn-secondary" id="finance-tx-delete-btn" style="color: var(--red); display: none;" onclick="handleDeleteCurrentFinanceTransaction()">Excluir</button>
@@ -2548,49 +2560,52 @@
 <!-- ========================================== -->
 <!-- MODAL: IMPORTAR CSV (UM OU VARIOS ARQUIVOS) -->
 <!-- ========================================== -->
-<div class="modal-overlay" id="generic-import-modal">
-  <div class="modal-box modal-lg" style="max-width: 720px;">
+<div class="modal-overlay" id="generic-import-modal" role="dialog" aria-modal="true" aria-labelledby="generic-import-title">
+  <div class="modal-box modal-lg" style="max-width: 920px;">
     <div class="modal-header">
-      <div class="modal-title">📥 Importar extrato (CSV, PDF ou print)</div>
-      <button class="modal-close" onclick="closeGenericImportModal()">✕</button>
+      <div class="modal-title" id="generic-import-title">Importar extrato</div>
+      <button type="button" class="modal-close" aria-label="Fechar importação" onclick="closeGenericImportModal()">✕</button>
     </div>
-    <div id="generic-import-status" style="display:none; background:rgba(15,107,76,0.08); color:var(--text-muted); border-radius:8px; padding:8px 12px; font-size:12px; margin-bottom:10px;"></div>
+    <nav class="import-dialog-steps" aria-label="Etapas da importação">
+      <button type="button" class="btn btn-secondary btn-sm" data-import-step="file" onclick="showGenericImportStep('file')">Arquivo</button>
+      <button type="button" class="btn btn-secondary btn-sm" data-import-step="review" onclick="showGenericImportStep('review')">Revisão</button>
+      <button type="button" class="btn btn-secondary btn-sm" data-import-step="confirm" onclick="showGenericImportStep('confirm')">Confirmação</button>
+    </nav>
+    <div id="generic-import-status" role="status" style="display:none; background:rgba(15,107,76,0.08); color:var(--text-muted); border-radius:8px; padding:8px 12px; font-size:12px; margin-bottom:10px;"></div>
+    <section id="generic-import-panel-file">
     <div id="generic-import-step-file">
       <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-        Selecione um ou mais arquivos de extrato ou fatura: CSV (qualquer banco ou cartão, ou exportado do Mobills) PDF com texto selecionável (ex: corretora Genial) ou até um print da tabela de movimentações (o texto é reconhecido no seu aparelho, a imagem não é enviada a ninguém). Dá para escolher vários arquivos de uma vez: o app detecta separador, cabeçalho e colunas de cada um, cruza os lançamentos entre eles e identifica <strong>transferências entre contas</strong> (uma saída numa conta + uma entrada de mesmo valor em outra). Você confere tudo na próxima tela; nada é gravado até confirmar, e reimportar o mesmo arquivo não duplica lançamentos.
+        Selecione um ou mais extratos ou faturas em CSV, PDF com texto ou print. Depois escolha a conta ou o cartão de cada arquivo.
       </p>
-      <input type="file" accept=".csv,.txt,.pdf,.png,.jpg,.jpeg,.webp,text/csv,application/pdf,image/*" multiple id="generic-import-file-input" class="input-field" onchange="handleGenericFilesSelected(event, false)" style="width: 100%;">
-      <div id="generic-import-file-error" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
+      <input type="file" accept=".csv,.txt,.pdf,.png,.jpg,.jpeg,.webp,text/csv,application/pdf,image/*" aria-label="Selecionar extratos" multiple id="generic-import-file-input" class="input-field" onchange="handleGenericFilesSelected(event)" style="width: 100%;">
+      <div id="generic-import-file-error" role="alert" style="color: var(--red); font-size: 12px; margin-top: 8px;"></div>
     </div>
-    <div id="generic-import-preview" style="display:none;"></div>
-    <input type="file" accept=".csv,.txt,.pdf,.png,.jpg,.jpeg,.webp,text/csv,application/pdf,image/*" multiple id="generic-import-add-input" style="display:none;" onchange="handleGenericFilesSelected(event, true)">
-  </div>
-  <dialog id="generic-import-review" class="modal-box finance-dialog import-review-dialog" aria-labelledby="generic-import-review-title"
-          onkeydown="if (event.key === 'Escape') event.stopPropagation()">
-    <div class="modal-header">
-      <h2 class="modal-title" id="generic-import-review-title">Revisar movimentações</h2>
-      <button type="button" class="modal-close" aria-label="Fechar revisão" onclick="this.closest('dialog').close()">✕</button>
-    </div>
-    <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">
-      Marque uma ou mais linhas. Use <strong>Selecionar semelhantes</strong> para marcar descrições próximas. Confira a seleção antes de aplicar.
-    </p>
+    <div id="generic-import-preview"></div>
+    <input type="file" accept=".csv,.txt,.pdf,.png,.jpg,.jpeg,.webp,text/csv,application/pdf,image/*" multiple id="generic-import-add-input" hidden onchange="handleGenericFilesSelected(event)">
+    </section>
+    <section id="generic-import-panel-review" aria-label="Revisar movimentações" hidden>
     <div class="import-review-controls">
       <input type="search" id="generic-import-review-search" class="input-field" aria-label="Buscar descrição"
              placeholder="Buscar descrição" autofocus style="flex:1 1 180px;" oninput="renderGenericImportReview()">
       <button type="button" class="btn btn-secondary btn-sm" id="generic-import-review-others" aria-pressed="false"
               aria-controls="generic-import-review-rows" onclick="toggleImportReviewOthers()">Só Outros</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="showGenericImportStep('rules')">Regras de categorização</button>
       <label style="font-size:12px;"><input type="checkbox" id="generic-import-review-selected" onchange="renderGenericImportReview()"> Só selecionadas</label>
+    </div>
+    <div class="import-review-controls">
       <button type="button" class="btn btn-secondary btn-sm" onclick="selectVisibleImportRows()">Marcar visíveis</button>
       <button type="button" class="btn btn-secondary btn-sm" onclick="clearImportRowSelection()">Limpar seleção</button>
     </div>
     <div class="table-responsive import-review-table" role="region" aria-label="Movimentações do extrato" tabindex="0">
       <table style="width:100%; font-size:12px;">
-        <thead><tr><th scope="col">Marcar</th><th scope="col">Movimentação</th><th scope="col">Valor</th><th scope="col">Classificação</th></tr></thead>
+        <thead><tr><th scope="col">Marcar</th><th scope="col">Movimentação</th><th scope="col">Valor</th><th scope="col">Categoria</th><th scope="col">Ações</th></tr></thead>
         <tbody id="generic-import-review-rows"></tbody>
       </table>
     </div>
     <form id="generic-import-review-form" onsubmit="applyGenericImportReview(event)">
       <div id="generic-import-review-count" style="font-size:12px; margin-top:10px;" aria-live="polite"></div>
+      <details id="generic-import-batch-edit" class="import-settings">
+        <summary>Editar seleção em lote</summary>
       <div class="import-review-fields" style="font-size:12px;">
         <label>Descrição <input class="input-field" name="description" placeholder="Manter descrição"></label>
         <div>
@@ -2603,11 +2618,40 @@
       <div class="import-review-controls">
         <button type="submit" class="btn btn-success btn-sm" id="generic-import-review-apply">Aplicar à seleção</button>
         <button type="button" class="btn btn-secondary btn-sm" id="generic-import-review-reset" onclick="resetGenericImportReview()">Desfazer ajustes da seleção</button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="this.closest('dialog').close()">Voltar à importação</button>
       </div>
+      </details>
       <output id="generic-import-review-message" style="font-size:12px; display:block;" aria-live="polite"></output>
     </form>
-  </dialog>
+    <div class="import-review-controls" style="justify-content:space-between; margin-top:12px;">
+      <button type="button" class="btn btn-secondary" onclick="showGenericImportStep('file')">Voltar ao arquivo</button>
+      <button type="button" class="btn btn-success" onclick="showGenericImportStep('confirm')">Continuar</button>
+    </div>
+    </section>
+    <section id="generic-import-panel-rules" hidden>
+      <h2 class="modal-title">Regras de Categorização Automática</h2>
+      <form id="generic-import-rule-form" onsubmit="handleGenericImportRule(event)">
+        <div class="import-review-fields">
+          <label>Trecho da descrição <input class="input-field" name="keyword" required></label>
+          <label>Tipo <select class="select-field" name="type" aria-label="Tipo da regra" onchange="populateGenericImportRuleCategories()">
+            <option value="">Receita ou despesa</option><option value="expense">Despesa</option><option value="income">Receita</option>
+          </select></label>
+          <label>Categoria <select class="select-field" name="categoryId" aria-label="Categoria da regra" required></select></label>
+          <label>Etiqueta <input class="input-field" name="tag" list="finance-tags-datalist" placeholder="Opcional"></label>
+        </div>
+        <button type="submit" class="btn btn-success btn-sm">Adicionar regra</button>
+      </form>
+      <div id="generic-import-rule-list" style="margin:12px 0; max-height:260px; overflow:auto;" aria-live="polite"></div>
+      <button type="button" class="btn btn-secondary" onclick="showGenericImportStep('review')">Voltar à revisão</button>
+    </section>
+    <section id="generic-import-panel-confirm" hidden>
+      <h2 class="modal-title">Confirmar importação</h2>
+      <div id="generic-import-confirm-summary" style="margin:12px 0;" aria-live="polite"></div>
+      <div class="import-review-controls">
+        <button type="button" class="btn btn-secondary" onclick="showGenericImportStep('review')">Voltar à revisão</button>
+        <button type="button" class="btn btn-success" id="generic-import-confirm-btn" onclick="handleConfirmGenericImport()">Confirmar importação</button>
+      </div>
+    </section>
+  </div>
 </div>
 
 <!-- ========================================== -->
@@ -7855,9 +7899,9 @@ function getInvoiceDueDate(cardAccount, invoiceMonth) {
 // separa as parcelas em meses e a propria data, que avanca 1 mes por
 // parcela. Funcao pura: nao mexe em AppState nem localStorage, quem chama
 // persiste.
-function generateInstallments(purchase) {
+function generateInstallments(purchase, accounts = AppState.financeAccounts || []) {
   const { accountId, totalAmount, installmentCount, purchaseDate, description, categoryId, notes, tags } = purchase;
-  const card = (AppState.financeAccounts || []).find(a => a.id === accountId);
+  const card = accounts.find(a => a.id === accountId);
   const isCard = !!(card && card.type === 'credit_card');
   const n = Math.max(1, installmentCount || 1);
   const groupId = n > 1 ? ('insg_' + Date.now() + '_' + Math.floor(Math.random() * 1000)) : null;
@@ -10618,21 +10662,22 @@ function setFinanceFilter(key, value, btnEl) {
 
 // ---------- MODAL: LANÇAMENTO ----------
 
-function openFinanceTransactionModal(editId = '') {
+function openFinanceTransactionModal(editId = '', draft = null) {
   const modal = document.getElementById('finance-transaction-modal');
-  const accounts = (AppState.financeAccounts || []).filter(a => !a.archived);
+  const importStaging = draft ? AppState.genericImportStaging : null;
+  const accounts = (importStaging?.accounts || AppState.financeAccounts || []).filter(a => !a.archived);
   if (accounts.length === 0) { showToast('Cadastre uma conta antes de lançar.', 'warn'); return; }
 
   document.getElementById('finance-tx-edit-id').value = editId;
   const accSel = document.getElementById('finance-tx-account');
   const transferSel = document.getElementById('finance-tx-transfer-account');
-  const optsHtml = accounts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
+  const optsHtml = accounts.map(a => `<option value="${importEsc(a.id)}">${importEsc((a.icon || '') + ' ' + a.name)}</option>`).join('');
   accSel.innerHTML = optsHtml;
   transferSel.innerHTML = optsHtml;
 
-  const tx = editId ? (AppState.financeTransactions || []).find(t => t.id === editId) : null;
+  const tx = draft || (editId ? (AppState.financeTransactions || []).find(t => t.id === editId) : null);
   const typeSel = document.getElementById('finance-tx-type');
-  const isInstallmentTx = !!(tx && tx.installmentTotal > 1);
+  const isInstallmentTx = !draft && !!(tx && tx.installmentTotal > 1);
   // Parcelado e editado como a compra inteira: valor TOTAL, data/conta da
   // 1a parcela e n de parcelas - salvar regenera o grupo todo (ver
   // handleSaveFinanceTransaction).
@@ -10641,10 +10686,11 @@ function openFinanceTransactionModal(editId = '') {
     : null;
   const first = group ? group[0] : tx;
 
-  document.getElementById('finance-tx-modal-title').textContent = editId ? '✏️ Editar Lançamento' : '➕ Novo Lançamento';
+  document.getElementById('finance-tx-modal-title').textContent = editId || draft ? '✏️ Editar Lançamento' : '➕ Novo Lançamento';
   typeSel.value = tx ? tx.type : 'expense';
-  typeSel.disabled = isInstallmentTx;
-  document.getElementById('finance-tx-description').value = tx ? tx.description.replace(/\s*\(\d+\/\d+\)$/, '') : '';
+  typeSel.disabled = isInstallmentTx || !!importStaging?.editor?.row.pair;
+  document.getElementById('finance-tx-import-pair-note').hidden = !importStaging?.editor?.row.pair;
+  document.getElementById('finance-tx-description').value = draft ? draft.description : tx ? tx.description.replace(/\s*\(\d+\/\d+\)$/, '') : '';
   document.getElementById('finance-tx-amount').value = group
     ? parseFloat(group.reduce((s, t) => s + (Number(t.amount) || 0), 0).toFixed(2))
     : (tx ? tx.amount : '');
@@ -10660,31 +10706,59 @@ function openFinanceTransactionModal(editId = '') {
   document.getElementById('finance-tx-goal-direction').value = tx && tx.goalDirection ? tx.goalDirection : 'add';
   document.getElementById('finance-tx-goal-direction-box').style.display = goalSel.value ? 'block' : 'none';
 
-  document.getElementById('finance-tx-tags').value = tx && tx.tags ? tx.tags.join(', ') : '';
+  document.getElementById('finance-tx-tags').value = draft ? draft.tag : tx && tx.tags ? tx.tags.join(', ') : '';
   const allTags = new Set();
   (AppState.financeTransactions || []).forEach(t => (t.tags || []).forEach(tag => allTags.add(tag)));
   document.getElementById('finance-tags-datalist').innerHTML = [...allTags].sort().map(tag => `<option value="${importEsc(tag)}">`).join('');
 
   document.getElementById('finance-tx-notes').value = tx ? (tx.notes || '') : '';
   document.getElementById('finance-tx-ignored').checked = !!(tx && tx.ignored);
-  document.getElementById('finance-tx-installment-count').value = isInstallmentTx ? tx.installmentTotal : 1;
+  document.getElementById('finance-tx-installment-count').value = draft?.installmentCount || (isInstallmentTx ? tx.installmentTotal : 1);
   document.getElementById('finance-tx-is-split').checked = false;
   document.getElementById('finance-tx-split-rows').innerHTML = '';
   document.getElementById('finance-tx-split-box').style.display = 'none';
 
   document.getElementById('finance-tx-delete-btn').style.display = editId ? 'inline-flex' : 'none';
-  document.getElementById('finance-tx-submit-btn').textContent = editId ? 'Salvar Alterações' : 'Salvar Lançamento';
+  document.getElementById('finance-tx-submit-btn').textContent = draft ? 'Salvar na revisão' : editId ? 'Salvar Alterações' : 'Salvar Lançamento';
+  document.getElementById('finance-tx-create-import-rule').checked = false;
+  document.getElementById('finance-tx-import-keyword').value = importStaging?.editor?.row.similarName || '';
 
   onFinanceTransactionTypeChange();
-  if (tx && tx.categoryId) document.getElementById('finance-tx-category').value = tx.categoryId;
+  if (draft || tx?.categoryId) document.getElementById('finance-tx-category').value = tx.categoryId || '';
+  if (draft?.splits.length) {
+    document.getElementById('finance-tx-is-split').checked = true;
+    document.getElementById('finance-tx-split-box').style.display = 'block';
+    draft.splits.forEach(split => addFinanceTxSplitRow(split.categoryId, split.amount));
+    updateFinanceTxCategoryVisibility();
+  }
   onFinanceTransactionAccountChange();
 
+  modal.classList.toggle('import-transaction-editor', !!draft);
+  document.getElementById('toast-root').classList.toggle('import-transaction-editor', !!draft);
+  if (draft) document.getElementById('generic-import-modal').inert = true;
   modal.classList.add('active');
+  if (draft) document.getElementById('finance-tx-description').focus();
 }
 
 function closeFinanceTransactionModal() {
   const modal = document.getElementById('finance-transaction-modal');
-  if (modal) modal.classList.remove('active');
+  if (modal) modal.classList.remove('active', 'import-transaction-editor');
+  document.getElementById('toast-root').classList.remove('import-transaction-editor');
+  const st = AppState.genericImportStaging;
+  if (st?.editor) {
+    const id = st.editor.row.id;
+    st.editor = null;
+    document.getElementById('generic-import-modal').inert = false;
+    const buttons = document.querySelectorAll('#generic-import-review-rows button[data-row-id]');
+    const edit = [...buttons].find(button => button.dataset.rowId === id && button.textContent === 'Editar');
+    (edit || document.getElementById('generic-import-review-search')).focus();
+  }
+}
+
+function getFinanceTransactionCategories(type) {
+  const st = AppState.genericImportStaging;
+  const categories = st?.editor ? [...st.categoryById.values()] : AppState.financeCategories || [];
+  return categories.filter(category => !category.archived && category.appliesTo.includes(type));
 }
 
 function onFinanceTransactionTypeChange() {
@@ -10696,8 +10770,9 @@ function onFinanceTransactionTypeChange() {
 
   const catSel = document.getElementById('finance-tx-category');
   if (type === 'expense' || type === 'income') {
-    const cats = (AppState.financeCategories || []).filter(c => !c.archived && c.appliesTo.includes(type));
-    catSel.innerHTML = cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+    const cats = getFinanceTransactionCategories(type);
+    catSel.innerHTML = (AppState.genericImportStaging?.editor ? '<option value="">Sem categoria</option>' : '')
+      + cats.map(c => `<option value="${importEsc(c.id)}">${importEsc(c.icon + ' ' + c.name)}</option>`).join('');
   }
 
   // Divisao em categorias so faz sentido em despesa/receita e so na criacao
@@ -10718,6 +10793,16 @@ function updateFinanceTxCategoryVisibility() {
   const type = document.getElementById('finance-tx-type').value;
   const isSplit = document.getElementById('finance-tx-is-split').checked;
   document.getElementById('finance-tx-category-box').style.display = ((type === 'expense' || type === 'income') && !isSplit) ? 'block' : 'none';
+  updateFinanceImportRuleFields();
+}
+
+function updateFinanceImportRuleFields() {
+  const type = document.getElementById('finance-tx-type').value;
+  const canCreate = !!AppState.genericImportStaging?.editor && (type === 'expense' || type === 'income')
+    && !document.getElementById('finance-tx-is-split').checked;
+  document.getElementById('finance-tx-import-rule').style.display = canCreate ? 'block' : 'none';
+  if (!canCreate) document.getElementById('finance-tx-create-import-rule').checked = false;
+  document.getElementById('finance-tx-import-keyword-box').hidden = !document.getElementById('finance-tx-create-import-rule').checked;
 }
 
 // "Parcelado em" e um numero sempre visivel em qualquer despesa (nao mais um
@@ -10748,12 +10833,12 @@ function onFinanceTransactionSplitToggle() {
 
 function addFinanceTxSplitRow(categoryId = '', amount = '') {
   const type = document.getElementById('finance-tx-type').value;
-  const cats = (AppState.financeCategories || []).filter(c => !c.archived && c.appliesTo.includes(type));
+  const cats = getFinanceTransactionCategories(type);
   const row = document.createElement('div');
   row.className = 'finance-tx-split-row';
   row.style.cssText = 'display:flex; gap:8px; align-items:center;';
   row.innerHTML = `
-    <select class="select-field finance-tx-split-category" style="flex:1;">${cats.map(c => `<option value="${c.id}" ${c.id === categoryId ? 'selected' : ''}>${c.icon} ${c.name}</option>`).join('')}</select>
+    <select class="select-field finance-tx-split-category" style="flex:1;">${cats.map(c => `<option value="${importEsc(c.id)}" ${c.id === categoryId ? 'selected' : ''}>${importEsc(c.icon + ' ' + c.name)}</option>`).join('')}</select>
     <input type="number" class="input-field finance-tx-split-amount" min="0.01" step="0.01" value="${amount}" placeholder="Valor" style="width:110px;" oninput="updateFinanceTxSplitRemaining()">
     <button type="button" class="btn btn-icon btn-sm" style="color:var(--red);" onclick="removeFinanceTxSplitRow(this)" title="Remover">✕</button>
   `;
@@ -10789,6 +10874,24 @@ function onFinanceTransactionAccountChange() {
   document.getElementById('finance-tx-installment-inline-box').style.display = (type === 'expense') ? 'block' : 'none';
 }
 
+function readFinanceTransactionSplits(amount) {
+  if (!document.getElementById('finance-tx-is-split').checked) return [];
+  const splits = [...document.querySelectorAll('.finance-tx-split-row')].map(row => ({
+    categoryId: row.querySelector('.finance-tx-split-category').value,
+    amount: parseFloat(row.querySelector('.finance-tx-split-amount').value) || 0
+  }));
+  if (splits.length < 2 || splits.some(row => !row.categoryId || row.amount <= 0)) {
+    showToast('Preencha categoria e valor de todas as divisões.', 'error');
+    return null;
+  }
+  const sum = splits.reduce((total, row) => total + Math.round(row.amount * 100), 0);
+  if (sum !== Math.round(amount * 100)) {
+    showToast(`A soma das divisões (${NumFmt.money(sum / 100)}) precisa ser igual ao valor total (${NumFmt.money(amount)}).`, 'error');
+    return null;
+  }
+  return splits;
+}
+
 function handleSaveFinanceTransaction(e) {
   e.preventDefault();
   const editId = document.getElementById('finance-tx-edit-id').value;
@@ -10818,8 +10921,24 @@ function handleSaveFinanceTransaction(e) {
     showToast('Preencha os campos corretamente.', 'error');
     return;
   }
-  if (type === 'transfer' && transferAccountId === accountId) {
+  if (type === 'transfer' && (!transferAccountId || transferAccountId === accountId)) {
     showToast('Conta de origem e destino devem ser diferentes.', 'error');
+    return;
+  }
+
+  if (AppState.genericImportStaging?.editor) {
+    const splits = readFinanceTransactionSplits(amount);
+    if (!splits) return;
+    const installmentCount = type === 'expense'
+      ? (parseInt(document.getElementById('finance-tx-installment-count').value, 10) || 1) : 1;
+    if (installmentCount < 1 || installmentCount > 48 || installmentCount > Math.round(amount * 100)) {
+      showToast('Confira a quantidade de parcelas e o valor da movimentação.', 'warn');
+      return;
+    }
+    saveGenericImportRow({
+      type, description, amount, date, accountId, categoryId: categoryId || null, transferAccountId, investmentDirection,
+      goalId, goalDirection, tag: tagValue, notes, ignored, installmentCount, splits
+    });
     return;
   }
 
@@ -10849,6 +10968,11 @@ function handleSaveFinanceTransaction(e) {
 
       const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description: baseDesc, categoryId, notes, tags });
       newTxs.forEach(t => {
+        if (existing.source === 'import') {
+          t.source = existing.source;
+          t.importId = existing.importId;
+          t.originalAccountLabel = existing.originalAccountLabel;
+        }
         t.goalId = goalId;
         t.goalDirection = goalDirection;
         t.ignored = ignored;
@@ -10872,7 +10996,16 @@ function handleSaveFinanceTransaction(e) {
         // cartao quanto pra parcelamento fora do cartao (ex: PIX futuro).
         AppState.financeTransactions.splice(idx, 1);
         const newTxs = generateInstallments({ accountId, totalAmount: amount, installmentCount, purchaseDate: date, description, categoryId, notes, tags });
-        newTxs.forEach(t => { t.goalId = goalId; t.goalDirection = goalDirection; t.ignored = ignored; });
+        newTxs.forEach(t => {
+          t.goalId = goalId;
+          t.goalDirection = goalDirection;
+          t.ignored = ignored;
+          if (existing.source === 'import') {
+            t.source = existing.source;
+            t.importId = existing.importId;
+            t.originalAccountLabel = existing.originalAccountLabel;
+          }
+        });
         AppState.financeTransactions.unshift(...newTxs);
         logFinanceChange('update', 'transacao', `Lançamento "${description}" transformado em parcelado em ${installmentCount}x (${NumFmt.money(amount)})`);
       } else {
@@ -10895,19 +11028,8 @@ function handleSaveFinanceTransaction(e) {
     const isSplitChecked = document.getElementById('finance-tx-is-split').checked;
 
     if (isSplitChecked) {
-      const splitRows = [...document.querySelectorAll('.finance-tx-split-row')].map(row => ({
-        categoryId: row.querySelector('.finance-tx-split-category').value,
-        amount: parseFloat(row.querySelector('.finance-tx-split-amount').value) || 0
-      }));
-      if (splitRows.some(r => !r.categoryId || r.amount <= 0)) {
-        showToast('Preencha categoria e valor de todas as divisões.', 'error');
-        return;
-      }
-      const splitSum = splitRows.reduce((s, r) => s + r.amount, 0);
-      if (Math.abs(splitSum - amount) > 0.01) {
-        showToast(`A soma das divisões (${NumFmt.money(splitSum)}) precisa ser igual ao valor total (${NumFmt.money(amount)}).`, 'error');
-        return;
-      }
+      const splitRows = readFinanceTransactionSplits(amount);
+      if (!splitRows) return;
       const splitGroupId = 'fsplit_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
       const newTxs = splitRows.map((r, i) => ({
         id: 'ftx_' + Date.now() + '_' + i + '_' + Math.floor(Math.random() * 1000),
@@ -11408,15 +11530,20 @@ function hasFinanceNamePrefix(name, prefix) {
 
 // A primeira regra que bate vence. Regras cadastradas a partir do histórico
 // usam o início do nome normalizado e o tipo do lançamento.
-function matchFinanceRule(description, type) {
+function matchFinanceRule(description, type, rules = AppState.financeCategoryRules || [], stagedCategories = null) {
   const descLower = (description || '').toLowerCase();
   let name;
-  return (AppState.financeCategoryRules || []).find(rule => {
-    if (!rule.transactionType) return descLower.includes(rule.keyword.toLowerCase());
-    if (rule.transactionType !== type) return false;
+  return rules.find(rule => {
+    if (rule.transactionType && rule.transactionType !== type) return false;
+    if (!rule.transactionType && !rule.matchMode) return descLower.includes(rule.keyword.toLowerCase());
     name ??= getImportDescriptionName(stripNubankAccountDetails(description || ''));
-    return hasFinanceNamePrefix(name, rule.keyword) && (AppState.financeCategories || []).some(category =>
-      category.id === rule.categoryId && !category.archived && (category.appliesTo || []).includes(type));
+    const matched = rule.matchMode === 'contains'
+      ? (' ' + name + ' ').includes(' ' + rule.keyword + ' ')
+      : hasFinanceNamePrefix(name, rule.keyword);
+    if (!matched) return false;
+    const category = stagedCategories ? stagedCategories.get(rule.categoryId)
+      : (AppState.financeCategories || []).find(item => item.id === rule.categoryId);
+    return !!category && !category.archived && (category.appliesTo || []).includes(type);
   }) || null;
 }
 
@@ -11429,6 +11556,7 @@ function matchFinanceCategoryRule(description, type) {
 // com alguma regra E a categoria sugerida existir no select atual (categoria
 // pode nao aplicar a despesa/receita, dependendo do tipo escolhido).
 function autoApplyFinanceCategoryRule() {
+  if (AppState.genericImportStaging?.editor) return;
   const type = document.getElementById('finance-tx-type').value;
   if (type !== 'expense' && type !== 'income') return;
   const description = document.getElementById('finance-tx-description').value;
@@ -12197,7 +12325,8 @@ function findTransferPairs(rows) {
 
 // Junta tudo: linhas de todos os arquivos, duplicatas ja importadas e pares.
 function computeGenericImport(st) {
-  const existingIds = new Set((AppState.financeTransactions || []).filter(t => t.importId).map(t => t.importId));
+  const existingIds = new Set((AppState.financeTransactions || []).flatMap(tx =>
+    [tx.importId, ...(tx.importRowIds || [])].filter(Boolean)));
   const perFile = st.files.map(f => {
     const { rows, skipped } = buildFileRows(f);
     const keys = [...new Set(rows.map(r => r.accKey))];
@@ -12241,7 +12370,7 @@ function computeGenericImport(st) {
   const pairedIds = new Set();
   pairs.filter(p => p.enabled).forEach(p => { pairedIds.add(p.o.id); pairedIds.add(p.i.id); });
   const counterparts = st.detectTransfers
-    ? findExistingCounterparts(all.filter(r => !r.isDup && !r.unset && !pairedIds.has(r.id)))
+    ? findExistingCounterparts(all.filter(r => !r.isDup && !r.unset && !pairedIds.has(r.id) && !st.rowEdits.get(r.id)?.changedForMatching))
     : [];
   counterparts.forEach(c => { c.enabled = st.pairChoice[c.key] !== undefined ? st.pairChoice[c.key] : c.defaultEnabled; });
   return { perFile, all, pairs, counterparts, existingIds };
@@ -12249,19 +12378,53 @@ function computeGenericImport(st) {
 
 // ---- Tela ----
 function openGenericImportModal() {
-  AppState.genericImportStaging = null;
-  document.getElementById('generic-import-step-file').style.display = 'block';
-  document.getElementById('generic-import-preview').style.display = 'none';
-  document.getElementById('generic-import-preview').innerHTML = '';
+  let ownNames = [];
+  try { ownNames = JSON.parse(localStorage.getItem('b3_finance_own_names') || '[]'); } catch (e) { /* usar a lista vazia */ }
+  AppState.genericImportStaging = {
+    files: [], rowEdits: new Map(), rules: [], newAccounts: new Map(), fileCategories: new Map(),
+    historyRules: getFinanceCategoryRuleSuggestions(), markInvestments: true, detectTransfers: true,
+    pairChoice: {}, errors: [], ownNames, ignoreOwn: true, ignoreInvoice: true,
+    snapshot: ['b3_finance_accounts', 'b3_finance_categories', 'b3_finance_transactions', 'b3_finance_category_rules']
+      .map(key => [key, localStorage.getItem(key)])
+  };
   document.getElementById('generic-import-file-input').value = '';
   document.getElementById('generic-import-file-error').textContent = '';
+  document.getElementById('generic-import-review-search').value = '';
+  document.getElementById('generic-import-review-selected').checked = false;
+  document.getElementById('generic-import-review-form').reset();
+  document.getElementById('generic-import-rule-form').reset();
+  document.getElementById('generic-import-batch-edit').open = false;
+  setGenericImportStatus('');
+  showGenericImportStep('file');
   document.getElementById('generic-import-modal').classList.add('active');
 }
 
 function closeGenericImportModal() {
-  document.getElementById('generic-import-review')?.close();
+  if (AppState.genericImportStaging?.editor) closeFinanceTransactionModal();
+  AppState.genericImportStaging = null;
   const modal = document.getElementById('generic-import-modal');
   if (modal) modal.classList.remove('active');
+}
+
+function showGenericImportStep(step) {
+  const st = AppState.genericImportStaging;
+  if (!st || (step !== 'file' && !st.canReview) || (step === 'confirm' && !st.review)) return;
+  if (step !== 'file') refreshGenericImportReview();
+  st.step = step;
+  for (const panel of ['file', 'review', 'rules', 'confirm']) {
+    document.getElementById('generic-import-panel-' + panel).hidden = panel !== step;
+  }
+  document.querySelectorAll('[data-import-step]').forEach(button => {
+    const target = button.dataset.importStep;
+    button.disabled = (target !== 'file' && !st.canReview) || (target === 'confirm' && !st.review);
+    if (target === (step === 'rules' ? 'review' : step)) button.setAttribute('aria-current', 'step');
+    else button.removeAttribute('aria-current');
+  });
+  if (step === 'file') renderGenericImportPreview();
+  if (step === 'rules') renderGenericImportRules();
+  if (step === 'confirm') renderGenericImportConfirmation();
+  document.querySelector('#generic-import-modal > .modal-box').scrollTop = 0;
+  if (step === 'review') document.getElementById('generic-import-review-search').focus();
 }
 
 function readFileAsBuffer(file) {
@@ -12514,16 +12677,20 @@ function setGenericImportStatus(msg) {
   el.style.display = msg ? 'block' : 'none';
 }
 
-async function handleGenericFilesSelected(event, append) {
+async function handleGenericFilesSelected(event) {
   const files = Array.from(event.target.files || []);
+  const st = AppState.genericImportStaging;
   event.target.value = '';
-  if (!files.length) return;
+  if (!files.length || !st || st.reading) return;
+  st.reading = true;
+  renderGenericImportPreview();
   const errorEl = document.getElementById('generic-import-file-error');
   errorEl.textContent = '';
 
   const entries = [];
   const errors = [];
   for (const file of files) {
+    if (AppState.genericImportStaging !== st) return;
     try {
       setGenericImportStatus('Lendo ' + file.name + '…');
       const buffer = await readFileAsBuffer(file);
@@ -12532,7 +12699,7 @@ async function handleGenericFilesSelected(event, append) {
       const text = isPdf ? await pdfBufferToCsvText(buffer)
         : isImage ? await imageBufferToCsvText(buffer, file.type, (status, progress) => {
             const pct = status === 'recognizing text' ? ' ' + Math.round((progress || 0) * 100) + '%' : '';
-            setGenericImportStatus('Lendo o print (reconhecimento de texto no seu aparelho' + pct + ')… na primeira vez baixa o dicionário de português e pode demorar um pouco.');
+            if (AppState.genericImportStaging === st) setGenericImportStatus('Lendo o print' + pct + '…');
           })
         : detectAndDecodeText(buffer);
       const entry = buildGenericFileEntry(text, file.name);
@@ -12542,32 +12709,27 @@ async function handleGenericFilesSelected(event, append) {
     }
   }
 
+  if (AppState.genericImportStaging !== st) return;
+  st.reading = false;
   setGenericImportStatus('');
-  if (!append || !AppState.genericImportStaging) {
-    let savedOwnNames = [];
-    try { savedOwnNames = JSON.parse(localStorage.getItem('b3_finance_own_names') || '[]'); } catch (e) { savedOwnNames = []; }
-    AppState.genericImportStaging = { files: [], rowEdits: new Map(), markInvestments: true, detectTransfers: true, pairChoice: {}, errors: [], ownNames: savedOwnNames, ignoreOwn: true, ignoreInvoice: true };
-  }
-  const st = AppState.genericImportStaging;
   st.files.push(...entries);
   st.errors = errors;
 
   if (!st.files.length) {
-    AppState.genericImportStaging = null;
     errorEl.textContent = errors.join(' · ') || 'Nenhum arquivo válido.';
-    return;
   }
-  document.getElementById('generic-import-step-file').style.display = 'none';
-  document.getElementById('generic-import-preview').style.display = 'block';
   renderGenericImportPreview();
 }
 
 function removeGenericFile(idx) {
   const st = AppState.genericImportStaging;
   if (!st) return;
-  st.files.splice(idx, 1);
+  const [file] = st.files.splice(idx, 1);
+  if (!file) return;
+  for (const id of st.rowEdits.keys()) {
+    if (id.startsWith(file.id + ':')) st.rowEdits.delete(id);
+  }
   st.pairChoice = {};
-  if (!st.files.length) { openGenericImportModal(); return; }
   renderGenericImportPreview();
 }
 
@@ -12645,15 +12807,186 @@ function setAllGenericPairs(checked) {
   renderGenericImportPreview();
 }
 
+function makeGenericImportId(prefix) {
+  return prefix + Date.now() + '_' + Math.random().toString(36).slice(2);
+}
+
+function prepareGenericImportCatalog(st, comp) {
+  st.accounts = [...(AppState.financeAccounts || [])];
+  st.accountById = new Map(st.accounts.map(account => [account.id, account]));
+  st.categoryById = new Map((AppState.financeCategories || []).map(category => [category.id, category]));
+  st.categoryByName = new Map([...st.categoryById.values()].map(category => [category.name.toLowerCase(), category]));
+  for (const { f, rows } of comp.perFile) {
+    for (const row of rows) {
+      row.sourceAccountId = row.existingAccountId;
+      if (getAccountChoice(f, row.accKey).mode === 'create') {
+        let account = st.newAccounts.get(row.identity);
+        if (!account) {
+          const date = getLocalTodayStr();
+          account = {
+            id: makeGenericImportId('facc_'), type: 'checking', icon: '🏦', initialBalance: 0,
+            initialBalanceDate: date, archived: false, paidInvoiceMonths: [], createdAt: new Date().toISOString()
+          };
+          st.newAccounts.set(row.identity, account);
+        }
+        account.name = getAccountChoice(f, row.accKey).newName;
+        row.sourceAccountId = account.id;
+        if (!st.accountById.has(account.id)) {
+          account.color = CHART_COLOR_PALETTE[st.accounts.length % CHART_COLOR_PALETTE.length];
+          st.accountById.set(account.id, account);
+          st.accounts.push(account);
+        }
+      }
+      if (!row.category) continue;
+      const key = row.category.toLowerCase();
+      if (st.categoryByName.has(key)) continue;
+      let category = st.fileCategories.get(key);
+      if (!category) {
+        category = {
+          id: makeGenericImportId('cat_'), name: row.category, icon: '📥',
+          color: CHART_COLOR_PALETTE[st.categoryById.size % CHART_COLOR_PALETTE.length],
+          appliesTo: ['expense', 'income'], isCustom: true, archived: false
+        };
+        st.fileCategories.set(key, category);
+      }
+      st.categoryByName.set(key, category);
+      st.categoryById.set(category.id, category);
+    }
+  }
+  const draftCategories = new Map([...st.fileCategories.values()].map(category => [category.id, category]));
+  const editedIds = [...st.rowEdits.values()].flatMap(edit => [edit.categoryId, ...(edit.splits || []).map(split => split.categoryId)]);
+  for (const id of [...editedIds, ...st.rules.map(rule => rule.categoryId)]) {
+    if (!st.categoryById.has(id) && draftCategories.has(id)) st.categoryById.set(id, draftCategories.get(id));
+  }
+  // Uma conta criada mais atrás pode continuar como destino de uma edição individual.
+  const plannedAccounts = new Map([...st.newAccounts.values()].map(account => [account.id, account]));
+  for (const edit of st.rowEdits.values()) {
+    for (const id of [edit.accountId, edit.transferAccountId]) {
+      if (st.accountById.has(id) || !plannedAccounts.has(id)) continue;
+      const account = plannedAccounts.get(id);
+      st.accountById.set(id, account);
+      st.accounts.push(account);
+    }
+  }
+}
+
+function getGenericImportRuleKey(rule) {
+  const pattern = rule.matchMode || (rule.transactionType ? 'prefix' : 'literal');
+  return [pattern, rule.transactionType || '', rule.keyword.toLowerCase()].join('|');
+}
+
+function getGenericImportRules(st) {
+  const stagedKeys = new Set(st.rules.map(getGenericImportRuleKey));
+  return [...st.rules, ...(AppState.financeCategoryRules || []).filter(rule => !stagedKeys.has(getGenericImportRuleKey(rule)))];
+}
+
+function stageGenericImportRule(st, { keyword, transactionType, categoryId, tag }) {
+  const normalized = getImportDescriptionName(keyword);
+  const category = st.categoryById.get(categoryId);
+  if (!normalized || !category || category.archived || importNorm(category.name) === 'outros'
+      || (transactionType && !category.appliesTo.includes(transactionType))) {
+    showToast('Informe um trecho da descrição e escolha uma categoria válida para a regra.', 'warn');
+    return false;
+  }
+  if (tag && tag.includes(',')) { showToast('Use uma etiqueta por regra.', 'warn'); return false; }
+  const rule = { id: makeGenericImportId('frule_'), keyword: normalized, transactionType, categoryId, tag: tag || null, matchMode: 'contains' };
+  const key = getGenericImportRuleKey(rule);
+  st.rules = [rule, ...st.rules.filter(current => getGenericImportRuleKey(current) !== key)];
+  st.effectiveRules = getGenericImportRules(st);
+  return true;
+}
+
+function populateGenericImportRuleCategories() {
+  const st = AppState.genericImportStaging;
+  const form = document.getElementById('generic-import-rule-form');
+  const select = form.elements.categoryId;
+  const previous = select.value;
+  const type = form.elements.type.value;
+  select.replaceChildren(new Option('Escolha uma categoria', ''), ...[...st.categoryById.values()]
+    .filter(category => !category.archived && importNorm(category.name) !== 'outros' && (!type || category.appliesTo.includes(type)))
+    .map(category => new Option(category.name, category.id)));
+  if ([...select.options].some(option => option.value === previous)) select.value = previous;
+}
+
+function renderGenericImportRules() {
+  const st = AppState.genericImportStaging;
+  populateGenericImportRuleCategories();
+  document.getElementById('generic-import-rule-list').innerHTML = st.effectiveRules.map(rule => {
+    const staged = st.rules.includes(rule);
+    const type = { income: 'Receita', expense: 'Despesa' }[rule.transactionType];
+    return `<div class="import-review-controls" style="justify-content:space-between; border-top:1px solid var(--border); padding:6px 0;">
+      <span>“${importEsc(rule.keyword)}” → ${importEsc(st.categoryById.get(rule.categoryId)?.name || 'Categoria removida')}
+        ${type ? ` · ${type}` : ''}${rule.tag ? ` · ${importEsc(rule.tag)}` : ''}${staged ? ' · A salvar' : ''}</span>
+      ${staged ? `<button type="button" class="btn btn-secondary btn-sm" data-id="${importEsc(rule.id)}"
+        onclick="removeGenericImportRule(this.dataset.id)">Remover</button>` : ''}
+    </div>`;
+  }).join('') || '<p>Nenhuma regra cadastrada.</p>';
+}
+
+function handleGenericImportRule(event) {
+  event.preventDefault();
+  const st = AppState.genericImportStaging;
+  const form = event.currentTarget;
+  if (st?.step !== 'rules') return;
+  if (stageGenericImportRule(st, {
+    keyword: form.elements.keyword.value, transactionType: form.elements.type.value,
+    categoryId: form.elements.categoryId.value, tag: form.elements.tag.value.trim()
+  })) {
+    form.reset();
+    renderGenericImportRules();
+  }
+}
+
+function removeGenericImportRule(id) {
+  const st = AppState.genericImportStaging;
+  st.rules = st.rules.filter(rule => rule.id !== id);
+  st.effectiveRules = getGenericImportRules(st);
+  renderGenericImportRules();
+}
+
 function getGenericImportRowDetails(st, row) {
   const edits = st.rowEdits.get(row.id) || {};
-  const rule = matchFinanceRule(row.description, row.amount < 0 ? 'expense' : 'income');
-  const useRuleCategory = !row.category || row.category.toLowerCase() === 'outros';
+  const pair = row.pair;
+  const type = edits.type ?? row.type;
+  const hasCategory = type === 'expense' || type === 'income';
+  const fileCategory = st.categoryByName.get(row.category.toLowerCase());
+  const rule = hasCategory ? matchFinanceRule(row.description, type, st.effectiveRules, st.categoryById) : null;
+  const historyRule = hasCategory && !rule && !row.ignored && !edits.ignored
+    ? st.historyRules.find(rule => rule.transactionType === type && hasFinanceNamePrefix(row.similarName, rule.keyword))
+    : null;
+  let categoryId = null;
+  let categoryOrigin = '';
+  if (hasCategory) {
+    if (edits.categoryId !== undefined) {
+      categoryId = edits.categoryId === '__none__' ? null : edits.categoryId;
+      categoryOrigin = 'Escolhida na revisão';
+    } else if (fileCategory && importNorm(fileCategory.name) !== 'outros') {
+      categoryId = fileCategory.id;
+      categoryOrigin = 'Categoria do arquivo';
+    } else if (rule) {
+      categoryId = rule.categoryId;
+      categoryOrigin = st.rules.includes(rule) ? 'Pela nova regra' : 'Regra cadastrada';
+    } else if (historyRule) {
+      categoryId = historyRule.category.id;
+      categoryOrigin = 'Sugestão pelo histórico';
+    } else {
+      categoryId = fileCategory?.id || st.categoryByName.get('outros')?.id || null;
+      categoryOrigin = 'A revisar';
+    }
+  }
   return {
+    type, categoryId, categoryOrigin, accountId: edits.accountId ?? row.sourceAccountId,
+    transferAccountId: type === 'transfer' ? edits.transferAccountId ?? pair?.i.sourceAccountId ?? null : null,
+    investmentDirection: type === 'investment'
+      ? edits.investmentDirection ?? (row.amount >= 0 ? 'redemption' : 'contribution') : null,
     description: edits.description ?? row.description,
-    categoryId: edits.categoryId ?? (useRuleCategory ? rule?.categoryId || undefined : undefined),
+    amount: edits.amount ?? Math.abs(row.amount), date: edits.date ?? row.date,
     tag: edits.tag ?? (row.tag || rule?.tag || ''),
-    notes: edits.notes || ''
+    notes: edits.notes ?? (pair && pair.i.description !== row.description ? `Entrada na outra conta: ${pair.i.description}` : ''),
+    ignored: edits.ignored ?? (hasCategory && row.ignored),
+    goalId: edits.goalId ?? null, goalDirection: edits.goalDirection ?? null,
+    installmentCount: type === 'expense' ? edits.installmentCount ?? 1 : 1,
+    splits: hasCategory ? edits.splits ?? [] : []
   };
 }
 
@@ -12675,36 +13008,40 @@ function haveSimilarImportDescriptions(a, b) {
     && shorter[last].length >= 4 && longer[last].startsWith(shorter[last]);
 }
 
-function openGenericImportReview() {
+function refreshGenericImportReview(message = '') {
   const st = AppState.genericImportStaging;
   if (!st) return;
   const comp = computeGenericImport(st);
-  const transfers = new Set(comp.pairs.filter(p => p.enabled).flatMap(p => [p.o.id, p.i.id]));
-  const ignoredCounterparts = new Set(comp.counterparts.filter(c => c.enabled).map(c => c.row.id));
+  st.comp = comp;
+  prepareGenericImportCatalog(st, comp);
+  st.effectiveRules = getGenericImportRules(st);
+  const pairs = comp.pairs.filter(pair => pair.enabled);
+  const outgoing = new Map(pairs.map(pair => [pair.o.id, pair]));
+  const incoming = new Set(pairs.map(pair => pair.i.id));
+  const counterparts = new Map(comp.counterparts.filter(c => c.enabled).map(c => [c.row.id, c.tx]));
   const rows = comp.all.map(row => {
-    let locked = '';
-    if (row.isDup) locked = 'Já importada';
-    else if (transfers.has(row.id)) locked = 'Transferência vinculada';
-    else if (st.markInvestments && classifyInvestmentRow(row).isInvestment) locked = 'Investimento';
+    const pair = outgoing.get(row.id);
+    const investment = st.markInvestments && classifyInvestmentRow(row).isInvestment;
+    const locked = row.isDup ? 'Já importada' : incoming.has(row.id) ? 'Entrada da transferência vinculada' : '';
     return {
-      ...row, locked,
-      type: row.amount < 0 ? 'expense' : 'income',
-      ignored: !!row.autoIgnore || ignoredCounterparts.has(row.id),
+      ...row, pair, locked, counterpart: counterparts.get(row.id),
+      type: pair ? 'transfer' : investment ? 'investment' : row.amount < 0 ? 'expense' : 'income',
+      ignored: !!row.autoIgnore || counterparts.has(row.id),
       similarName: getImportDescriptionName(row.description)
     };
   });
-  const categoryNames = new Map((AppState.financeCategories || []).map(c => [c.id, c.name]));
-  st.review = { rows, categoryNames, selected: new Set(), othersOnly: false };
-  document.getElementById('generic-import-review-search').value = '';
-  document.getElementById('generic-import-review-selected').checked = false;
-  document.getElementById('generic-import-review-form').reset();
-  renderGenericImportReview();
-  document.getElementById('generic-import-review').showModal();
+  const selected = new Set(rows.filter(row => !row.locked && st.review?.selected.has(row.id)).map(row => row.id));
+  st.review = { rows, selected, othersOnly: st.review?.othersOnly || false };
+  renderGenericImportReview(message);
 }
 
-function getImportReviewCategoryName(st, row, details) {
-  if (details.categoryId === undefined) return row.category || 'Outros';
-  return st.review.categoryNames.get(details.categoryId) || 'Sem categoria';
+function getImportReviewCategoryName(st, details) {
+  if (details.splits.length) return 'Dividida em categorias';
+  return st.categoryById.get(details.categoryId)?.name || 'Sem categoria';
+}
+
+function getGenericImportSignedAmount(details) {
+  return details.type === 'income' || details.investmentDirection === 'redemption' ? details.amount : -details.amount;
 }
 
 function getImportReviewCategoryRows(st) {
@@ -12712,7 +13049,8 @@ function getImportReviewCategoryRows(st) {
   return st.review.rows.filter(row => {
     if (row.locked) return false;
     const details = getGenericImportRowDetails(st, row);
-    return importNorm(getImportReviewCategoryName(st, row, details)) === 'outros';
+    return (details.type === 'expense' || details.type === 'income')
+      && importNorm(getImportReviewCategoryName(st, details)) === 'outros';
   });
 }
 
@@ -12731,6 +13069,36 @@ function toggleImportReviewOthers() {
   renderGenericImportReview();
 }
 
+function openGenericImportRowEditor(id) {
+  const st = AppState.genericImportStaging;
+  const row = st?.review?.rows.find(item => item.id === id && !item.locked);
+  if (st?.step !== 'review' || !row) return;
+  const draft = getGenericImportRowDetails(st, row);
+  st.editor = { row, draft };
+  openFinanceTransactionModal('', draft);
+}
+
+function saveGenericImportRow(values) {
+  const st = AppState.genericImportStaging;
+  const { row, draft } = st.editor;
+  if (document.getElementById('finance-tx-create-import-rule').checked
+      && !stageGenericImportRule(st, {
+        keyword: document.getElementById('finance-tx-import-keyword').value,
+        transactionType: values.type, categoryId: values.categoryId, tag: values.tag
+      })) return;
+  const edits = { ...st.rowEdits.get(row.id) };
+  for (const [field, value] of Object.entries(values)) {
+    if (JSON.stringify(value) !== JSON.stringify(draft[field])) {
+      edits[field] = field === 'categoryId' && value === null ? '__none__' : value;
+    }
+  }
+  if (document.getElementById('finance-tx-create-import-rule').checked) edits.categoryId = values.categoryId;
+  if (['date', 'amount', 'accountId', 'type', 'ignored'].some(field => Object.hasOwn(edits, field))) edits.changedForMatching = true;
+  if (Object.keys(edits).length) st.rowEdits.set(row.id, edits);
+  refreshGenericImportReview('Movimentação atualizada na revisão.');
+  closeFinanceTransactionModal();
+}
+
 function renderGenericImportReview(message = '') {
   const st = AppState.genericImportStaging;
   if (!st?.review) return;
@@ -12745,37 +13113,45 @@ function renderGenericImportReview(message = '') {
   const rows = getVisibleImportReviewRows(st, categoryRows);
   document.getElementById('generic-import-review-rows').innerHTML = rows.map(row => {
     const details = getGenericImportRowDetails(st, row);
-    const category = getImportReviewCategoryName(st, row, details);
-    const type = row.type === 'expense' ? 'Despesa' : 'Receita';
+    const category = getImportReviewCategoryName(st, details);
+    const type = { expense: 'Despesa', income: 'Receita', transfer: 'Transferência', investment: 'Investimento' }[details.type];
+    const account = st.accountById.get(details.accountId);
     const id = importEsc(row.id);
     const sub = details.description === row.description ? '' : `<br><small>Original: ${importEsc(row.description)}</small>`;
     return `<tr>
       <td>${row.locked ? '—' : `<input type="checkbox" data-row-id="${id}" ${selected.has(row.id) ? 'checked' : ''}
         aria-label="Marcar ${importEsc(row.description)} em ${NumFmt.date(row.date)}" onchange="toggleImportReviewRow(this)">`}</td>
-      <td><strong>${importEsc(details.description)}</strong>${sub}<br><small>${NumFmt.date(row.date)} · ${importEsc(row.accountName)}</small>
+      <td><strong>${importEsc(details.description)}</strong>${sub}<br><small>${NumFmt.date(details.date)} · ${importEsc(account?.name || row.accountName)}</small>
         ${row.locked || !row.similarName ? '' : `<br><button type="button" class="btn btn-secondary btn-sm" data-row-id="${id}"
           onclick="selectSimilarImportRows(this.dataset.rowId)">Selecionar semelhantes</button>`}</td>
-      <td style="white-space:nowrap;">${NumFmt.money(row.amount)}</td>
-      <td>${row.locked ? row.locked : `${type}${row.ignored ? ' · Ignorada' : ''}<br>${importEsc(category)}
+      <td style="white-space:nowrap;">${NumFmt.money(getGenericImportSignedAmount(details))}</td>
+      <td>${row.locked ? row.locked : `${type}${details.ignored ? ' · Ignorada' : ''}${details.installmentCount > 1 ? ' · ' + details.installmentCount + ' parcelas' : ''}
+        ${details.splits.length || details.categoryOrigin ? `<br>${importEsc(category)}<br><small>${importEsc(details.categoryOrigin)}</small>` : ''}
         ${details.tag ? `<br><small>Tag: ${importEsc(details.tag)}</small>` : ''}
         ${details.notes ? `<br><small>Obs.: ${importEsc(details.notes)}</small>` : ''}
         ${st.rowEdits.has(row.id) ? '<br><small>Ajustada na prévia</small>' : ''}`}</td>
+      <td>${row.locked ? '' : `<button type="button" class="btn btn-secondary btn-sm" data-row-id="${id}"
+        aria-label="Editar ${importEsc(details.description)}" onclick="openGenericImportRowEditor(this.dataset.rowId)">Editar</button>`}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="4">Nenhuma movimentação para mostrar.</td></tr>';
+  }).join('') || '<tr><td colspan="5">Nenhuma movimentação para mostrar.</td></tr>';
   renderGenericImportReviewSelection(message);
 }
 
 function renderGenericImportReviewSelection(message = '') {
-  const { rows, selected } = AppState.genericImportStaging.review;
+  const st = AppState.genericImportStaging;
+  const { rows, selected } = st.review;
   const form = document.getElementById('generic-import-review-form');
   const categorySelect = form.elements.categoryId;
   const previousCategory = categorySelect.value;
-  const selectedTypes = new Set(rows.filter(row => selected.has(row.id)).map(row => row.type));
-  const categories = (AppState.financeCategories || []).filter(c =>
+  const selectedDetails = rows.filter(row => selected.has(row.id)).map(row => getGenericImportRowDetails(st, row));
+  const selectedTypes = new Set(selectedDetails.map(details => details.type));
+  const categories = [...st.categoryById.values()].filter(c =>
     !c.archived && [...selectedTypes].every(type => (c.appliesTo || []).includes(type)));
   categorySelect.innerHTML = '<option value="">Manter categoria</option><option value="__none__">Sem categoria</option>'
     + categories.map(c => `<option value="${importEsc(c.id)}">${importEsc(c.name)}</option>`).join('');
   categorySelect.value = [...categorySelect.options].some(o => o.value === previousCategory) ? previousCategory : '';
+  categorySelect.disabled = selectedDetails.some(details => details.splits.length)
+    || [...selectedTypes].some(type => type !== 'income' && type !== 'expense');
   document.getElementById('generic-import-review-count').textContent = `${selected.size} de ${rows.length} movimentação(ões) selecionada(s)`;
   document.getElementById('generic-import-review-apply').disabled = !selected.size;
   document.getElementById('generic-import-review-reset').disabled = !selected.size;
@@ -12784,7 +13160,10 @@ function renderGenericImportReviewSelection(message = '') {
 
 function toggleImportReviewRow(input) {
   const { selected } = AppState.genericImportStaging.review;
-  if (input.checked) selected.add(input.dataset.rowId);
+  if (input.checked) {
+    selected.add(input.dataset.rowId);
+    document.getElementById('generic-import-batch-edit').open = true;
+  }
   else selected.delete(input.dataset.rowId);
   if (document.getElementById('generic-import-review-selected').checked) renderGenericImportReview();
   else renderGenericImportReviewSelection();
@@ -12797,9 +13176,12 @@ function selectSimilarImportRows(id) {
   const anchor = rows.find(row => row.id === id && !row.locked);
   if (!anchor) return;
   selected.clear();
+  const type = getGenericImportRowDetails(st, anchor).type;
   rows.forEach(row => {
-    if (!row.locked && row.type === anchor.type && haveSimilarImportDescriptions(anchor.similarName, row.similarName)) selected.add(row.id);
+    if (!row.locked && getGenericImportRowDetails(st, row).type === type
+        && haveSimilarImportDescriptions(anchor.similarName, row.similarName)) selected.add(row.id);
   });
+  document.getElementById('generic-import-batch-edit').open = true;
   document.getElementById('generic-import-review-search').value = '';
   document.getElementById('generic-import-review-selected').checked = true;
   renderGenericImportReview();
@@ -12811,6 +13193,7 @@ function selectVisibleImportRows() {
   getVisibleImportReviewRows(st).forEach(row => {
     if (!row.locked) st.review.selected.add(row.id);
   });
+  if (st.review.selected.size) document.getElementById('generic-import-batch-edit').open = true;
   renderGenericImportReview();
 }
 
@@ -12827,7 +13210,7 @@ function applyGenericImportReview(event) {
   const data = new FormData(event.currentTarget);
   const changes = {};
   ['description', 'categoryId', 'tag', 'notes'].forEach(field => {
-    const value = data.get(field).trim();
+    const value = String(data.get(field) || '').trim();
     if (value) changes[field] = value;
   });
   if (changes.tag?.includes(',')) {
@@ -12871,7 +13254,7 @@ function renderGenericFileCard(st, pf, idx) {
     return `
       <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:12px; margin-bottom:6px;">
         <span style="flex:1 1 140px;">${label} <span style="color:var(--text-sub);">(${counts[key]})</span></span>
-        <select class="select-field" style="flex:1 1 170px; font-size:11.5px; ${c.mode === 'unset' ? 'border-color:var(--red);' : ''}" onchange="setGenericAccountChoice(${idx}, ${keyIdx}, this.value)">
+        <select class="select-field" aria-label="Conta ou cartão de ${importEsc(key === '__file__' ? f.fileName : key)}" style="flex:1 1 170px; font-size:11.5px; ${c.mode === 'unset' ? 'border-color:var(--red);' : ''}" onchange="setGenericAccountChoice(${idx}, ${keyIdx}, this.value)">
           ${c.mode === 'unset' ? '<option value="" selected>— escolha a conta —</option>' : ''}
           <option value="__create__" ${c.mode === 'create' ? 'selected' : ''}>+ Criar nova conta</option>
           ${opts}
@@ -12880,7 +13263,7 @@ function renderGenericFileCard(st, pf, idx) {
       </div>`;
   }).join('');
 
-  const isOpen = f.open === undefined ? (st.files.length === 1 || pf.rows.length === 0) : f.open;
+  const isOpen = f.open ?? !pf.rows.length;
   const warn = pf.rows.length === 0
     ? `<div style="color:var(--red); font-size:12px; margin-bottom:8px;">Nenhum lançamento válido com esse mapeamento. Escolha as colunas de <strong>Data</strong> e de <strong>Valor</strong> (ou Débito/Crédito).</div>`
     : '';
@@ -12892,8 +13275,8 @@ function renderGenericFileCard(st, pf, idx) {
         <button type="button" class="btn btn-secondary btn-sm" style="padding:2px 8px;" title="Remover este arquivo" onclick="removeGenericFile(${idx})">✕</button>
       </div>
       ${pf.rows.length ? `<div style="margin-bottom:8px;"><div style="font-size:10.5px; font-weight:700; color:var(--text-sub); text-transform:uppercase; margin-bottom:4px;">Conta cadastrada que recebe esses lançamentos</div>${accountRows}</div>` : ''}
-    <details ${isOpen ? 'open' : ''} ontoggle="setGenericFileOpen(${idx}, this.open)">
-      <summary style="cursor:pointer; font-size:12px; color:var(--text-muted);">⚙️ Ajustar colunas do arquivo</summary>
+    <details class="import-settings" ${isOpen ? 'open' : ''} ontoggle="setGenericFileOpen(${idx}, this.open)">
+      <summary>Opções avançadas</summary>
       <div style="margin-top:10px;">
         <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;">
           Separador: ${{ ';': 'ponto e vírgula', ',': 'vírgula', '\t': 'tab', '|': 'barra vertical' }[f.delimiter] || importEsc(f.delimiter)};
@@ -12927,29 +13310,22 @@ function renderGenericImportPreview() {
   if (!st || !container) return;
 
   const comp = computeGenericImport(st);
+  st.canReview = !st.reading && comp.all.length > 0 && !comp.all.some(row => row.unset && !row.isDup);
+  document.getElementById('generic-import-step-file').hidden = st.files.length > 0;
+  document.getElementById('generic-import-file-input').disabled = !!st.reading;
+  document.querySelector('[data-import-step="review"]').disabled = !st.canReview;
+  document.querySelector('[data-import-step="confirm"]').disabled = !st.canReview || !st.review;
+  if (!st.files.length) { container.innerHTML = ''; return; }
+  const settingsOpen = document.getElementById('generic-import-detection-settings')?.open;
   const enabledPairs = comp.pairs.filter(p => p.enabled);
   const nonDup = comp.all.filter(r => !r.isDup);
-  const dupCount = comp.all.length - nonDup.length;
-  const willImport = nonDup.length - enabledPairs.length;
   const pendingAccounts = comp.all.some(r => r.unset && !r.isDup);
 
-  let inTotal = 0, outTotal = 0, investmentCount = 0, ignoredCount = 0;
-  const pairedIds = new Set();
-  enabledPairs.forEach(p => { pairedIds.add(p.o.id); pairedIds.add(p.i.id); });
+  const investmentCount = nonDup.filter(row => classifyInvestmentRow(row).isInvestment).length;
   const enabledCounterparts = (comp.counterparts || []).filter(c => c.enabled);
-  const counterpartRowIds = new Set(enabledCounterparts.map(c => c.row.id));
-  nonDup.forEach(r => {
-    const isInvestment = classifyInvestmentRow(r).isInvestment;
-    if (isInvestment) investmentCount++;
-    if (pairedIds.has(r.id)) return;
-    if (st.markInvestments && isInvestment) return; // investimento nao e entrada/saida
-    if (r.autoIgnore || counterpartRowIds.has(r.id)) { ignoredCount++; return; }
-    if (r.amount >= 0) inTotal += r.amount; else outTotal += -r.amount;
-  });
   const ownSuggestion = !(st.ownNames || []).length ? suggestOwnName(comp.all) : null;
   const invoiceCount = nonDup.filter(r => r.autoIgnore === 'invoice').length;
   const ownCount = nonDup.filter(r => r.autoIgnore === 'own').length;
-  const transferTotal = enabledPairs.reduce((s, p) => s + Math.abs(p.o.amount), 0);
 
   const pairRows = comp.pairs.map(p => `
     <label style="display:flex; align-items:flex-start; gap:8px; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.05); font-size:11.5px; cursor:pointer;">
@@ -12966,13 +13342,9 @@ function renderGenericImportPreview() {
 
   container.innerHTML = `
     ${errorsHtml}
-    <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px; line-height:1.5;">
-      ${st.files.length} arquivo(s). Escolha a conta cadastrada de cada um e confira as colunas; a prévia atualiza na hora.
-    </div>
     ${comp.perFile.map((pf, i) => renderGenericFileCard(st, pf, i)).join('')}
-    ${comp.all.length ? `<div style="margin:12px 0;">
-      <button type="button" class="btn btn-secondary" onclick="openGenericImportReview()">Revisar movimentações (${comp.all.length})</button>
-    </div>` : ''}
+    <details class="import-settings" id="generic-import-detection-settings" ${settingsOpen ? 'open' : ''}>
+    <summary>Transferências e detecção</summary>
     <div style="margin:12px 0 8px;">
       <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; margin-bottom:8px; cursor:pointer;">
         <input type="checkbox" ${st.detectTransfers ? 'checked' : ''} onchange="AppState.genericImportStaging.detectTransfers = this.checked; renderGenericImportPreview();" style="margin-top:2px;">
@@ -12994,7 +13366,6 @@ function renderGenericImportPreview() {
       <div style="font-size:11px; color:var(--text-sub); margin-top:4px;">Marcadas viram uma única transferência (não entram como despesa nem como receita). As com "pix/ted/transferência" na descrição ou no mesmo dia já vêm marcadas; confira as demais.</div>
     </div>` : `
     <div style="font-size:12px; color:var(--text-sub); margin-bottom:12px;">Nenhuma transferência entre contas encontrada${st.files.length < 2 ? ' (adicione o extrato da outra conta para cruzar)' : ''}.</div>`) : ''}
-    ${pendingAccounts ? `<div style="background:rgba(163,39,31,0.08); color:var(--red); border-radius:var(--radius-md); padding:8px 12px; margin-bottom:10px; font-size:12px;">Escolha a conta cadastrada de cada arquivo (ou crie uma nova) para poder importar.</div>` : ''}
     <div style="border:1px solid rgba(0,0,0,0.1); border-radius:10px; padding:10px 12px; margin-bottom:12px;">
       <div style="font-size:12px; font-weight:700; margin-bottom:6px;">🙈 Marcar como ignorados (não contam como receita/despesa; o saldo da conta continua certo)</div>
       <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; margin-bottom:6px; cursor:pointer;">
@@ -13023,163 +13394,176 @@ function renderGenericImportPreview() {
       </div>
       <div style="font-size:11px; color:var(--text-sub); margin-top:4px;">Marcadas: os dois lados ficam como <strong>ignorados</strong> (não viram receita nem despesa).</div>
     </div>` : ''}
-    <div style="background:rgba(0,0,0,0.03); border-radius:var(--radius-md); padding:10px 14px; margin-bottom:12px; font-size:12.5px; line-height:1.6;">
-      <strong>${willImport}</strong> lançamento(s) serão criados${enabledPairs.length ? `, sendo <strong>${enabledPairs.length}</strong> transferência(s) entre contas (${NumFmt.money(transferTotal)})` : ''}.<br>
-      <span style="color:var(--green);">Entradas: ${NumFmt.money(inTotal)}</span> ·
-      <span style="color:var(--red);">Saídas: ${NumFmt.money(outTotal)}</span>${ignoredCount ? `<br>🙈 ${ignoredCount} lançamento(s) entram como ignorados (transferência entre contas próprias / fatura).` : ''}${dupCount ? `<br>${dupCount} linha(s) já importada(s) antes serão ignoradas.` : ''}
-    </div>
+    </details>
+    ${pendingAccounts ? `<p style="color:var(--red); font-size:12px; margin-bottom:10px;">Escolha a conta ou o cartão de cada arquivo para continuar.</p>` : ''}
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <button type="button" class="btn btn-secondary" style="flex:1 1 120px;" onclick="closeGenericImportModal()">Cancelar</button>
-      <button type="button" class="btn btn-secondary" style="flex:1 1 160px;" onclick="document.getElementById('generic-import-add-input').click()">＋ Adicionar arquivos</button>
-      <button type="button" class="btn btn-success" style="flex:2 1 200px;" ${willImport > 0 && !pendingAccounts ? '' : 'disabled'} onclick="handleConfirmGenericImport()">Importar ${willImport} Lançamentos</button>
+      <button type="button" class="btn btn-secondary" style="flex:1 1 160px;" ${st.reading ? 'disabled' : ''} onclick="document.getElementById('generic-import-add-input').click()">Adicionar arquivos</button>
+      <button type="button" class="btn btn-success" style="flex:2 1 200px;" ${st.canReview ? '' : 'disabled'} onclick="showGenericImportStep('review')">Revisar movimentações (${comp.all.length})</button>
     </div>
   `;
 }
 
+function materializeGenericImportDraft(st, details, metadata) {
+  const card = st.accountById.get(details.accountId);
+  const isCardPurchase = details.type === 'expense' && card?.type === 'credit_card';
+  const fields = {
+    ...metadata, source: 'import', fixedCostId: null,
+    description: details.description, accountId: details.accountId, categoryId: details.categoryId,
+    notes: details.notes, tags: details.tag ? [details.tag] : [], goalId: details.goalId,
+    goalDirection: details.goalDirection, ignored: details.ignored
+  };
+  if (details.installmentCount > 1) {
+    return generateInstallments({
+      ...fields, totalAmount: details.amount, installmentCount: details.installmentCount, purchaseDate: details.date
+    }, st.accounts).map(installment => ({
+      ...installment, ...metadata, source: 'import', goalId: details.goalId, goalDirection: details.goalDirection,
+      ignored: details.ignored
+    }));
+  }
+  const transaction = {
+    ...fields, type: details.type, amount: details.amount, date: details.date,
+    transferAccountId: details.transferAccountId, investmentDirection: details.investmentDirection,
+    isCardPurchase, invoiceMonth: isCardPurchase ? getInvoiceCycleForDate(card, details.date) : null,
+    installmentGroupId: null, installmentNumber: null, installmentTotal: null, pending: false, splitGroupId: null
+  };
+  if (!details.splits.length) return [{ ...transaction, id: makeGenericImportId('ftx_') }];
+  const splitGroupId = makeGenericImportId('fsplit_');
+  return details.splits.map(split => ({ ...transaction, ...split, splitGroupId, id: makeGenericImportId('ftx_') }));
+}
+
+function getGenericImportPlan(st) {
+  const transactions = [];
+  const matched = [];
+  const counterpartIds = new Set();
+  const matchedIds = new Set();
+  const usedAccounts = new Set();
+  const usedCategories = new Set(st.rules.map(rule => rule.categoryId));
+  const existingIds = new Set(st.comp.existingIds);
+  let duplicates = 0;
+  let invalid = false;
+  const rows = [...st.review.rows].sort((a, b) => Number(!!b.pair) - Number(!!a.pair));
+  for (const row of rows) {
+    if (row.isDup) { duplicates++; continue; }
+    if (row.locked) continue;
+    const pair = row.pair;
+    const rowId = 'csv_' + row.sourceAccountId + '_' + row.key;
+    const importId = pair
+      ? `csvtr_${row.sourceAccountId}_${row.key}__${pair.i.sourceAccountId}_${pair.i.key}`
+      : rowId;
+    const sourceRows = pair ? [rowId, 'csv_' + pair.i.sourceAccountId + '_' + pair.i.key] : [rowId];
+    if (existingIds.has(importId) || sourceRows.some(id => existingIds.has(id))) { duplicates++; continue; }
+    existingIds.add(importId);
+    sourceRows.forEach(id => existingIds.add(id));
+    const details = getGenericImportRowDetails(st, row);
+    if (!st.accountById.has(details.accountId) || (details.type === 'transfer'
+        && (!st.accountById.has(details.transferAccountId) || details.accountId === details.transferAccountId))) {
+      invalid = true;
+      continue;
+    }
+    const manual = details.type === 'transfer'
+      ? findManualTransferMatch(matchedIds, details.accountId, details.transferAccountId, details.amount, details.date)
+      : findManualMatchForImportRow(matchedIds, details.accountId, getGenericImportSignedAmount(details), details.date);
+    if (manual) { matched.push(manual); continue; }
+
+    const notes = [];
+    if (details.notes) notes.push(details.notes);
+    if (details.ignored && row.counterpart) {
+      counterpartIds.add(row.counterpart.id);
+      notes.push(`Ignorado automaticamente: outra ponta da transferência “${row.counterpart.description}”`);
+    } else if (details.ignored && row.autoIgnore) {
+      notes.push(row.autoIgnore === 'own'
+        ? 'Ignorado automaticamente: Pix/TED entre minhas contas'
+        : 'Ignorado automaticamente: pagamento de fatura de cartão');
+    }
+    details.notes = notes.join('\n');
+    const metadata = {
+      importId, importRowIds: pair ? sourceRows : undefined,
+      originalAccountLabel: pair ? `CSV: ${row.fileLabel} ↔ ${pair.i.fileLabel}` : 'CSV: ' + row.fileLabel
+    };
+    materializeGenericImportDraft(st, details, metadata).forEach(tx => {
+      transactions.push(tx);
+      if (tx.categoryId) usedCategories.add(tx.categoryId);
+    });
+    [details.accountId, details.transferAccountId, row.sourceAccountId, pair?.i.sourceAccountId]
+      .filter(Boolean).forEach(id => usedAccounts.add(id));
+  }
+  const accounts = st.accounts.filter(account =>
+    (AppState.financeAccounts || []).includes(account) || usedAccounts.has(account.id));
+  const categories = [...st.categoryById.values()].filter(category =>
+    (AppState.financeCategories || []).includes(category) || usedCategories.has(category.id));
+  return { accounts, categories, transactions, matched, counterpartIds, duplicates, invalid };
+}
+
+function renderGenericImportConfirmation() {
+  const st = AppState.genericImportStaging;
+  const plan = getGenericImportPlan(st);
+  const others = plan.transactions.filter(tx => importNorm(st.categoryById.get(tx.categoryId)?.name) === 'outros').length;
+  const transfers = plan.transactions.filter(tx => tx.type === 'transfer').length;
+  const updates = plan.counterpartIds.size;
+  const totals = { income: 0, expense: 0 };
+  for (const tx of plan.transactions) {
+    if (!tx.ignored && !tx.pending && (tx.type === 'income' || tx.type === 'expense')) totals[tx.type] += tx.amount;
+  }
+  st.confirmation = plan;
+  document.getElementById('generic-import-confirm-summary').innerHTML = `
+    <p><strong>${plan.transactions.length}</strong> ${plan.transactions.length === 1 ? 'movimentação' : 'movimentações'} para importar · <strong>${others}</strong> em Outros
+      ${transfers ? ` · ${transfers} ${transfers === 1 ? 'transferência' : 'transferências'}` : ''}</p>
+    <p style="font-size:12px;">Entradas <strong>${NumFmt.money(totals.income)}</strong> · Saídas <strong>${NumFmt.money(totals.expense)}</strong></p>
+    ${plan.duplicates || plan.matched.length ? `<p style="font-size:12px; color:var(--text-muted);">Já existentes: ${plan.duplicates + plan.matched.length}.</p>` : ''}
+    ${updates ? `<p style="font-size:12px;">${updates} movimentações existentes serão marcadas como ignoradas para evitar duplicar transferências.</p>` : ''}
+    ${plan.invalid ? '<p style="color:var(--red);">Confira a conta de origem e destino das movimentações antes de importar.</p>' : ''}
+    ${st.rules.length ? `<p style="margin-top:10px;"><strong>Regras a salvar</strong></p><ul>${st.rules.map(rule =>
+      `<li>“${importEsc(rule.keyword)}” → ${importEsc(st.categoryById.get(rule.categoryId)?.name || '')}</li>`).join('')}</ul>` : ''}
+  `;
+  const button = document.getElementById('generic-import-confirm-btn');
+  button.disabled = plan.invalid || (!plan.transactions.length && !st.rules.length);
+}
+
 function handleConfirmGenericImport() {
   const st = AppState.genericImportStaging;
-  if (!st) return;
-  const comp = computeGenericImport(st);
-  if (comp.all.some(r => r.unset && !r.isDup)) { showToast('Escolha a conta de cada arquivo antes de importar.', 'error'); return; }
-  const existingImportIds = comp.existingIds;
-  const rowFile = {};
-  comp.perFile.forEach(pf => pf.rows.forEach(r => { rowFile[r.id] = pf.f; }));
-
-  // Contas: as existentes direto; as novas sao criadas na hora (uma so por nome).
-  const accountIdByIdentity = {};
-  const getAccountId = (row) => {
-    const f = rowFile[row.id];
-    const choice = getAccountChoice(f, row.accKey);
-    if (choice.mode === 'existing' && choice.existingId) return choice.existingId;
-    if (accountIdByIdentity[row.identity]) return accountIdByIdentity[row.identity];
-    const newAcc = {
-      id: 'facc_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-      name: (choice.newName || 'Conta importada').trim() || 'Conta importada',
-      type: 'checking', icon: '🏦',
-      color: CHART_COLOR_PALETTE[AppState.financeAccounts.length % CHART_COLOR_PALETTE.length],
-      initialBalance: 0, initialBalanceDate: new Date().toISOString().slice(0, 10),
-      archived: false, createdAt: new Date().toISOString(),
-      creditLimit: null, closingDay: null, dueDay: null, paidInvoiceMonths: []
-    };
-    AppState.financeAccounts.push(newAcc);
-    accountIdByIdentity[row.identity] = newAcc.id;
-    return newAcc.id;
+  const plan = st?.confirmation;
+  if (st?.step !== 'confirm' || !plan || plan.invalid || (!plan.transactions.length && !st.rules.length)) return;
+  const storedTransactions = localStorage.getItem('b3_finance_transactions');
+  if (st.snapshot.some(([key, value]) => localStorage.getItem(key) !== value)
+      || (storedTransactions && storedTransactions !== JSON.stringify(AppState.financeTransactions))) {
+    showToast('Os dados financeiros foram alterados em outra aba. Recarregue o aplicativo antes de importar.', 'warn');
+    return;
+  }
+  const values = {
+    b3_finance_accounts: plan.accounts,
+    b3_finance_categories: plan.categories,
+    b3_finance_transactions: [...plan.transactions, ...AppState.financeTransactions.map(tx =>
+      plan.counterpartIds.has(tx.id) ? { ...tx, ignored: true } : tx)],
+    b3_finance_own_names: st.ownNames || [],
+    b3_finance_category_rules: st.effectiveRules
   };
-
-  const categoryIdByName = {};
-  const getCategoryId = (name) => {
-    if (!name) return null;
-    const lower = name.toLowerCase();
-    if (categoryIdByName[lower]) return categoryIdByName[lower];
-    let cat = AppState.financeCategories.find(c => c.name.toLowerCase() === lower);
-    if (!cat) {
-      cat = {
-        id: 'cat_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-        name, icon: '📥', color: CHART_COLOR_PALETTE[AppState.financeCategories.length % CHART_COLOR_PALETTE.length],
-        appliesTo: ['expense', 'income'], isCustom: true, archived: false
-      };
-      AppState.financeCategories.push(cat);
+  const previous = new Map(Object.keys(values).map(key => [key, localStorage.getItem(key)]));
+  const written = [];
+  try {
+    for (const [key, value] of Object.entries(values)) {
+      localStorage.setItem(key, JSON.stringify(value));
+      written.push(key);
     }
-    categoryIdByName[lower] = cat.id;
-    return cat.id;
-  };
-  const outrosCategory = (AppState.financeCategories || []).find(c => c.name.toLowerCase() === 'outros');
-  const outrosCategoryId = outrosCategory ? outrosCategory.id : null;
-
-  const baseTx = () => ({
-    notes: '', tags: [], source: 'import', transferAccountId: null, investmentDirection: null,
-    isCardPurchase: false, installmentGroupId: null, installmentNumber: null, installmentTotal: null, invoiceMonth: null,
-    fixedCostId: null, goalId: null, goalDirection: null, ignored: false, pending: false, splitGroupId: null
-  });
-
-  let imported = 0, transfersCreated = 0, skippedDuplicate = 0;
-  const newTxs = [];
-  const matchedManualIds = new Set();
-  const matchedManual = [];
-  const handledRowIds = new Set();
-  comp.all.forEach(r => { if (r.isDup) { skippedDuplicate++; handledRowIds.add(r.id); } });
-
-  // 1) Transferencias entre contas (pares marcados)
-  comp.pairs.filter(p => p.enabled).forEach(p => {
-    handledRowIds.add(p.o.id); handledRowIds.add(p.i.id);
-    const fromId = getAccountId(p.o), toId = getAccountId(p.i);
-    const amount = Math.abs(p.o.amount);
-    const importId = `csvtr_${fromId}_${p.o.key}__${toId}_${p.i.key}`;
-    if (existingImportIds.has(importId)) { skippedDuplicate++; return; }
-    existingImportIds.add(importId);
-    const manual = findManualTransferMatch(matchedManualIds, fromId, toId, amount, p.o.date);
-    if (manual) { matchedManual.push(manual); return; }
-    newTxs.push({
-      ...baseTx(),
-      id: 'ftx_' + Date.now() + '_t' + transfersCreated + '_' + Math.floor(Math.random() * 100000),
-      type: 'transfer', description: p.o.description, amount, date: p.o.date,
-      accountId: fromId, transferAccountId: toId, categoryId: null,
-      notes: p.i.description && p.i.description !== p.o.description ? `Entrada na outra conta: ${p.i.description}` : '',
-      importId, originalAccountLabel: `CSV: ${p.o.fileLabel} ↔ ${p.i.fileLabel}`
-    });
-    transfersCreated++;
-  });
-
-  // 2) Demais linhas: receita / despesa / investimento
-  const counterpartByRowId = {};
-  (comp.counterparts || []).filter(c => c.enabled).forEach(c => { counterpartByRowId[c.row.id] = c; });
-  let ignoredCreated = 0, counterpartsIgnored = 0;
-  comp.all.forEach(row => {
-    if (handledRowIds.has(row.id)) return;
-    const accountId = getAccountId(row);
-    const importId = 'csv_' + accountId + '_' + row.key;
-    if (existingImportIds.has(importId)) { skippedDuplicate++; return; }
-    existingImportIds.add(importId);
-
-    const manualMatch = findManualMatchForImportRow(matchedManualIds, accountId, row.amount, row.date);
-    if (manualMatch) { matchedManual.push(manualMatch); return; }
-
-    const amount = Math.abs(row.amount);
-    let type, categoryId = null, investmentDirection = null, ignored = false, autoNote = '';
-    let details = { description: row.description, tag: row.tag, notes: '' };
-    if (st.markInvestments && classifyInvestmentRow(row).isInvestment) {
-      type = 'investment';
-      investmentDirection = row.amount >= 0 ? 'redemption' : 'contribution';
-    } else {
-      type = row.amount >= 0 ? 'income' : 'expense';
-      details = getGenericImportRowDetails(st, row);
-      categoryId = details.categoryId === '__none__' ? null
-        : details.categoryId ?? (row.category ? getCategoryId(row.category) : outrosCategoryId);
-      const cp = counterpartByRowId[row.id];
-      if (row.autoIgnore === 'own') { ignored = true; autoNote = 'Ignorado automaticamente: Pix/TED entre minhas contas'; }
-      else if (row.autoIgnore === 'invoice') { ignored = true; autoNote = 'Ignorado automaticamente: pagamento de fatura de cartão'; }
-      if (cp) {
-        ignored = true;
-        autoNote = `Ignorado automaticamente: transferência entre contas (outra ponta: "${cp.tx.description}")`;
-        cp.tx.ignored = true;
-        counterpartsIgnored++;
-        logFinanceChange('edit', 'transacao', `Lançamento "${cp.tx.description}" marcado como ignorado: é a outra ponta de uma transferência importada ("${row.description}")`);
-      }
-      if (ignored) ignoredCreated++;
+  } catch (error) {
+    for (const key of written) {
+      const previousValue = previous.get(key);
+      if (previousValue === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, previousValue);
     }
-    newTxs.push({
-      ...baseTx(),
-      id: 'ftx_' + Date.now() + '_' + imported + '_' + Math.floor(Math.random() * 100000),
-      type, description: details.description, amount, date: row.date, accountId, categoryId,
-      tags: details.tag ? [details.tag] : [], importId, originalAccountLabel: 'CSV: ' + row.fileLabel,
-      investmentDirection, ignored, notes: [details.notes, autoNote].filter(Boolean).join('\n')
-    });
-    imported++;
-  });
-
-  AppState.financeTransactions.unshift(...newTxs);
-  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
-  localStorage.setItem('b3_finance_categories', JSON.stringify(AppState.financeCategories));
-  localStorage.setItem('b3_finance_transactions', JSON.stringify(AppState.financeTransactions));
-  localStorage.setItem('b3_finance_own_names', JSON.stringify(st.ownNames || []));
-
-  const total = imported + transfersCreated;
-  if (total > 0) logFinanceChange('import', 'transacao', `${total} lançamento(s) importados de CSV (${st.files.map(f => f.fileName).join(', ')}), ${transfersCreated} transferência(s) entre contas`);
-  logImportManualMatches(matchedManual);
-  AppState.genericImportStaging = null;
+    showToast('O navegador não conseguiu salvar a importação. Confira o espaço disponível e tente novamente.', 'error');
+    return;
+  }
+  AppState.financeAccounts = values.b3_finance_accounts;
+  AppState.financeCategories = values.b3_finance_categories;
+  AppState.financeTransactions = values.b3_finance_transactions;
+  AppState.financeCategoryRules = values.b3_finance_category_rules;
+  const total = plan.transactions.length;
+  if (total) logFinanceChange('import', 'transacao', `${total} movimentações importadas de ${st.files.length} arquivo(s).`);
+  logImportManualMatches(plan.matched);
   closeGenericImportModal();
   renderFinanceView();
-  showToast(`${total} lançamento(s) importados (${transfersCreated} transferência(s) entre contas, ${ignoredCreated} marcado(s) como ignorado(s)${counterpartsIgnored ? `, ${counterpartsIgnored} lançamento(s) antigo(s) ignorado(s)` : ''}, ${skippedDuplicate} já importado(s) antes, ${matchedManual.length} já lançado(s) no app).`, 'success');
+  showToast(`${total} movimentações importadas${st.rules.length ? ' · ' + st.rules.length + ' regras salvas' : ''}.`, 'success');
 }
 
 // ==========================================
@@ -17888,7 +18272,9 @@ async function initApp() {
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', e => {
       if (e.target === overlay) {
-        overlay.classList.remove('active');
+        if (overlay.id === 'generic-import-modal') closeGenericImportModal();
+        else if (overlay.id === 'finance-transaction-modal') closeFinanceTransactionModal();
+        else overlay.classList.remove('active');
       }
     });
   });
@@ -17896,6 +18282,10 @@ async function initApp() {
   // Close modals on Escape key
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+      if (AppState.genericImportStaging?.editor) {
+        closeFinanceTransactionModal();
+        return;
+      }
       closeTradeModal();
       closeAuditModal();
       closeDividendModal();
