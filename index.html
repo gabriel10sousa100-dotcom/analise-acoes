@@ -249,6 +249,11 @@
     .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-sub); }
     .stat-val { font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--text); letter-spacing: -0.5px; }
     .stat-meta { font-size: 11.5px; color: var(--text-sub); display: flex; align-items: center; gap: 6px; }
+    .finance-accounts-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 205px), 1fr)); align-items: start; }
+    .finance-account-group { display: grid; gap: 8px; min-width: 0; }
+    .finance-account-group h3 { font-size: 13px; font-weight: 700; color: var(--text); padding: 0 2px 4px; }
+    .finance-account-card { width: 100%; font-family: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+    .finance-account-card:hover { border-color: var(--accent); }
     .finance-card-invoices { display: grid; gap: 3px; margin-top: 7px; }
     .finance-card-invoices .stat-meta { justify-content: space-between; flex-wrap: wrap; gap: 2px 8px; }
     .finance-card-invoices strong { color: var(--text); white-space: nowrap; }
@@ -1036,7 +1041,7 @@
             <div class="card-title">Minhas Contas</div>
             <button class="btn btn-success btn-sm" onclick="openFinanceAccountModal()">+ Nova Conta</button>
           </div>
-          <div class="grid grid-4" id="finance-accounts-grid" style="margin-top: 4px;"></div>
+          <div class="grid finance-accounts-grid" id="finance-accounts-grid"></div>
         </div>
 
         <!-- FILTROS -->
@@ -9335,32 +9340,49 @@ function renderFinanceAccountsList() {
     grid.innerHTML = `<div class="state-box" style="grid-column: 1 / -1;"><div class="state-icon">🏦</div><div class="state-title">Nenhuma conta cadastrada</div><div class="state-desc">Clique em "+ Nova Conta" para começar.</div></div>`;
     return;
   }
-  const typeLabel = { checking: 'Conta Corrente', savings: 'Poupança', cash: 'Dinheiro' };
-  grid.innerHTML = accounts.map(a => {
-    if (a.type === 'credit_card') {
-      const due = getCardAmountDue(a.id);
-      const dueTitle = due.closedUnpaid
-        ? `Fatura fechada ${due.closedCycle} a pagar: ${NumFmt.money(due.closedUnpaid)} + fatura aberta ${due.openCycle}: ${NumFmt.money(due.openTotal)}`
-        : `Fatura aberta ${due.openCycle}`;
-      return `
-        <div class="stat-card" style="cursor:pointer;" onclick="openFinanceAccountModal('${a.id}')">
-          <span class="stat-label">${a.icon || '💳'} ${a.name}</span>
-          <div class="stat-meta">Total a pagar</div>
-          <div class="stat-val" style="color: var(--red); font-size: 18px;" title="${dueTitle}">${NumFmt.money(due.total)}</div>
-          <div class="finance-card-invoices">
-            <div class="stat-meta"><span>Fatura aberta (${due.openCycle})</span><strong>${NumFmt.money(due.openTotal)}</strong></div>
-            ${due.closedUnpaid ? `<div class="stat-meta"><span>Fatura fechada pendente</span><strong>${NumFmt.money(due.closedUnpaid)}</strong></div>` : ''}
-          </div>
-        </div>`;
-    }
-    const balance = getFinanceAccountBalance(a.id);
-    return `
-      <div class="stat-card" style="cursor:pointer;" onclick="openFinanceAccountModal('${a.id}')">
-        <span class="stat-label">${a.icon || '🏦'} ${a.name}</span>
-        <div class="stat-val" style="font-size: 18px; color: ${balance >= 0 ? 'var(--text)' : 'var(--red)'};">${NumFmt.money(balance)}</div>
-        <div class="stat-meta">${typeLabel[a.type] || a.type}</div>
-      </div>`;
-  }).join('');
+  const accountTypes = [
+    ['checking', 'Contas correntes'],
+    ['savings', 'Poupanças'],
+    ['cash', 'Dinheiro'],
+    ['credit_card', 'Cartões de crédito'],
+    ['other', 'Outras contas']
+  ];
+  const accountsByType = new Map(accountTypes.map(([type]) => [type, []]));
+  for (const account of accounts) {
+    (accountsByType.get(account.type) ?? accountsByType.get('other')).push(account);
+  }
+  grid.innerHTML = accountTypes.filter(([type]) => accountsByType.get(type).length).map(([type, label]) => `
+    <section class="finance-account-group" aria-labelledby="finance-account-group-${type}">
+      <h3 id="finance-account-group-${type}">${label}</h3>
+      ${accountsByType.get(type).map(renderFinanceAccountCard).join('')}
+    </section>`).join('');
+}
+
+function renderFinanceAccountCard(account) {
+  const isCard = account.type === 'credit_card';
+  const icon = account.icon || (isCard ? '💳' : '🏦');
+  let summary;
+  if (isCard) {
+    const due = getCardAmountDue(account.id);
+    const dueTitle = due.closedUnpaid
+      ? `Fatura fechada ${due.closedCycle} a pagar: ${NumFmt.money(due.closedUnpaid)} + fatura aberta ${due.openCycle}: ${NumFmt.money(due.openTotal)}`
+      : `Fatura aberta ${due.openCycle}`;
+    summary = `
+      <span class="stat-meta">Total a pagar</span>
+      <span class="stat-val" style="color: var(--red); font-size: 18px;" title="${dueTitle}">${NumFmt.money(due.total)}</span>
+      <span class="finance-card-invoices">
+        <span class="stat-meta"><span>Fatura aberta (${due.openCycle})</span><strong>${NumFmt.money(due.openTotal)}</strong></span>
+        ${due.closedUnpaid ? `<span class="stat-meta"><span>Fatura fechada pendente</span><strong>${NumFmt.money(due.closedUnpaid)}</strong></span>` : ''}
+      </span>`;
+  } else {
+    const balance = getFinanceAccountBalance(account.id);
+    summary = `<span class="stat-val" style="font-size: 18px; color: ${balance >= 0 ? 'var(--text)' : 'var(--red)'};">${NumFmt.money(balance)}</span>`;
+  }
+  return `
+    <button type="button" class="stat-card finance-account-card" data-account-id="${importEsc(account.id)}" onclick="openFinanceAccountModal(this.dataset.accountId)">
+      <span class="stat-label">${importEsc(`${icon} ${account.name}`)}</span>
+      ${summary}
+    </button>`;
 }
 
 // Filtro de lancamentos do mes ativo (tipo/conta/categoria/dia) - extraido
