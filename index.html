@@ -876,6 +876,10 @@
 
         <!-- BENCHMARK COMPARISON BAR WITH TIMEFRAME CONTROLS -->
         <div class="card" style="margin-bottom: 20px;">
+          <div class="card-title">🏁 Rentabilidade real (com proventos) x CDI, Ibovespa e IFIX</div>
+          <div id="real-return-container" style="margin-top: 10px;"></div>
+        </div>
+        <div class="card" style="margin-bottom: 20px;">
           <div class="card-header" style="flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center;">
             <button class="btn btn-primary btn-sm" onclick="openBenchmarkEditorModal()" style="font-size: 14px; padding: 6px 10px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; background: linear-gradient(135deg, #0f6b4c, #0a4a34); border-color: #0f6b4c;" title="Gerenciador da Tabela de Rentabilidade (Índices) — ver e editar tabela histórica dos índices ou buscar atualização automática no Mais Retorno / Status Invest / Banco Central">
               <span>⚙️</span>
@@ -1035,6 +1039,12 @@
           </div>
         </div>
 
+        <!-- RESUMO EM FRASE -->
+        <div class="card" style="margin-bottom: 20px;" data-fin-block="summary-text" data-fin-title="Resumo do mês em frase" data-fin-default="full">
+          <div class="card-title">📝 Resumo do mês</div>
+          <div id="finance-summary-text" style="font-size: 13.5px; line-height: 1.7; margin-top: 8px;"></div>
+        </div>
+
         <!-- CONTAS -->
         <div class="card" style="margin-bottom: 20px;" data-fin-block="accounts" data-fin-title="Minhas contas" data-fin-default="full">
           <div class="card-header">
@@ -1042,6 +1052,15 @@
             <button class="btn btn-success btn-sm" onclick="openFinanceAccountModal()">+ Nova Conta</button>
           </div>
           <div class="grid finance-accounts-grid" id="finance-accounts-grid"></div>
+        </div>
+
+        <!-- CONCILIACAO -->
+        <div class="card" style="margin-bottom: 20px;" data-fin-block="reconcile" data-fin-title="Conciliação com o banco" data-fin-default="full">
+          <div class="card-header">
+            <div class="card-title">✅ Conciliação com o banco</div>
+          </div>
+          <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 6px;">Digite o saldo real que aparece no app do banco. O app mostra a diferença e, se quiser, passa a usar o saldo do banco como ponto de partida a partir de hoje.</p>
+          <div id="finance-reconcile-container"></div>
         </div>
 
         <!-- FILTROS -->
@@ -1132,6 +1151,14 @@
               <div id="finance-account-usage-empty" class="state-box" style="display: none; position: absolute; inset: 0;"><div class="state-icon">🏦</div><div class="state-title">Nada para mostrar neste período</div><div class="state-desc">Ainda não há lançamentos nas suas contas neste período.</div></div>
             </div>
           </div>
+        </div>
+
+        <!-- MES x MES -->
+        <div class="card" style="margin-bottom: 20px;" data-fin-block="month-compare" data-fin-title="Mês x mês por categoria" data-fin-default="full">
+          <div class="card-header">
+            <div class="card-title" id="finance-month-compare-title">📊 Mês x mês</div>
+          </div>
+          <div class="table-responsive" id="finance-month-compare-container"></div>
         </div>
 
         <!-- OBJETIVOS -->
@@ -5504,6 +5531,7 @@ function setBenchmarkTimeframe(tf, btnEl) {
     benchIfix.style.color = ifixRet >= 0 ? 'var(--green)' : 'var(--red)';
   }
   if (myLbl) myLbl.textContent = lbl;
+  renderRealReturnCard();
 }
 
 // ================================================================
@@ -9251,6 +9279,281 @@ function formatFinanceMonth(month) {
   return `${months[number - 1]} ${year}`;
 }
 
+// ================================================================
+// CONTROLE FINANCEIRO: RESUMO EM FRASE, MES x MES, CONCILIACAO
+// ================================================================
+const FIN_MONTH_NAMES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+function finMonthLabel(ym) {
+  const [y, m] = String(ym).split('-').map(Number);
+  return `${FIN_MONTH_NAMES[m - 1]}/${y}`;
+}
+
+function renderFinanceSummaryText() {
+  const el = document.getElementById('finance-summary-text');
+  if (!el) return;
+  const month = AppState.financeActiveMonth;
+  const prev = addMonthsToYYYYMM(month, -1);
+  const cur = getFinanceMonthSummary(month);
+  const old = getFinanceMonthSummary(prev);
+  const parts = [];
+
+  if (cur.income === 0 && cur.expense === 0) {
+    el.innerHTML = `Ainda não há receitas nem despesas em <strong>${finMonthLabel(month)}</strong>.`;
+    return;
+  }
+  parts.push(`Em <strong>${finMonthLabel(month)}</strong> você recebeu <strong style="color:var(--green);">${NumFmt.money(cur.income)}</strong> e gastou <strong style="color:var(--red);">${NumFmt.money(cur.expense)}</strong>, ficando com <strong>${NumFmt.money(cur.balance)}</strong> ${cur.balance >= 0 ? 'de sobra' : 'no negativo'}.`);
+
+  if (old.expense > 0) {
+    const diff = cur.expense - old.expense;
+    const pct = (diff / old.expense) * 100;
+    parts.push(`Os gastos estão <strong>${NumFmt.num(Math.abs(pct), 0)}% ${diff > 0 ? 'acima' : 'abaixo'}</strong> de ${finMonthLabel(prev)} (${NumFmt.money(old.expense)}).`);
+    const cats = new Set([...Object.keys(cur.byCategory), ...Object.keys(old.byCategory)]);
+    const deltas = [...cats].map(c => [c, (cur.byCategory[c] || 0) - (old.byCategory[c] || 0)]).sort((a, b) => b[1] - a[1]);
+    if (deltas.length && deltas[0][1] > 0) parts.push(`Maior alta: <strong>${importEsc(deltas[0][0])}</strong> (+${NumFmt.money(deltas[0][1])}).`);
+    const last = deltas[deltas.length - 1];
+    if (last && last[1] < 0) parts.push(`Maior queda: <strong>${importEsc(last[0])}</strong> (${NumFmt.money(last[1])}).`);
+  }
+
+  const today = new Date();
+  if (month === today.toISOString().slice(0, 7) && cur.expense > 0) {
+    const day = today.getDate();
+    const days = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    if (day < days) parts.push(`No ritmo atual, o mês deve fechar em torno de <strong>${NumFmt.money(cur.expense / day * days)}</strong> de gastos.`);
+  }
+
+  const { rows } = getBudgetStatusForMonth(month);
+  const over = rows.filter(r => r.pct >= 100).length;
+  const near = rows.filter(r => r.pct >= 80 && r.pct < 100).length;
+  if (over || near) parts.push(`Orçamento: <strong style="color:var(--red);">${over} limite(s) estourado(s)</strong>${near ? ` e ${near} perto do limite` : ''}.`);
+
+  el.innerHTML = parts.join(' ');
+}
+
+function renderFinanceMonthCompare() {
+  const box = document.getElementById('finance-month-compare-container');
+  if (!box) return;
+  const month = AppState.financeActiveMonth;
+  const prev = addMonthsToYYYYMM(month, -1);
+  const cur = getFinanceMonthSummary(month);
+  const old = getFinanceMonthSummary(prev);
+  const titleEl = document.getElementById('finance-month-compare-title');
+  if (titleEl) titleEl.textContent = `📊 ${finMonthLabel(month)} x ${finMonthLabel(prev)}`;
+  const cats = [...new Set([...Object.keys(cur.byCategory), ...Object.keys(old.byCategory)])];
+  if (!cats.length) { box.innerHTML = `<div class="state-box"><div class="state-title">Sem despesas nos dois meses</div></div>`; return; }
+  const rows = cats.map(c => {
+    const a = cur.byCategory[c] || 0, b = old.byCategory[c] || 0;
+    return { c, a, b, diff: a - b, pct: b > 0 ? ((a - b) / b) * 100 : null };
+  }).sort((x, y) => Math.abs(y.diff) - Math.abs(x.diff));
+  const max = Math.max(...rows.map(r => Math.max(r.a, r.b)), 1);
+  const bar = (v, color) => `<div style="height:6px; border-radius:100px; background:${color}; width:${Math.max(2, (v / max) * 100)}%;"></div>`;
+  box.innerHTML = `
+    <table style="width:100%; font-size:12.5px; border-collapse:collapse;">
+      <thead><tr style="text-align:left; color:var(--text-sub); font-size:11px; text-transform:uppercase;">
+        <th style="padding:6px;">Categoria</th><th style="padding:6px; text-align:right;">${finMonthLabel(month)}</th><th style="padding:6px; text-align:right;">${finMonthLabel(prev)}</th><th style="padding:6px; text-align:right;">Diferença</th><th style="padding:6px; width:22%;"></th></tr></thead>
+      <tbody>${rows.map(r => `
+        <tr style="border-top:1px solid rgba(0,0,0,0.06);">
+          <td style="padding:6px;">${importEsc(r.c)}</td>
+          <td style="padding:6px; text-align:right;" class="text-mono">${NumFmt.money(r.a)}</td>
+          <td style="padding:6px; text-align:right; color:var(--text-sub);" class="text-mono">${NumFmt.money(r.b)}</td>
+          <td style="padding:6px; text-align:right; font-weight:700; color:${r.diff > 0 ? 'var(--red)' : r.diff < 0 ? 'var(--green)' : 'var(--text-sub)'};" class="text-mono">${r.diff > 0 ? '▲ +' : r.diff < 0 ? '▼ ' : ''}${NumFmt.money(r.diff)}${r.pct != null ? ` <span style="font-weight:400; font-size:11px;">(${r.pct > 0 ? '+' : ''}${NumFmt.num(r.pct, 0)}%)</span>` : ' <span style="font-weight:400; font-size:11px;">(novo)</span>'}</td>
+          <td style="padding:6px;">${bar(r.a, 'var(--accent)')}<div style="height:2px;"></div>${bar(r.b, 'rgba(0,0,0,0.25)')}</td>
+        </tr>`).join('')}
+        <tr style="border-top:2px solid rgba(0,0,0,0.12); font-weight:700;">
+          <td style="padding:6px;">Total de despesas</td>
+          <td style="padding:6px; text-align:right;" class="text-mono">${NumFmt.money(cur.expense)}</td>
+          <td style="padding:6px; text-align:right;" class="text-mono">${NumFmt.money(old.expense)}</td>
+          <td style="padding:6px; text-align:right; color:${cur.expense > old.expense ? 'var(--red)' : 'var(--green)'};" class="text-mono">${NumFmt.money(cur.expense - old.expense)}</td><td></td>
+        </tr>
+      </tbody></table>
+    <div style="font-size:11px; color:var(--text-sub); margin-top:6px;">Verde/vermelho: gastou menos/mais que no mês anterior. Barra escura = mês ativo; clara = mês anterior.</div>`;
+}
+
+// Conciliacao: confere o saldo do app com o saldo real do banco
+function renderFinanceReconcile() {
+  const box = document.getElementById('finance-reconcile-container');
+  if (!box) return;
+  const accounts = (AppState.financeAccounts || []).filter(a => !a.archived && a.type !== 'credit_card');
+  if (!accounts.length) { box.innerHTML = `<div class="state-box"><div class="state-title">Nenhuma conta para conciliar</div></div>`; return; }
+  box.innerHTML = accounts.map(a => `
+    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 0; border-top:1px solid rgba(0,0,0,0.06); font-size:12.5px;">
+      <span style="flex:1 1 150px;">${importEsc((a.icon || '🏦') + ' ' + a.name)}</span>
+      <span style="flex:1 1 130px;">No app: <strong class="text-mono">${NumFmt.money(getFinanceAccountBalance(a.id))}</strong></span>
+      <input type="text" inputmode="decimal" class="input-field" id="finance-reconcile-input-${importEsc(a.id)}" placeholder="Saldo real no banco" style="width:150px;" oninput="updateFinanceReconcileDiff('${importEsc(a.id)}')">
+      <span id="finance-reconcile-diff-${importEsc(a.id)}" style="flex:1 1 150px; font-size:12px;"></span>
+      <button type="button" class="btn btn-secondary btn-sm" id="finance-reconcile-btn-${importEsc(a.id)}" style="display:none;" onclick="handleFinanceReconcileAdjust('${importEsc(a.id)}')">Ajustar saldo</button>
+    </div>`).join('');
+}
+
+function parseFinanceReconcileValue(raw) {
+  const s = String(raw || '').trim().replace(/[R$\s]/g, '');
+  if (!s) return null;
+  const n = parseFloat(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s);
+  return isNaN(n) ? null : n;
+}
+
+function updateFinanceReconcileDiff(accountId) {
+  const input = document.getElementById('finance-reconcile-input-' + accountId);
+  const out = document.getElementById('finance-reconcile-diff-' + accountId);
+  const btn = document.getElementById('finance-reconcile-btn-' + accountId);
+  if (!input || !out || !btn) return;
+  const real = parseFinanceReconcileValue(input.value);
+  if (real === null) { out.textContent = ''; btn.style.display = 'none'; return; }
+  const diff = real - getFinanceAccountBalance(accountId);
+  if (Math.abs(diff) < 0.005) { out.innerHTML = `<span style="color:var(--green);">✅ Confere com o banco</span>`; btn.style.display = 'none'; return; }
+  out.innerHTML = `<span style="color:var(--red);">Diferença: ${diff > 0 ? '+' : ''}${NumFmt.money(diff)}</span> <span style="color:var(--text-sub);">(${diff > 0 ? 'falta lançar entrada ou sobra saída' : 'falta lançar saída ou sobra entrada'})</span>`;
+  btn.style.display = 'inline-flex';
+}
+
+// Passa a usar o saldo do banco como ponto de partida a partir de hoje (mesmo
+// mecanismo do "saldo informado" da conta). Lancamentos anteriores nao mudam.
+function handleFinanceReconcileAdjust(accountId) {
+  const input = document.getElementById('finance-reconcile-input-' + accountId);
+  const real = input ? parseFinanceReconcileValue(input.value) : null;
+  const idx = (AppState.financeAccounts || []).findIndex(a => a.id === accountId);
+  if (real === null || idx < 0) return;
+  const acc = AppState.financeAccounts[idx];
+  const before = getFinanceAccountBalance(accountId);
+  acc.balanceAnchor = { date: getLocalTodayStr(), amount: real, at: Date.now() };
+  localStorage.setItem('b3_finance_accounts', JSON.stringify(AppState.financeAccounts));
+  logFinanceChange('update', 'conta', `Conciliação de "${acc.name}": saldo ajustado de ${NumFmt.money(before)} para ${NumFmt.money(real)} (saldo real do banco)`);
+  showToast(`Saldo de ${acc.name} ajustado para ${NumFmt.money(real)}.`, 'success');
+  renderFinanceView();
+}
+
+// Alertas de orcamento (80% e 100%) - 1 por item por mes, reaproveita a lista de alertas ja disparados
+function checkBudgetAlerts(realMonth) {
+  const { rows } = getBudgetStatusForMonth(realMonth);
+  let dirty = false;
+  rows.forEach(r => {
+    const name = r.isTag ? `🏷️ ${r.tagLabel}` : (r.category ? `${r.category.icon} ${r.category.name}` : 'Categoria');
+    const key = r.isTag ? 'tag:' + r.tagLabel : r.categoryId;
+    const level = r.pct >= 100 ? 100 : r.pct >= 80 ? 80 : 0;
+    if (!level) return;
+    const alertId = `budget${level}-${key}-${realMonth}`;
+    if (AppState.triggeredUnusualSpendingAlerts.includes(alertId)) return;
+    notifyUser(
+      level === 100 ? `🚨 Limite estourado: ${name}` : `⚠️ Perto do limite: ${name}`,
+      `${NumFmt.money(r.spent)} de ${NumFmt.money(r.limit)} (${NumFmt.num(r.pct, 0)}%) em ${finMonthLabel(realMonth)}.`,
+      `budget-${alertId}`
+    );
+    showToast(`${level === 100 ? '🚨 Limite estourado' : '⚠️ Perto do limite'}: ${name} (${NumFmt.num(r.pct, 0)}%)`, level === 100 ? 'error' : 'warn');
+    AppState.triggeredUnusualSpendingAlerts.push(alertId);
+    dirty = true;
+  });
+  if (dirty) localStorage.setItem('b3_triggered_unusual_spending_alerts', JSON.stringify(AppState.triggeredUnusualSpendingAlerts));
+}
+
+// Nota de corretagem liquidada no extrato ("OPERACOES BOLSA ..."): o extrato so
+// traz o total, sem ativo/quantidade - abre o lancamento de compra/venda da
+// carteira ja com a data e o tipo certos, para completar ticker/qtd/preco.
+function openFinanceBolsaToTrade(txId) {
+  const tx = (AppState.financeTransactions || []).find(t => t.id === txId);
+  if (!tx) return;
+  openAddTradeModal('', '', '', tx.investmentDirection === 'redemption' ? 'sell' : 'buy');
+  const dateInput = document.getElementById('trade-date');
+  if (dateInput && tx.date) dateInput.value = tx.date;
+  showToast(`Nota de ${NumFmt.money(tx.amount)} em ${NumFmt.date(tx.date)}: informe ticker, quantidade e preço (total = quantidade × preço).`, 'info');
+}
+
+// ================================================================
+// CARTEIRA: RENTABILIDADE REAL (COM PROVENTOS) x CDI / IBOVESPA / IFIX
+// ================================================================
+// Carteira "espelho": os MESMOS aportes e vendas, nas MESMAS datas, como se o
+// dinheiro tivesse ido para o indice (juros compostos pelos retornos mensais
+// da tabela de benchmarks, a partir do mes seguinte ao movimento). Limite: a
+// tabela cobre 2025 em diante.
+function getBenchmarkMonthlyFactor(indexKey, fromYM) {
+  const idx = (getBenchmarkMatrix() || {})[indexKey] || {};
+  let factor = 1;
+  [2025, 2026].forEach(y => (idx[y] || []).forEach((r, m) => {
+    if (r === null || r === undefined || isNaN(r)) return;
+    if (y * 12 + m > fromYM) factor *= 1 + Number(r) / 100;
+  }));
+  return factor;
+}
+
+function computeRealPortfolioReturn() {
+  const trades = (AppState.trades || []).filter(t => t.date && Number(t.quantity) > 0 && Number(t.price) > 0);
+  if (!trades.length) return null;
+  const ymOf = d => { const [y, m] = d.split('-').map(Number); return y * 12 + (m - 1); };
+  let buys = 0, sells = 0, preTable = false;
+  const mirror = { cdi: 0, ibov: 0, ifix: 0 };
+  trades.forEach(t => {
+    const amt = Number(t.quantity) * Number(t.price);
+    const sign = isSellTrade(t) ? -1 : 1;
+    if (sign > 0) buys += amt; else sells += amt;
+    if (ymOf(t.date) < 2025 * 12) preTable = true;
+    Object.keys(mirror).forEach(k => { mirror[k] += sign * amt * (getBenchmarkMonthlyFactor(k, ymOf(t.date)) - 1); });
+  });
+  if (buys <= 0) return null;
+  let currentValue = 0;
+  getConsolidatedPortfolio().forEach(pos => {
+    const cur = AppState.stockMap[String(pos.symbol).toUpperCase()]?.close || pos.avgPrice || 0;
+    currentValue += (pos.quantity || 0) * cur;
+  });
+  const dividends = (AppState.portfolioDividends || []).filter(d => d.status === 'PAID').reduce((s, d) => s + (Number(d.valNet) || 0), 0);
+  const gain = currentValue + sells + dividends - buys;
+  return {
+    buys, sells, currentValue, dividends, gain, preTable,
+    retPct: (gain / buys) * 100,
+    priceGain: currentValue + sells - buys,
+    mirror: { cdi: mirror.cdi / buys * 100, ibov: mirror.ibov / buys * 100, ifix: mirror.ifix / buys * 100 }
+  };
+}
+
+function renderRealReturnCard() {
+  const box = document.getElementById('real-return-container');
+  if (!box) return;
+  const r = computeRealPortfolioReturn();
+  if (!r) { box.innerHTML = `<div class="state-box"><div class="state-title">Lance suas compras para ver a rentabilidade real</div></div>`; return; }
+  const fmtPct = v => (v >= 0 ? '+' : '') + NumFmt.num(v, 2) + '%';
+  const card = (label, v, extra, color) => `
+    <div class="bench-card">
+      <span class="stat-label">${label}</span>
+      <div class="bench-val" style="color:${color};">${fmtPct(v)}</div>
+      <span style="font-size:11px; color:var(--text-sub);">${extra}</span>
+    </div>`;
+  const vs = k => { const d = r.retPct - r.mirror[k]; return `${d >= 0 ? 'Você está ' + NumFmt.num(d, 1) + ' p.p. à frente' : 'Você está ' + NumFmt.num(-d, 1) + ' p.p. atrás'}`; };
+  const best = Object.entries(r.mirror).sort((a, b) => b[1] - a[1])[0];
+  const names = { cdi: 'CDI', ibov: 'Ibovespa', ifix: 'IFIX' };
+  box.innerHTML = `
+    <div class="grid grid-4">
+      ${card('💼 Minha carteira (real)', r.retPct, `Valorização ${NumFmt.money(r.priceGain)} + proventos ${NumFmt.money(r.dividends)} = ${NumFmt.money(r.gain)} sobre ${NumFmt.money(r.buys)} aportados`, r.retPct >= 0 ? 'var(--green)' : 'var(--red)')}
+      ${card('📈 Se fosse CDI', r.mirror.cdi, vs('cdi'), 'var(--yellow)')}
+      ${card('🏛️ Se fosse Ibovespa', r.mirror.ibov, vs('ibov'), r.mirror.ibov >= 0 ? 'var(--green)' : 'var(--red)')}
+      ${card('🏢 Se fosse IFIX', r.mirror.ifix, vs('ifix'), r.mirror.ifix >= 0 ? 'var(--green)' : 'var(--red)')}
+    </div>
+    <div style="font-size:12.5px; margin-top:10px;">${r.retPct >= best[1] ? `Sua carteira rendeu mais que os três índices com o mesmo dinheiro, nas mesmas datas.` : `O melhor índice seria o <strong>${names[best[0]]}</strong> (${fmtPct(best[1])}); sua carteira ficou ${NumFmt.num(best[1] - r.retPct, 1)} p.p. abaixo dele.`}</div>
+    <div style="font-size:11px; color:var(--text-sub); margin-top:4px;">Mesmos aportes e vendas, nas mesmas datas, aplicados no índice (juros compostos mensais a partir do mês seguinte). Proventos pagos incluídos; cotação atual do mercado.${r.preTable ? ' ⚠️ Há compras anteriores a jan/2025: a tabela de índices só começa em 2025, então para elas o índice conta só dali em diante (o índice fica subestimado).' : ''}</div>`;
+}
+
+// Alerta de oportunidade: favorito/ativo da carteira abaixo do Preco Teto
+// (planilha) ou do teto Barsi (DPA 5 anos / 6%). 1 aviso por ativo por semana.
+function checkPriceCeilingAlerts() {
+  const watched = new Set([...(AppState.favorites || []), ...(AppState.trades || []).map(t => t.symbol)].map(s => String(s).toUpperCase()));
+  const now = new Date();
+  const week = `${now.getFullYear()}-W${Math.ceil(((now - new Date(now.getFullYear(), 0, 1)) / 86400000 + 1) / 7)}`;
+  let dirty = false;
+  watched.forEach(sym => {
+    const price = AppState.stockMap[sym]?.close;
+    if (!(price > 0)) return;
+    const sheetTeto = AppState.precoTetoSheet?.[sym]?.precoTeto;
+    const fund = B3_FUNDAMENTAL_DB[sym];
+    const barsiTeto = fund && Number(fund.dpa5y) > 0 ? Number(fund.dpa5y) / 0.06 : null;
+    const hits = [];
+    if (sheetTeto > 0 && price <= sheetTeto) hits.push(`Preço Teto (planilha) ${NumFmt.money(sheetTeto)}`);
+    if (barsiTeto && price <= barsiTeto) hits.push(`Teto Barsi ${NumFmt.money(barsiTeto)}`);
+    if (!hits.length) return;
+    const alertId = `teto-${sym}-${week}`;
+    if (AppState.triggeredUnusualSpendingAlerts.includes(alertId)) return;
+    notifyUser(`🎯 ${sym} abaixo do teto`, `Cotação ${NumFmt.money(price)} — abaixo de: ${hits.join(' e ')}.`, alertId);
+    showToast(`🎯 ${sym} (${NumFmt.money(price)}) abaixo do teto: ${hits.join(' e ')}`, 'success');
+    AppState.triggeredUnusualSpendingAlerts.push(alertId);
+    dirty = true;
+  });
+  if (dirty) localStorage.setItem('b3_triggered_unusual_spending_alerts', JSON.stringify(AppState.triggeredUnusualSpendingAlerts));
+}
+
 async function renderFinanceView() {
   applyFinanceLayout();
   ensureDefaultFinanceCategoriesPresent();
@@ -9270,6 +9573,10 @@ async function renderFinanceView() {
   renderFinanceTagChart();
   renderFinanceCardUsageChart();
   renderFinanceAccountUsageChart();
+  renderFinanceGoalsSection();
+  renderFinanceSummaryText();
+  renderFinanceMonthCompare();
+  renderFinanceReconcile();
   renderFinanceGoalsSection();
   renderFinanceBudgetSection();
   renderFinanceIncomeNeedSection();
@@ -9550,7 +9857,7 @@ function renderFinanceTransactionsList() {
     return `
       <tr class="fav-table-row" style="cursor:pointer; ${tx.ignored ? 'opacity:0.55;' : ''}" onclick="openFinanceTransactionModal('${tx.id}')" title="Clique para editar">
         <td class="text-mono" style="font-size:12px;">${NumFmt.date(tx.date)}</td>
-        <td>${importEsc(displayDescription)} ${installmentBadge} ${splitBadge} ${ignoredBadge} ${invoiceBadge} ${(tx.tags || []).map(tag => `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);">🏷️ ${importEsc(tag)}</span>`).join(' ')}</td>
+        <td>${importEsc(displayDescription)} ${installmentBadge} ${splitBadge} ${ignoredBadge} ${invoiceBadge} ${(tx.type === 'investment' && /opera[cç][oõ]es bolsa/i.test(tx.description || '')) ? `<button type="button" class="btn btn-secondary btn-sm" style="font-size:10px; padding:1px 6px;" onclick="event.stopPropagation(); openFinanceBolsaToTrade('${tx.id}')" title="Abre a compra/venda da carteira com esta data">📈 Lançar na carteira</button>` : ''} ${(tx.tags || []).map(tag => `<span class="badge badge-flat" style="font-size:9.5px; color:var(--accent);">🏷️ ${importEsc(tag)}</span>`).join(' ')}</td>
         <td style="font-size:12px; color:var(--text-sub);">${cat ? cat.icon + ' ' + cat.name : '—'}</td>
         <td style="font-size:12px; color:var(--text-sub);">${acc ? (acc.icon || '') + ' ' + acc.name : 'Conta removida'}${tx.type === 'transfer' ? ' → ' + destAccName : ''}</td>
         <td class="text-right text-mono" style="font-weight:700; color:${amountColor};">${amountSign}${NumFmt.money(tx.amount)}</td>
@@ -17652,6 +17959,8 @@ async function checkAlerts() {
     spendDirty = true;
   }
   if (spendDirty) localStorage.setItem('b3_triggered_unusual_spending_alerts', JSON.stringify(AppState.triggeredUnusualSpendingAlerts));
+  checkBudgetAlerts(realMonth);
+  checkPriceCeilingAlerts();
 }
 
 // Avisos de vencimento alem do custo fixo "vencendo" acima: fatura de
