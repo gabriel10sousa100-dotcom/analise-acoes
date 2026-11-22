@@ -2803,7 +2803,7 @@
           <option value="month" id="finance-budget-scope-month-option">Só este mês</option>
         </select>
       </div>
-      <div style="font-size: 11px; color: var(--text-muted);">Limite mensal de gasto por categoria. Deixe em branco a categoria que não quiser limitar.</div>
+      <div style="font-size: 11px; color: var(--text-muted);">Limite mensal de gasto por categoria (e, mais abaixo, por tag). Deixe em branco o que não quiser limitar.</div>
       <div id="finance-budget-rows" style="display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto;"></div>
       <div style="display: flex; gap: 10px; margin-top: 4px;">
         <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeFinanceBudgetModal()">Cancelar</button>
@@ -10176,21 +10176,51 @@ function getMonthExpenseByCategoryId(month) {
   return byCat;
 }
 
+// Limite por TAG: fica no mesmo objeto de limites, com chave "tag:<nome sem
+// maiuscula/acento>" (nao colide com ids de categoria). O nome exibido fica em
+// financeBudgets.tagLabels. Despesa com varias tags conta em cada uma.
+function budgetTagKey(tag) {
+  return String(tag || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function getMonthExpenseByTagKey(month) {
+  const byTag = {};
+  (AppState.financeTransactions || []).forEach(tx => {
+    if (tx.type !== 'expense' || tx.ignored || tx.pending || getEffectiveMonth(tx) !== month) return;
+    const seen = new Set();
+    (tx.tags || []).forEach(t => {
+      const k = budgetTagKey(t);
+      if (!k || seen.has(k)) return;
+      seen.add(k);
+      byTag[k] = (byTag[k] || 0) + (Number(tx.amount) || 0);
+    });
+  });
+  return byTag;
+}
+
 function getBudgetStatusForMonth(month) {
   const limits = getBudgetLimitsForMonth(month);
   const spentByCat = getMonthExpenseByCategoryId(month);
+  const spentByTag = getMonthExpenseByTagKey(month);
+  const tagLabels = (AppState.financeBudgets && AppState.financeBudgets.tagLabels) || {};
   const cats = AppState.financeCategories || [];
-  const rows = Object.entries(limits)
-    .filter(([, limit]) => Number(limit) > 0)
+  const catRows = Object.entries(limits)
+    .filter(([key, limit]) => !key.startsWith('tag:') && Number(limit) > 0)
     .map(([categoryId, limit]) => {
       const spent = spentByCat[categoryId] || 0;
       return { categoryId, category: cats.find(c => c.id === categoryId), limit: Number(limit), spent, pct: (spent / Number(limit)) * 100 };
-    })
-    .sort((a, b) => b.pct - a.pct);
+    });
+  const tagRows = Object.entries(limits)
+    .filter(([key, limit]) => key.startsWith('tag:') && Number(limit) > 0)
+    .map(([key, limit]) => {
+      const spent = spentByTag[key.slice(4)] || 0;
+      return { isTag: true, tagLabel: tagLabels[key] || key.slice(4), limit: Number(limit), spent, pct: (spent / Number(limit)) * 100 };
+    });
+  const rows = [...catRows, ...tagRows].sort((a, b) => b.pct - a.pct);
   const unbudgetedSpent = Object.entries(spentByCat)
     .filter(([categoryId]) => !(Number(limits[categoryId]) > 0))
     .reduce((sum, [, v]) => sum + v, 0);
-  return { rows, unbudgetedSpent };
+  return { rows, catRows, unbudgetedSpent };
 }
 
 function renderFinanceBudgetSection() {
@@ -10199,7 +10229,7 @@ function renderFinanceBudgetSection() {
   const month = AppState.financeActiveMonth;
   const titleEl = document.getElementById('finance-budget-title');
   if (titleEl) titleEl.textContent = `🧮 Orçamento do Mês (${month})`;
-  const { rows, unbudgetedSpent } = getBudgetStatusForMonth(month);
+  const { rows, catRows, unbudgetedSpent } = getBudgetStatusForMonth(month);
   const totalEl = document.getElementById('finance-budget-total');
 
   if (rows.length === 0) {
@@ -10208,14 +10238,15 @@ function renderFinanceBudgetSection() {
     return;
   }
 
-  const totalLimit = rows.reduce((s, r) => s + r.limit, 0);
-  const totalSpent = rows.reduce((s, r) => s + r.spent, 0);
-  if (totalEl) totalEl.textContent = `${NumFmt.money(totalSpent)} de ${NumFmt.money(totalLimit)}`;
+  // O total soma so as categorias (despesa com tag ja esta numa categoria: somar tags dobraria)
+  const totalLimit = catRows.reduce((s, r) => s + r.limit, 0);
+  const totalSpent = catRows.reduce((s, r) => s + r.spent, 0);
+  if (totalEl) totalEl.textContent = catRows.length ? `${NumFmt.money(totalSpent)} de ${NumFmt.money(totalLimit)}` : '—';
 
   const color = pct => pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--yellow)' : 'var(--green)';
   container.innerHTML = rows.map(r => {
     const remaining = r.limit - r.spent;
-    const label = r.category ? `${r.category.icon} ${r.category.name}` : 'Categoria removida';
+    const label = r.isTag ? `🏷️ ${importEsc(r.tagLabel)}` : (r.category ? `${r.category.icon} ${r.category.name}` : 'Categoria removida');
     return `
       <div style="padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
         <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px;">
@@ -10245,11 +10276,31 @@ function openFinanceBudgetModal() {
   document.getElementById('finance-budget-scope-month-option').textContent = `Só ${month}`;
   document.getElementById('finance-budget-scope').value = hasMonthOverride ? 'month' : 'all';
   document.getElementById('finance-budget-clear-month-btn').style.display = hasMonthOverride ? 'inline-flex' : 'none';
+  const tagLabels = b.tagLabels || {};
+  const tagVariants = {};
+  (AppState.financeTransactions || []).forEach(tx => (tx.tags || []).forEach(t => {
+    const k = budgetTagKey(t);
+    if (!k) return;
+    tagVariants[k] = tagVariants[k] || {};
+    const name = String(t).trim();
+    tagVariants[k][name] = (tagVariants[k][name] || 0) + 1;
+  }));
+  Object.keys(limits).filter(k => k.startsWith('tag:')).forEach(k => {
+    if (!tagVariants[k.slice(4)]) tagVariants[k.slice(4)] = { [tagLabels[k] || k.slice(4)]: 1 };
+  });
+  const tagRowsHtml = Object.entries(tagVariants)
+    .map(([k, v]) => [k, Object.entries(v).sort((x, y) => y[1] - x[1])[0][0]])
+    .sort((x, y) => x[1].localeCompare(y[1], 'pt-BR'))
+    .map(([k, label]) => `
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="flex: 1; font-size: 13px;">🏷️ ${importEsc(label)}</span>
+      <input type="number" class="input-field finance-budget-tag-input" data-tag-key="${importEsc(k)}" data-tag-label="${importEsc(label)}" min="0" step="0.01" placeholder="Sem limite" value="${Number(limits['tag:' + k]) > 0 ? limits['tag:' + k] : ''}" style="width: 130px;">
+    </div>`).join('');
   document.getElementById('finance-budget-rows').innerHTML = cats.map(c => `
     <div style="display: flex; align-items: center; gap: 10px;">
       <span style="flex: 1; font-size: 13px;">${c.icon} ${c.name}</span>
       <input type="number" class="input-field finance-budget-input" data-category-id="${c.id}" min="0" step="0.01" placeholder="Sem limite" value="${Number(limits[c.id]) > 0 ? limits[c.id] : ''}" style="width: 130px;">
-    </div>`).join('');
+    </div>`).join('') + (tagRowsHtml ? `<div style="font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-top: 10px;">🏷️ Limite por tag (soma as despesas com essa tag, de qualquer categoria)</div>${tagRowsHtml}` : '');
   document.getElementById('finance-budget-modal').classList.add('active');
 }
 
@@ -10267,9 +10318,16 @@ function handleSaveFinanceBudget() {
     const v = parseFloat(input.value);
     if (!isNaN(v) && v > 0) limits[input.dataset.categoryId] = v;
   }
+  const newTagLabels = {};
+  for (const input of document.querySelectorAll('.finance-budget-tag-input')) {
+    if (input.validity && input.validity.badInput) { showToast('Valor inválido - digite só o número, ex: 500 ou 450,50.', 'error'); return; }
+    const v = parseFloat(input.value);
+    if (!isNaN(v) && v > 0) { limits['tag:' + input.dataset.tagKey] = v; newTagLabels['tag:' + input.dataset.tagKey] = input.dataset.tagLabel; }
+  }
 
   AppState.financeBudgets = AppState.financeBudgets || { default: {}, months: {} };
   AppState.financeBudgets.months = AppState.financeBudgets.months || {};
+  AppState.financeBudgets.tagLabels = { ...(AppState.financeBudgets.tagLabels || {}), ...newTagLabels };
   if (scope === 'month') {
     AppState.financeBudgets.months[month] = limits;
   } else {
