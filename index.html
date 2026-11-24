@@ -243,6 +243,41 @@
     .fin-toolbar-title { font-size: 11px; font-weight: 700; margin-right: 4px; }
     .fin-toolbar button { font-size: 11px; padding: 3px 7px; border: 1px solid rgba(0,0,0,0.15); border-radius: 6px; background: #f6f3ec; cursor: pointer; font-family: inherit; }
     .fin-toolbar button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .finance-disclosure { display: inline-flex; align-items: center; gap: 8px; padding: 2px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+    .finance-disclosure:hover { color: var(--accent); }
+    .finance-disclosure::before, .finance-file-actions summary::after { content: ''; flex: 0 0 6px; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); }
+    .finance-disclosure[aria-expanded="true"]::before, .finance-file-actions summary::after { transform: rotate(45deg); }
+    .finance-collapsible:has(> [hidden]) { align-self: start; }
+    .finance-collapsible:has(> [hidden]) > .card-header { margin-bottom: 0; }
+    .finance-tx-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .finance-file-actions { position: relative; }
+    .finance-file-actions summary { list-style: none; }
+    .finance-file-actions summary::-webkit-details-marker { display: none; }
+    .finance-file-actions[open] summary::after { transform: rotate(225deg); }
+    .finance-file-options { position: absolute; z-index: 8; inset-block-start: calc(100% + 4px); inset-inline-start: 0; min-width: 100%; padding: 4px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
+    .finance-file-options button { width: 100%; justify-content: flex-start; white-space: nowrap; }
+    .finance-month-delete-btn { color: var(--red); font-size: 16px; }
+    .finance-compare-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .finance-compare-table th, .finance-compare-table td { padding: 6px; }
+    .finance-compare-table th { color: var(--text-sub); font-size: 11px; text-transform: uppercase; overflow-wrap: anywhere; }
+    .finance-compare-table tbody tr { border-top: 1px solid var(--border); }
+    .finance-compare-table .finance-compare-total { border-top: 2px solid var(--border); font-weight: 700; }
+    .finance-compare-table .finance-compare-details-cell { padding: 10px; background: var(--bg); }
+    .finance-compare-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+    .finance-compare-details section { min-width: 0; padding: 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); }
+    .finance-compare-details h3 { font-size: 12px; margin-bottom: 6px; }
+    .finance-compare-details ul { list-style: none; }
+    .finance-compare-details li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); }
+    .finance-compare-details li > span:first-child, .finance-compare-table .finance-disclosure { overflow-wrap: anywhere; }
+    .finance-compare-details small { display: block; color: var(--text-sub); }
+    .finance-compare-details li .text-mono { flex-shrink: 0; color: var(--red); }
+    @media (max-width: 600px) {
+      .finance-compare-table .finance-compare-bars { display: none; }
+      .finance-compare-table { font-size: 11px; }
+      .finance-compare-table th { font-size: 10px; }
+      .finance-compare-table th, .finance-compare-table td { padding: 6px 3px; overflow-wrap: anywhere; }
+      .finance-compare-table .finance-disclosure { gap: 5px; }
+    }
 
     /* METRIC STAT CARD */
     .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
@@ -985,7 +1020,6 @@
           </div>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <button class="btn btn-secondary btn-sm" id="finance-layout-edit-btn" onclick="toggleFinanceLayoutEdit()" title="Mude a ordem, a largura e oculte quadrantes desta tela">🧩 Editar layout</button>
-            <button class="btn btn-secondary btn-sm" onclick="openGenericImportModal()" title="Importe um ou vários extratos (CSV, PDF ou print, de qualquer banco ou cartão); o app cruza os arquivos e identifica transferências entre contas">📥 Importar extrato</button>
             <button class="btn btn-secondary btn-sm" onclick="openFinanceHistoryModal()">🕒 Histórico</button>
             <div style="display: flex; gap: 8px; align-items: center;">
               <button class="btn btn-icon btn-sm" onclick="toggleFinanceMonth(-1)" title="Mês anterior">◀</button>
@@ -1055,12 +1089,14 @@
         </div>
 
         <!-- CONCILIACAO -->
-        <div class="card" style="margin-bottom: 20px;" data-fin-block="reconcile" data-fin-title="Conciliação com o banco" data-fin-default="full">
+        <div class="card finance-collapsible" style="margin-bottom: 20px;" data-fin-block="reconcile" data-fin-title="Conciliação com o banco" data-fin-default="full">
           <div class="card-header">
-            <div class="card-title">✅ Conciliação com o banco</div>
+            <h2 class="card-title"><button type="button" class="finance-disclosure" aria-expanded="true" aria-controls="finance-reconcile-panel" onclick="toggleFinanceDisclosure(this)">✅ Conciliação com o banco</button></h2>
           </div>
-          <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 6px;">Digite o saldo real que aparece no app do banco. O app mostra a diferença e, se quiser, passa a usar o saldo do banco como ponto de partida a partir de hoje.</p>
-          <div id="finance-reconcile-container"></div>
+          <div id="finance-reconcile-panel">
+            <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 6px;">Digite o saldo real que aparece no app do banco. O app mostra a diferença e, se quiser, passa a usar o saldo do banco como ponto de partida a partir de hoje.</p>
+            <div id="finance-reconcile-container"></div>
+          </div>
         </div>
 
         <!-- FILTROS -->
@@ -1083,31 +1119,41 @@
         </div>
 
         <!-- LANCAMENTOS -->
-        <div class="card" style="margin-bottom: 20px;" data-fin-block="transactions" data-fin-title="Lançamentos" data-fin-default="full">
+        <div class="card finance-collapsible" style="margin-bottom: 20px;" data-fin-block="transactions" data-fin-title="Lançamentos" data-fin-default="full">
           <div class="card-header">
-            <div class="card-title">Lançamentos</div>
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <h2 class="card-title"><button type="button" class="finance-disclosure" aria-expanded="true" aria-controls="finance-transactions-panel" onclick="toggleFinanceDisclosure(this)">Lançamentos</button></h2>
+            <div class="finance-tx-actions">
               <label for="finance-tx-account-filter" style="font-size:11px; font-weight:700; color:var(--text-sub); text-transform:uppercase;">Conta:</label>
               <select class="select-field" id="finance-tx-account-filter" onchange="setFinanceFilter('accountId', this.value)" style="width: 190px;">
                 <option value="all">Todas as Contas</option>
               </select>
               <button class="btn btn-secondary btn-sm" id="finance-calendar-toggle-btn" onclick="toggleFinanceCalendar()">📅 Ver Calendário</button>
-              <button class="btn btn-secondary btn-sm" onclick="handleExportFinanceCsv()">📤 Exportar CSV</button>
-              <button class="btn btn-secondary btn-sm" style="color:var(--red);" onclick="openFinanceMonthDeleteDialog()">Excluir movimentações do mês</button>
+              <details class="finance-file-actions" id="finance-file-actions"
+                       onfocusout="if (!this.contains(event.relatedTarget)) this.open = false;"
+                       onkeydown="if (event.key === 'Escape' && this.open) { event.stopPropagation(); closeFinanceFileActions(); }">
+                <summary class="btn btn-secondary btn-sm">Importar / Exportar</summary>
+                <div class="finance-file-options">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="closeFinanceFileActions(); openGenericImportModal()">📥 Importar extrato</button>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="closeFinanceFileActions(); handleExportFinanceCsv()">📤 Exportar CSV</button>
+                </div>
+              </details>
+              <button type="button" class="btn btn-icon btn-sm finance-month-delete-btn" title="Excluir movimentações do mês" aria-label="Excluir movimentações do mês" onclick="openFinanceMonthDeleteDialog()"><span aria-hidden="true">🗑️</span></button>
               <button class="btn btn-success btn-sm" onclick="openFinanceTransactionModal()">+ Novo Lançamento</button>
             </div>
           </div>
-          <div style="position: relative; margin-bottom: 12px;">
-            <input type="search" class="input-field" id="finance-tx-search" placeholder="🔎 Buscar lançamento por descrição, valor, categoria, tag ou data (ex: adidas, 30,00, 12/10/2026)" autocomplete="off" oninput="onFinanceSearchInput(this.value)" style="width: 100%;">
-          </div>
-          <div id="finance-search-info" style="display:none; font-size: 12px; color: var(--text-sub); margin-bottom: 10px;"></div>
-          <div id="finance-calendar-container" style="display:none; margin-bottom: 16px;"></div>
-          <div id="finance-day-filter-chip" style="display:none; margin-bottom: 10px;"></div>
-          <div class="table-responsive" id="finance-transactions-container">
-            <div class="state-box">
-              <div class="state-icon">💰</div>
-              <div class="state-title">Nenhum lançamento ainda</div>
-              <div class="state-desc">Cadastre uma conta e clique em "+ Novo Lançamento" para começar.</div>
+          <div id="finance-transactions-panel">
+            <div style="position: relative; margin-bottom: 12px;">
+              <input type="search" class="input-field" id="finance-tx-search" placeholder="🔎 Buscar lançamento por descrição, valor, categoria, tag ou data (ex: adidas, 30,00, 12/10/2026)" autocomplete="off" oninput="onFinanceSearchInput(this.value)" style="width: 100%;">
+            </div>
+            <div id="finance-search-info" style="display:none; font-size: 12px; color: var(--text-sub); margin-bottom: 10px;"></div>
+            <div id="finance-calendar-container" style="display:none; margin-bottom: 16px;"></div>
+            <div id="finance-day-filter-chip" style="display:none; margin-bottom: 10px;"></div>
+            <div class="table-responsive" id="finance-transactions-container">
+              <div class="state-box">
+                <div class="state-icon">💰</div>
+                <div class="state-title">Nenhum lançamento ainda</div>
+                <div class="state-desc">Cadastre uma conta e clique em "+ Novo Lançamento" para começar.</div>
+              </div>
             </div>
           </div>
         </div>
@@ -1158,6 +1204,7 @@
           <div class="card-header">
             <div class="card-title" id="finance-month-compare-title">📊 Mês x mês</div>
           </div>
+          <p class="card-subtitle" style="margin-bottom:8px;">Despesas por categoria. Clique em uma categoria para ver os lançamentos dos dois meses.</p>
           <div class="table-responsive" id="finance-month-compare-container"></div>
         </div>
 
@@ -1183,9 +1230,9 @@
         </div>
 
         <!-- QUANTO PRECISO RECEBER (necessidade de renda por mes) -->
-        <div class="card" style="margin-bottom: 20px;" data-fin-block="income-need" data-fin-title="Quanto preciso receber" data-fin-default="full">
-          <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
-            <div class="card-title">💡 Quanto Preciso Receber</div>
+        <div class="card finance-collapsible" style="margin-bottom: 20px;" data-fin-block="income-need" data-fin-title="Quanto preciso receber" data-fin-default="full">
+          <div class="card-header">
+            <h2 class="card-title"><button type="button" class="finance-disclosure" aria-expanded="true" aria-controls="finance-income-need-container" onclick="toggleFinanceDisclosure(this)">💡 Quanto Preciso Receber</button></h2>
             <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-sub);">
               Meta de investimento por mês (R$)
               <input type="number" class="input-field" id="finance-investment-goal-input" min="0" step="0.01" placeholder="0" style="width: 110px;" onchange="handleSaveInvestmentGoal()">
@@ -1195,9 +1242,9 @@
         </div>
 
         <!-- CUSTOS FIXOS -->
-        <div class="card" style="margin-bottom: 20px;" data-fin-block="fixed-costs" data-fin-title="Custos fixos" data-fin-default="full">
+        <div class="card finance-collapsible" style="margin-bottom: 20px;" data-fin-block="fixed-costs" data-fin-title="Custos fixos" data-fin-default="full">
           <div class="card-header">
-            <div class="card-title">📌 Custos Fixos</div>
+            <h2 class="card-title"><button type="button" class="finance-disclosure" aria-expanded="true" aria-controls="finance-fixedcosts-container" onclick="toggleFinanceDisclosure(this)">📌 Custos Fixos</button></h2>
             <div style="display: flex; align-items: center; gap: 10px;">
               <span class="status-pill" id="finance-fixedcosts-total" style="font-size:12px;">Total: R$ 0,00</span>
               <button class="btn btn-success btn-sm" onclick="openFinanceFixedCostModal()">+ Novo Custo Fixo</button>
@@ -8093,11 +8140,12 @@ function getEffectiveMonth(tx) {
 // Resumo do mes: Receita/Despesa/Saldo somam SO income/expense (transfer e
 // investment nunca entram aqui - sao movimentacao, nao ganho/gasto real).
 // Parcela pendente tambem fica de fora - ainda nao e gasto confirmado.
-function getFinanceMonthSummary(monthStr) {
+function getFinanceMonthSummary(monthStr, { includeExpenseDetails = false } = {}) {
   const txs = (AppState.financeTransactions || []).filter(tx => getEffectiveMonth(tx) === monthStr && !tx.ignored && !tx.pending);
   let income = 0, expense = 0;
   const byCategory = {};
   const byCategoryIncome = {};
+  const expenseDetails = includeExpenseDetails ? new Map() : null;
   txs.forEach(tx => {
     const amt = Number(tx.amount) || 0;
     const cat = (AppState.financeCategories || []).find(c => c.id === tx.categoryId);
@@ -8108,9 +8156,13 @@ function getFinanceMonthSummary(monthStr) {
     } else if (tx.type === 'expense') {
       expense += amt;
       byCategory[label] = (byCategory[label] || 0) + amt;
+      if (expenseDetails) {
+        if (!expenseDetails.has(label)) expenseDetails.set(label, []);
+        expenseDetails.get(label).push(tx);
+      }
     }
   });
-  return { income, expense, balance: income - expense, byCategory, byCategoryIncome };
+  return { income, expense, balance: income - expense, byCategory, byCategoryIncome, expenseDetails };
 }
 
 function getCardCurrentOpenCycle(cardAccountId) {
@@ -9083,6 +9135,19 @@ function toggleFinanceLayoutEdit() {
   applyFinanceLayout();
 }
 
+function toggleFinanceDisclosure(button) {
+  const panel = document.getElementById(button.getAttribute('aria-controls'));
+  panel.hidden = !panel.hidden;
+  button.setAttribute('aria-expanded', String(!panel.hidden));
+  return panel;
+}
+
+function closeFinanceFileActions() {
+  const actions = document.getElementById('finance-file-actions');
+  actions.open = false;
+  actions.querySelector('summary').focus();
+}
+
 function moveFinanceBlock(id, delta) {
   const items = resolveFinanceLayout();
   const i = items.findIndex(x => x.id === id);
@@ -9334,8 +9399,12 @@ function renderFinanceMonthCompare() {
   if (!box) return;
   const month = AppState.financeActiveMonth;
   const prev = addMonthsToYYYYMM(month, -1);
-  const cur = getFinanceMonthSummary(month);
-  const old = getFinanceMonthSummary(prev);
+  const cur = getFinanceMonthSummary(month, { includeExpenseDetails: true });
+  const old = getFinanceMonthSummary(prev, { includeExpenseDetails: true });
+  const openCategories = box.dataset.month === month
+    ? new Set(Array.from(box.querySelectorAll('[data-compare-category][aria-expanded="true"]'), button => button.dataset.compareCategory))
+    : new Set();
+  box.dataset.month = month;
   const titleEl = document.getElementById('finance-month-compare-title');
   if (titleEl) titleEl.textContent = `📊 ${finMonthLabel(month)} x ${finMonthLabel(prev)}`;
   const cats = [...new Set([...Object.keys(cur.byCategory), ...Object.keys(old.byCategory)])];
@@ -9346,26 +9415,67 @@ function renderFinanceMonthCompare() {
   }).sort((x, y) => Math.abs(y.diff) - Math.abs(x.diff));
   const max = Math.max(...rows.map(r => Math.max(r.a, r.b)), 1);
   const bar = (v, color) => `<div style="height:6px; border-radius:100px; background:${color}; width:${Math.max(2, (v / max) * 100)}%;"></div>`;
+  const accountNames = new Map((AppState.financeAccounts || []).map(account => [account.id, account.name]));
+  const details = category => `
+    <div class="finance-compare-details">
+      ${renderFinanceMonthExpenseDetails(month, cur.expenseDetails.get(category) || [], accountNames)}
+      ${renderFinanceMonthExpenseDetails(prev, old.expenseDetails.get(category) || [], accountNames)}
+    </div>`;
   box.innerHTML = `
-    <table style="width:100%; font-size:12.5px; border-collapse:collapse;">
-      <thead><tr style="text-align:left; color:var(--text-sub); font-size:11px; text-transform:uppercase;">
-        <th style="padding:6px;">Categoria</th><th style="padding:6px; text-align:right;">${finMonthLabel(month)}</th><th style="padding:6px; text-align:right;">${finMonthLabel(prev)}</th><th style="padding:6px; text-align:right;">Diferença</th><th style="padding:6px; width:22%;"></th></tr></thead>
-      <tbody>${rows.map(r => `
-        <tr style="border-top:1px solid rgba(0,0,0,0.06);">
-          <td style="padding:6px;">${importEsc(r.c)}</td>
-          <td style="padding:6px; text-align:right;" class="text-mono">${NumFmt.money(r.a)}</td>
-          <td style="padding:6px; text-align:right; color:var(--text-sub);" class="text-mono">${NumFmt.money(r.b)}</td>
-          <td style="padding:6px; text-align:right; font-weight:700; color:${r.diff > 0 ? 'var(--red)' : r.diff < 0 ? 'var(--green)' : 'var(--text-sub)'};" class="text-mono">${r.diff > 0 ? '▲ +' : r.diff < 0 ? '▼ ' : ''}${NumFmt.money(r.diff)}${r.pct != null ? ` <span style="font-weight:400; font-size:11px;">(${r.pct > 0 ? '+' : ''}${NumFmt.num(r.pct, 0)}%)</span>` : ' <span style="font-weight:400; font-size:11px;">(novo)</span>'}</td>
-          <td style="padding:6px;">${bar(r.a, 'var(--accent)')}<div style="height:2px;"></div>${bar(r.b, 'rgba(0,0,0,0.25)')}</td>
-        </tr>`).join('')}
-        <tr style="border-top:2px solid rgba(0,0,0,0.12); font-weight:700;">
-          <td style="padding:6px;">Total de despesas</td>
-          <td style="padding:6px; text-align:right;" class="text-mono">${NumFmt.money(cur.expense)}</td>
-          <td style="padding:6px; text-align:right;" class="text-mono">${NumFmt.money(old.expense)}</td>
-          <td style="padding:6px; text-align:right; color:${cur.expense > old.expense ? 'var(--red)' : 'var(--green)'};" class="text-mono">${NumFmt.money(cur.expense - old.expense)}</td><td></td>
+    <table class="finance-compare-table">
+      <thead><tr>
+        <th scope="col" style="text-align:left;">Categoria</th>
+        <th scope="col" class="text-right">${finMonthLabel(month)}</th>
+        <th scope="col" class="text-right">${finMonthLabel(prev)}</th>
+        <th scope="col" class="text-right">Diferença</th>
+        <th class="finance-compare-bars" style="width:22%;" aria-hidden="true"></th>
+      </tr></thead>
+      <tbody>${rows.map((r, index) => {
+        const id = `finance-compare-category-${index}`;
+        const open = openCategories.has(r.c);
+        return `
+          <tr>
+            <td><button type="button" class="finance-disclosure" aria-expanded="${open}" aria-controls="${id}" data-compare-category="${importEsc(r.c)}">${importEsc(r.c)}</button></td>
+            <td class="text-right text-mono">${NumFmt.money(r.a)}</td>
+            <td class="text-right text-mono" style="color:var(--text-sub);">${NumFmt.money(r.b)}</td>
+            <td class="text-right text-mono" style="font-weight:700; color:${r.diff > 0 ? 'var(--red)' : r.diff < 0 ? 'var(--green)' : 'var(--text-sub)'};">${r.diff > 0 ? '▲ +' : r.diff < 0 ? '▼ ' : ''}${NumFmt.money(r.diff)}${r.pct != null ? ` <span style="font-weight:400; font-size:11px;">(${r.pct > 0 ? '+' : ''}${NumFmt.num(r.pct, 0)}%)</span>` : ' <span style="font-weight:400; font-size:11px;">(novo)</span>'}</td>
+            <td class="finance-compare-bars" aria-hidden="true">${bar(r.a, 'var(--accent)')}<div style="height:2px;"></div>${bar(r.b, 'rgba(0,0,0,0.25)')}</td>
+          </tr>
+          <tr id="${id}"${open ? '' : ' hidden'}><td colspan="5" class="finance-compare-details-cell">${open ? details(r.c) : ''}</td></tr>`;
+      }).join('')}
+        <tr class="finance-compare-total">
+          <td>Total de despesas</td>
+          <td class="text-right text-mono">${NumFmt.money(cur.expense)}</td>
+          <td class="text-right text-mono">${NumFmt.money(old.expense)}</td>
+          <td class="text-right text-mono" style="color:${cur.expense > old.expense ? 'var(--red)' : 'var(--green)'};">${NumFmt.money(cur.expense - old.expense)}</td>
+          <td class="finance-compare-bars" aria-hidden="true"></td>
         </tr>
       </tbody></table>
-    <div style="font-size:11px; color:var(--text-sub); margin-top:6px;">Verde/vermelho: gastou menos/mais que no mês anterior. Barra escura = mês ativo; clara = mês anterior.</div>`;
+    <div class="card-subtitle" style="margin-top:6px;">Compras no cartão entram no mês da fatura. <span class="finance-compare-bars">Barra escura = mês ativo; clara = mês anterior.</span></div>`;
+
+  box.querySelector('tbody').addEventListener('click', event => {
+    const button = event.target.closest('[data-compare-category]');
+    if (!button) return;
+    const panel = toggleFinanceDisclosure(button);
+    const cell = panel.cells[0];
+    if (!panel.hidden && !cell.firstElementChild) cell.innerHTML = details(button.dataset.compareCategory);
+  });
+}
+
+function renderFinanceMonthExpenseDetails(month, transactions, accountNames) {
+  const rows = [...transactions].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return `
+    <section>
+      <h3>${finMonthLabel(month)}</h3>
+      ${rows.length ? `<ul>${rows.map(tx => {
+        const account = accountNames.get(tx.accountId);
+        return `
+          <li>
+            <span><strong>${importEsc(tx.description || 'Sem descrição')}</strong><small>${NumFmt.date(tx.date)}${account ? ` · ${importEsc(account)}` : ''}</small></span>
+            <span class="text-mono">${NumFmt.money(Number(tx.amount) || 0)}</span>
+          </li>`;
+      }).join('')}</ul>` : '<p class="card-subtitle">Nenhuma despesa nesta categoria.</p>'}
+    </section>`;
 }
 
 // Conciliacao: confere o saldo do app com o saldo real do banco
@@ -9941,6 +10051,8 @@ function handleConfirmPendingPayment() {
 }
 
 function toggleFinanceCalendar() {
+  const disclosure = document.querySelector('[aria-controls="finance-transactions-panel"]');
+  if (disclosure?.getAttribute('aria-expanded') === 'false') toggleFinanceDisclosure(disclosure);
   AppState.financeShowCalendar = !AppState.financeShowCalendar;
   const container = document.getElementById('finance-calendar-container');
   const btn = document.getElementById('finance-calendar-toggle-btn');
@@ -12784,6 +12896,7 @@ function openGenericImportModal() {
   setGenericImportStatus('');
   showGenericImportStep('file');
   document.getElementById('generic-import-modal').classList.add('active');
+  document.getElementById('generic-import-file-input').focus();
 }
 
 function closeGenericImportModal() {
@@ -18498,6 +18611,8 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.search-box-wrap')) {
     if (searchDropdown) searchDropdown.classList.remove('visible');
   }
+  const fileActions = document.getElementById('finance-file-actions');
+  if (fileActions?.open && !fileActions.contains(e.target)) fileActions.open = false;
 });
 
 async function executeSearch(query) {
