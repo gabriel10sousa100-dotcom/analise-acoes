@@ -267,10 +267,15 @@
     .finance-compare-details section { min-width: 0; padding: 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); }
     .finance-compare-details h3 { font-size: 12px; margin-bottom: 6px; }
     .finance-compare-details ul { list-style: none; }
-    .finance-compare-details li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); }
-    .finance-compare-details li > span:first-child, .finance-compare-table .finance-disclosure { overflow-wrap: anywhere; }
+    .finance-compare-details li { border-top: 1px solid var(--border); }
+    .finance-compare-edit { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; padding: 6px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+    .finance-compare-edit > span:first-child { min-width: 0; }
+    .finance-compare-edit > span:first-child, .finance-compare-table .finance-disclosure { overflow-wrap: anywhere; }
+    .finance-compare-edit > span:last-child { flex-shrink: 0; text-align: right; }
+    .finance-compare-edit:hover .finance-compare-edit-label { text-decoration: underline; }
+    .finance-compare-edit-label { display: block; color: var(--accent); font-size: 11px; font-weight: 600; }
     .finance-compare-details small { display: block; color: var(--text-sub); }
-    .finance-compare-details li .text-mono { flex-shrink: 0; color: var(--red); }
+    .finance-compare-edit .text-mono { color: var(--red); }
     @media (max-width: 600px) {
       .finance-compare-table .finance-compare-bars { display: none; }
       .finance-compare-table { font-size: 11px; }
@@ -1091,9 +1096,9 @@
         <!-- CONCILIACAO -->
         <div class="card finance-collapsible" style="margin-bottom: 20px;" data-fin-block="reconcile" data-fin-title="Conciliação com o banco" data-fin-default="full">
           <div class="card-header">
-            <h2 class="card-title"><button type="button" class="finance-disclosure" aria-expanded="true" aria-controls="finance-reconcile-panel" onclick="toggleFinanceDisclosure(this)">✅ Conciliação com o banco</button></h2>
+            <h2 class="card-title"><button type="button" class="finance-disclosure" aria-expanded="false" aria-controls="finance-reconcile-panel" onclick="toggleFinanceDisclosure(this)">✅ Conciliação com o banco</button></h2>
           </div>
-          <div id="finance-reconcile-panel">
+          <div id="finance-reconcile-panel" hidden>
             <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 6px;">Digite o saldo real que aparece no app do banco. O app mostra a diferença e, se quiser, passa a usar o saldo do banco como ponto de partida a partir de hoje.</p>
             <div id="finance-reconcile-container"></div>
           </div>
@@ -1121,7 +1126,7 @@
         <!-- LANCAMENTOS -->
         <div class="card finance-collapsible" style="margin-bottom: 20px;" data-fin-block="transactions" data-fin-title="Lançamentos" data-fin-default="full">
           <div class="card-header">
-            <h2 class="card-title"><button type="button" class="finance-disclosure" aria-expanded="true" aria-controls="finance-transactions-panel" onclick="toggleFinanceDisclosure(this)">Lançamentos</button></h2>
+            <h2 class="card-title"><button type="button" class="finance-disclosure" aria-expanded="false" aria-controls="finance-transactions-panel" onclick="toggleFinanceDisclosure(this)">Lançamentos</button></h2>
             <div class="finance-tx-actions">
               <label for="finance-tx-account-filter" style="font-size:11px; font-weight:700; color:var(--text-sub); text-transform:uppercase;">Conta:</label>
               <select class="select-field" id="finance-tx-account-filter" onchange="setFinanceFilter('accountId', this.value)" style="width: 190px;">
@@ -1141,7 +1146,7 @@
               <button class="btn btn-success btn-sm" onclick="openFinanceTransactionModal()">+ Novo Lançamento</button>
             </div>
           </div>
-          <div id="finance-transactions-panel">
+          <div id="finance-transactions-panel" hidden>
             <div style="position: relative; margin-bottom: 12px;">
               <input type="search" class="input-field" id="finance-tx-search" placeholder="🔎 Buscar lançamento por descrição, valor, categoria, tag ou data (ex: adidas, 30,00, 12/10/2026)" autocomplete="off" oninput="onFinanceSearchInput(this.value)" style="width: 100%;">
             </div>
@@ -1232,25 +1237,25 @@
         <!-- QUANTO PRECISO RECEBER (necessidade de renda por mes) -->
         <div class="card finance-collapsible" style="margin-bottom: 20px;" data-fin-block="income-need" data-fin-title="Quanto preciso receber" data-fin-default="full">
           <div class="card-header">
-            <h2 class="card-title"><button type="button" class="finance-disclosure" aria-expanded="true" aria-controls="finance-income-need-container" onclick="toggleFinanceDisclosure(this)">💡 Quanto Preciso Receber</button></h2>
+            <h2 class="card-title"><button type="button" class="finance-disclosure" aria-expanded="false" aria-controls="finance-income-need-container" onclick="toggleFinanceDisclosure(this)">💡 Quanto Preciso Receber</button></h2>
             <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-sub);">
               Meta de investimento por mês (R$)
               <input type="number" class="input-field" id="finance-investment-goal-input" min="0" step="0.01" placeholder="0" style="width: 110px;" onchange="handleSaveInvestmentGoal()">
             </label>
           </div>
-          <div class="table-responsive" id="finance-income-need-container" style="margin-top: 4px;"></div>
+          <div class="table-responsive" id="finance-income-need-container" style="margin-top: 4px;" hidden></div>
         </div>
 
         <!-- CUSTOS FIXOS -->
         <div class="card finance-collapsible" style="margin-bottom: 20px;" data-fin-block="fixed-costs" data-fin-title="Custos fixos" data-fin-default="full">
           <div class="card-header">
-            <h2 class="card-title"><button type="button" class="finance-disclosure" aria-expanded="true" aria-controls="finance-fixedcosts-container" onclick="toggleFinanceDisclosure(this)">📌 Custos Fixos</button></h2>
+            <h2 class="card-title"><button type="button" class="finance-disclosure" aria-expanded="false" aria-controls="finance-fixedcosts-container" onclick="toggleFinanceDisclosure(this)">📌 Custos Fixos</button></h2>
             <div style="display: flex; align-items: center; gap: 10px;">
               <span class="status-pill" id="finance-fixedcosts-total" style="font-size:12px;">Total: R$ 0,00</span>
               <button class="btn btn-success btn-sm" onclick="openFinanceFixedCostModal()">+ Novo Custo Fixo</button>
             </div>
           </div>
-          <div class="table-responsive" id="finance-fixedcosts-container" style="margin-top: 4px;"></div>
+          <div class="table-responsive" id="finance-fixedcosts-container" style="margin-top: 4px;" hidden></div>
         </div>
 
         <!-- PAGAMENTOS PROGRAMADOS (parcelas fora do cartao, ex: Pix futuro, ainda nao confirmadas) -->
@@ -9469,10 +9474,14 @@ function renderFinanceMonthExpenseDetails(month, transactions, accountNames) {
       <h3>${finMonthLabel(month)}</h3>
       ${rows.length ? `<ul>${rows.map(tx => {
         const account = accountNames.get(tx.accountId);
+        const description = importEsc(tx.description || 'Sem descrição');
         return `
           <li>
-            <span><strong>${importEsc(tx.description || 'Sem descrição')}</strong><small>${NumFmt.date(tx.date)}${account ? ` · ${importEsc(account)}` : ''}</small></span>
-            <span class="text-mono">${NumFmt.money(Number(tx.amount) || 0)}</span>
+            <button type="button" class="finance-compare-edit" data-transaction-id="${importEsc(tx.id)}"
+                    aria-label="Editar ${description}" onclick="openFinanceTransactionModal(this.dataset.transactionId)">
+              <span><strong>${description}</strong><small>${NumFmt.date(tx.date)}${account ? ` · ${importEsc(account)}` : ''}</small></span>
+              <span><span class="text-mono">${NumFmt.money(Number(tx.amount) || 0)}</span><span class="finance-compare-edit-label">Editar</span></span>
+            </button>
           </li>`;
       }).join('')}</ul>` : '<p class="card-subtitle">Nenhuma despesa nesta categoria.</p>'}
     </section>`;
@@ -9669,6 +9678,7 @@ async function renderFinanceView() {
   ensureDefaultFinanceCategoriesPresent();
   const monthLabel = document.getElementById('finance-active-month-label');
   if (monthLabel) monthLabel.textContent = formatFinanceMonth(AppState.financeActiveMonth);
+  renderFinanceMonthCompare();
   // Garante stockMap atualizado pra o Patrimonio Liquido usar cotacao de
   // mercado real, nao a que por acaso ja estava em cache de uma visita
   // anterior a outra aba (mesmo padrao de renderPortfolioView).
@@ -9685,7 +9695,6 @@ async function renderFinanceView() {
   renderFinanceAccountUsageChart();
   renderFinanceGoalsSection();
   renderFinanceSummaryText();
-  renderFinanceMonthCompare();
   renderFinanceReconcile();
   renderFinanceGoalsSection();
   renderFinanceBudgetSection();
@@ -11164,17 +11173,19 @@ function setFinanceFilter(key, value, btnEl) {
 function openFinanceTransactionModal(editId = '', draft = null) {
   const modal = document.getElementById('finance-transaction-modal');
   const importStaging = draft ? AppState.genericImportStaging : null;
-  const accounts = (importStaging?.accounts || AppState.financeAccounts || []).filter(a => !a.archived);
+  const tx = draft || (editId ? (AppState.financeTransactions || []).find(t => t.id === editId) : null);
+  if (editId && !tx) return;
+  const accounts = (importStaging?.accounts || AppState.financeAccounts || [])
+    .filter(a => !a.archived || a.id === tx?.accountId || a.id === tx?.transferAccountId);
   if (accounts.length === 0) { showToast('Cadastre uma conta antes de lançar.', 'warn'); return; }
 
   document.getElementById('finance-tx-edit-id').value = editId;
   const accSel = document.getElementById('finance-tx-account');
   const transferSel = document.getElementById('finance-tx-transfer-account');
-  const optsHtml = accounts.map(a => `<option value="${importEsc(a.id)}">${importEsc((a.icon || '') + ' ' + a.name)}</option>`).join('');
+  const optsHtml = accounts.map(a => `<option value="${importEsc(a.id)}">${importEsc((a.icon || '') + ' ' + a.name)}${a.archived ? ' (arquivada)' : ''}</option>`).join('');
   accSel.innerHTML = optsHtml;
   transferSel.innerHTML = optsHtml;
 
-  const tx = draft || (editId ? (AppState.financeTransactions || []).find(t => t.id === editId) : null);
   const typeSel = document.getElementById('finance-tx-type');
   const isInstallmentTx = !draft && !!(tx && tx.installmentTotal > 1);
   // Parcelado e editado como a compra inteira: valor TOTAL, data/conta da
@@ -11189,7 +11200,7 @@ function openFinanceTransactionModal(editId = '', draft = null) {
   typeSel.value = tx ? tx.type : 'expense';
   typeSel.disabled = isInstallmentTx || !!importStaging?.editor?.row.pair;
   document.getElementById('finance-tx-import-pair-note').hidden = !importStaging?.editor?.row.pair;
-  document.getElementById('finance-tx-description').value = draft ? draft.description : tx ? tx.description.replace(/\s*\(\d+\/\d+\)$/, '') : '';
+  document.getElementById('finance-tx-description').value = draft ? draft.description : (tx?.description || '').replace(/\s*\(\d+\/\d+\)$/, '');
   document.getElementById('finance-tx-amount').value = group
     ? parseFloat(group.reduce((s, t) => s + (Number(t.amount) || 0), 0).toFixed(2))
     : (tx ? tx.amount : '');
@@ -11223,7 +11234,16 @@ function openFinanceTransactionModal(editId = '', draft = null) {
   document.getElementById('finance-tx-import-keyword').value = importStaging?.editor?.row.similarName || '';
 
   onFinanceTransactionTypeChange();
-  if (draft || tx?.categoryId) document.getElementById('finance-tx-category').value = tx.categoryId || '';
+  if (draft || tx?.type === 'expense' || tx?.type === 'income') {
+    const categorySelect = document.getElementById('finance-tx-category');
+    const categoryId = tx.categoryId || '';
+    if (!draft && ![...categorySelect.options].some(option => option.value === categoryId)) {
+      const category = (AppState.financeCategories || []).find(c => c.id === categoryId);
+      const label = category ? `${category.icon} ${category.name}${category.archived ? ' (arquivada)' : ''}` : 'Sem categoria';
+      categorySelect.add(new Option(label, categoryId));
+    }
+    categorySelect.value = categoryId;
+  }
   if (draft?.splits.length) {
     document.getElementById('finance-tx-is-split').checked = true;
     document.getElementById('finance-tx-split-box').style.display = 'block';
@@ -11237,6 +11257,7 @@ function openFinanceTransactionModal(editId = '', draft = null) {
   if (draft) document.getElementById('generic-import-modal').inert = true;
   modal.classList.add('active');
   if (draft) document.getElementById('finance-tx-description').focus();
+  else if (editId) modal.querySelector('.modal-close').focus();
 }
 
 function closeFinanceTransactionModal() {
